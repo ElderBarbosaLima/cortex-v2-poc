@@ -23,6 +23,9 @@ colima start --vm-type vz --arch aarch64 --cpu 4 --memory 8 --disk 60 --mount-ty
 Add `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` to `~/.docker/config.json`
 so `docker compose` and `docker buildx` are found.
 
+Keep the clone under your home directory: Colima only shares `$HOME` with its VM, so a clone in
+`/tmp` builds fine but the test containers see an empty bind mount ("no tests ran").
+
 ## Run
 
 ```bash
