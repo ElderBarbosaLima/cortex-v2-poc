@@ -14,7 +14,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
-        test test-integration lint format typecheck
+        test test-integration probe-emulator lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -59,6 +59,11 @@ build-multiarch: ## Build every image for linux/arm64 and linux/amd64 (no push, 
 	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) \
 		-f services/org-brain-service/Dockerfile --target runtime .
 	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) -f infra/postgres/Dockerfile .
+	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) infra/aws-emulator
+
+probe-emulator: init-env build-tools ## AWS Emulator fidelity probe -> docs/emulator-probe-<version>.md (gate for AWS issues)
+	$(COMPOSE) up -d --build --wait aws-emulator
+	$(COMPOSE) run --rm aws-probe
 
 lock: init-env ## Regenerate Pipfile.lock (SVC=<service>, default org-brain-service)
 	SVC=$(SVC) $(COMPOSE) run --rm --no-deps pipenv-lock
@@ -74,10 +79,10 @@ test-integration: ## Integration tests on an ephemeral stack (own project, no ho
 		status=$$?; $(TEST_COMPOSE) down -v --remove-orphans >/dev/null 2>&1; exit $$status
 
 lint: build-tools ## Ruff check + format check
-	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests && pipenv run ruff format --check app tests"
+	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts && pipenv run ruff format --check app tests scripts"
 
 format: build-tools ## Ruff format + autofix (writes to the working tree)
-	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests && pipenv run ruff check --fix app tests"
+	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts && pipenv run ruff check --fix app tests scripts"
 
 typecheck: build-tools ## Pyright (strict on app/)
 	$(DEV_TOOLS) pipenv run pyright

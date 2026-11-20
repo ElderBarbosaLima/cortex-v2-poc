@@ -29,7 +29,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["B008"]
 
 [tool.pyright]
-include = ["app", "tests"]
+include = ["app", "tests", "scripts"]
 extraPaths = ["."]
 pythonVersion = "3.12"
 strict = ["app"]

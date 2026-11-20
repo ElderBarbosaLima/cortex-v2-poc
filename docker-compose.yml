@@ -12,7 +12,43 @@ x-org-brain-db-env: &org-brain-db-env
   ORG_BRAIN_OWNER_USER: org_brain_owner
   ORG_BRAIN_OWNER_PASSWORD: ${ORG_BRAIN_OWNER_PASSWORD:?set it in .env (make init-env)}
 
+# Every AWS client (probe, terraform, later org-brain) uses the normal SDK,
+# configured only by these variables (docs/discovery.md 3.2). They join the
+# emulator's network namespace (network_mode: service:aws-emulator) and reach
+# it on 127.0.0.1, the only host its certificate and S3 handling are
+# documented for. Credentials, config and CA are regenerated on every start
+# and read from the shared volume, never copied into .env or code.
+x-aws-client-env: &aws-client-env
+  AWS_ENDPOINT_URL: https://127.0.0.1:9297
+  AWS_CA_BUNDLE: /home/emulator/.aws/emulator/9297/ca.pem
+  AWS_SHARED_CREDENTIALS_FILE: /home/emulator/.aws/emulator/9297/emulator_credentials
+  AWS_CONFIG_FILE: /home/emulator/.aws/emulator/9297/config
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_EC2_METADATA_DISABLED: "true"
+  AWS_DISABLE_HOST_PREFIX_INJECTION: "true"
+
 services:
+  aws-emulator:
+    build:
+      context: infra/aws-emulator
+    image: cortex-poc/aws-emulator:1.0.545
+    environment:
+      EMULATOR_TELEMETRY: "off"
+    mem_limit: 2g
+    memswap_limit: 2g
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator
+    ports:
+      - "127.0.0.1:9297:9297"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--cacert", "/home/emulator/.aws/emulator/9297/ca.pem", "https://127.0.0.1:9297/__admin/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      - cortex
+
   postgres:
     build:
       context: .
@@ -81,6 +117,28 @@ services:
       - ./services/org-brain-service:/app
       - ./libraries:/libraries
 
+  # `make probe-emulator`: fidelity probe of every AWS operation the PoC uses.
+  # Writes docs/emulator-probe-<version>.md and exits non-zero if a required
+  # operation is missing (issue 3 gate).
+  aws-probe:
+    profiles: ["tools"]
+    image: cortex-poc/org-brain-service:dev-tools
+    network_mode: service:aws-emulator
+    depends_on:
+      aws-emulator:
+        condition: service_healthy
+    environment:
+      <<: *aws-client-env
+      EMULATOR_VERSION: "1.0.545"
+      EMULATOR_SHA256_ARM64: d1082db735e385a363ef9983a72f419fdb2e113e0a6917357b0fb027ba2388d6
+      EMULATOR_SHA256_AMD64: c2459541d26a982239be74d38118bc87cc016907be4c055d8d12d72f575cb001
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator:ro
+      - ./services/org-brain-service:/app
+      - ./libraries:/libraries
+      - ./docs:/docs
+    command: ["pipenv", "run", "python", "scripts/aws_probe.py", "--out-dir", "/docs"]
+
   # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
   pipenv-lock:
     profiles: ["tools"]
@@ -98,3 +156,4 @@ networks:
 
 volumes:
   postgres-data:
+  aws-emulator-home:

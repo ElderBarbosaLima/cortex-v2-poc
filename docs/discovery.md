@@ -132,6 +132,16 @@ Este documento não contém código. Ele registra o que a PoC vai seguir, o que 
 - **Telemetria:** `--telemetry off` + `EMULATOR_TELEMETRY=off`.
 - Aplicação usa boto3 normal configurado só por env; nenhum `if emulator` no código.
 
+### 3.3 Resultado da sonda (issue 3, 20 nov 2026, emulador 1.0.545)
+Relatório completo: [`emulator-probe-1.0.545.md`](emulator-probe-1.0.545.md). **Gate: PASS.**
+- **Todas as operações obrigatórias funcionam**: S3 (inclusive toda a família `GetBucket*` que o Terraform lê no refresh), KMS (`CreateKey`, `CreateAlias`, `GenerateDataKey` com `EncryptionContext`, `Decrypt`, `ScheduleKeyDeletion`) e Secrets Manager (`CreateSecret`, `PutSecretValue`, `GetSecretValue`, `GetResourcePolicy`).
+- **Object Lock funciona**: bucket com Object Lock, retenção COMPLIANCE padrão e por objeto, `GetObjectRetention`, e o `DeleteObject(VersionId)` sob retenção é **recusado** (`AccessDenied`). O fallback da Q11 (xfail) não deve ser necessário; R3 fica reduzido a "fidelidade do emulador ≠ prova no S3/COS real".
+- **Crypto-shredding funciona**: depois de `ScheduleKeyDeletion` a chave fica `PendingDeletion` e o `Decrypt` do DEK embrulhado falha com `KMSInvalidStateException`. `DisableKey` também bloqueia (`DisabledException`). `Decrypt` com outro `EncryptionContext` falha (`InvalidCiphertextException`), o que permite amarrar cada DEK ao tenant/registro.
+- **KMS `TagResource` deixou de ser 501** nesta versão (a issue de 22 out está desatualizada). Mesmo assim, as chaves KMS ficam fora do Terraform (são por tenant, criadas em runtime).
+- **Certificado (R4 resolvido):** SAN = `localhost`, `127.0.0.1`, `::1`; a verificação de hostname falha para `aws-emulator`. Confirma a decisão de `network_mode: service:aws-emulator` + `https://127.0.0.1:9297` com TLS verificado.
+- Credenciais e CA mudam a cada start (confirmado pela impressão digital da access key no relatório); os clientes releem do volume.
+- O emulador roda como uid 10001 (o mesmo do usuário de runtime do org-brain) porque grava os arquivos com modo `0600` e os clientes precisam lê-los do volume montado `ro`.
+
 ---
 
 ## 4. Divergências `main` × `uat` relevantes

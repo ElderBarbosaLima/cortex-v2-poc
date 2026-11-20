@@ -9,6 +9,8 @@ uvicorn = {extras = ["standard"], version = ">=0.34.0"}
 pydantic-settings = ">=2.0.0"
 structlog = ">=24.0.0"
 psycopg2-binary = "*"
+boto3 = ">=1.35.0"
+cryptography = ">=43.0.0"
 
 [dev-packages]
 pytest = ">=8.0.0"
