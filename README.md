@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–2 of 29 (skeleton, Postgres). Most of what the docs describe is not built yet.
+> Status: issues 1–3 of 29 (skeleton, Postgres, AWS Emulator). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -45,18 +45,35 @@ make stop                             # stops everything and deletes volumes: th
 | `make lint` / `make format` | Ruff check + format check / Ruff format + fix |
 | `make typecheck` | Pyright (strict on `app/`) |
 | `make build-multiarch` | builds the images for `linux/arm64` and `linux/amd64` |
+| `make probe-emulator` | AWS Emulator fidelity probe → [`docs/emulator-probe-1.0.545.md`](docs/emulator-probe-1.0.545.md); exits non-zero if a required operation is missing |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
 ## Services
 
 | Service | What | Host port |
 |---|---|---|
+| `aws-emulator` | AWS Emulator 1.0.545 (S3, KMS, Secrets Manager), built from the signed RPM (`infra/aws-emulator/`) | `127.0.0.1:9297` (HTTPS) |
 | `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
 | `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
 
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
 `.env` (see `.env.example`); `make init-env` adds keys a new issue introduces without touching yours.
+
+### AWS Emulator
+
+AWS services (S3, KMS, Secrets Manager) come from the [AWS Emulator](https://github.com/aws/aws-emulator),
+standing in for IBM COS, Key Protect and Secrets Manager (Rev. C). The application uses the normal
+AWS SDK, configured only by environment variables (`x-aws-client-env` in `docker-compose.yml`).
+
+- Its certificate is valid for `localhost`/`127.0.0.1` only, so AWS clients join the emulator's
+  network namespace (`network_mode: service:aws-emulator`) and call `https://127.0.0.1:9297` with
+  TLS verification on.
+- It keeps all state in memory and regenerates its CA and credentials on every start. Clients read
+  them from a shared read-only volume; nothing is copied into `.env` or code. Restarting the
+  emulator loses every bucket, secret and key: that is why the whole stack is ephemeral.
+- Telemetry is off (`--telemetry off`).
+- It does not enforce IAM: "works locally" is not proof of a permission.
 
 ## Layout
 
