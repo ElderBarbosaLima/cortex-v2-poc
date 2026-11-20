@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issue 1 of 29 (skeleton). Most of what the docs describe is not built yet.
+> Status: issues 1–2 of 29 (skeleton, Postgres). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -41,10 +41,22 @@ make stop                             # stops everything and deletes volumes: th
 | Target | What it runs |
 |---|---|
 | `make test` | hermetic unit tests (no network, no stack) — see [ADR 0001](docs/adr/0001-test-tiers.md) |
+| `make test-integration` | integration tests on an ephemeral stack (`-p cortex-poc-test`, no host ports, wiped after) |
 | `make lint` / `make format` | Ruff check + format check / Ruff format + fix |
 | `make typecheck` | Pyright (strict on `app/`) |
 | `make build-multiarch` | builds the images for `linux/arm64` and `linux/amd64` |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
+
+## Services
+
+| Service | What | Host port |
+|---|---|---|
+| `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
+| `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
+
+Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
+service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
+`.env` (see `.env.example`); `make init-env` adds keys a new issue introduces without touching yours.
 
 ## Layout
 
