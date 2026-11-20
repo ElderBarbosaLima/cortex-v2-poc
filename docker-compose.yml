@@ -1,0 +1,59 @@
+# Cortex v2 PoC. Always driven through `make` (make help).
+# The stack is ephemeral (docs/discovery.md 9.2, Q4): `make stop` removes
+# containers AND volumes. Host ports bind to 127.0.0.1 only.
+name: cortex-poc
+
+services:
+  org-brain-service:
+    build:
+      context: .
+      dockerfile: services/org-brain-service/Dockerfile
+      target: runtime
+    image: cortex-poc/org-brain-service:dev
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SERVICE_NAME: org-brain-service
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    ports:
+      - "127.0.0.1:${ORG_BRAIN_SERVICE_PORT:-5008}:5008"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5008/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - cortex
+
+  # ── tools (profile "tools": never started by `make dev`) ──────────────────
+
+  # Unit tests, lint and typecheck. No network at all: the hermetic rule is
+  # enforced by the container as well as by the socket guard.
+  org-brain-dev:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: services/org-brain-service/Dockerfile
+      target: dev
+    image: cortex-poc/org-brain-service:dev-tools
+    network_mode: none
+    volumes:
+      - ./services/org-brain-service:/app
+      - ./libraries:/libraries
+
+  # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
+  pipenv-lock:
+    profiles: ["tools"]
+    image: python:3.12.16-slim-trixie
+    working_dir: /repo/services/${SVC:-org-brain-service}
+    environment:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_ROOT_USER_ACTION: ignore
+    command: ["sh", "-c", "pip install -q pipenv==2026.10.6 && pipenv lock"]
+    volumes:
+      - .:/repo
+
+networks:
+  cortex:

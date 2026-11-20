@@ -1,0 +1,36 @@
+[project]
+name = "cortex-poc-org-brain-service"
+version = "0.1.0"
+description = "Cortex v2 PoC — org-brain-service"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # Starlette now points TestClient users at `httpx2`; the monorepo still
+    # standardises on httpx, so keep it until the house moves.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+pythonpath = ["."]
+addopts = "--durations=10 -m 'not integration'"
+markers = [
+    "integration: needs the ephemeral test stack (make test-integration); deselected by default",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+# FastAPI Depends / Query in argument defaults is the framework pattern (B008).
+ignore = ["B008"]
+
+[tool.pyright]
+include = ["app", "tests"]
+extraPaths = ["."]
+pythonVersion = "3.12"
+strict = ["app"]
+reportMissingTypeStubs = false

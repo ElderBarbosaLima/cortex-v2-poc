@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = ">=0.115.0"
+uvicorn = {extras = ["standard"], version = ">=0.34.0"}
+pydantic-settings = ">=2.0.0"
+structlog = ">=24.0.0"
+
+[dev-packages]
+pytest = ">=8.0.0"
+pytest-asyncio = ">=0.24.0"
+httpx = ">=0.28.0"
+ruff = ">=0.4.0"
+# The nodejs extra bundles Node in a wheel, so pyright runs with no network.
+pyright = {extras = ["nodejs"], version = ">=1.1.0"}
+arbitr-test-utils = {path = "./../../libraries/arbitr-test-utils", editable = true}
+
+[requires]
+python_version = "3.12"

@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.DS_Store
+node_modules/
+.nuxt/
+.output/
+*.tfstate
+*.tfstate.*
+.terraform/
+*.egg-info/
