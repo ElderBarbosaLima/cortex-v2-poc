@@ -1,0 +1,50 @@
+# Ephemeral integration-test stack (docs/adr/0001-test-tiers.md).
+# Always run as its own compose project:  make test-integration
+#   -p cortex-poc-test: never shares containers, networks or volumes with `make dev`
+#   no host ports; data on tmpfs; `down -v` after every run.
+# The passwords below exist only inside this throwaway stack.
+name: cortex-poc-test
+
+x-test-db-env: &test-db-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: org_brain
+  ORG_BRAIN_APP_USER: org_brain_app
+  ORG_BRAIN_APP_PASSWORD: test-app
+  ORG_BRAIN_OWNER_USER: org_brain_owner
+  ORG_BRAIN_OWNER_PASSWORD: test-owner
+  POSTGRES_SUPERUSER_PASSWORD: test-superuser
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: infra/postgres/Dockerfile
+    image: cortex-poc/postgres:16-pgvector0.8.7-bigm1.2.20250903
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test-superuser
+      ORG_BRAIN_OWNER_PASSWORD: test-owner
+      ORG_BRAIN_APP_PASSWORD: test-app
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "org_brain"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  org-brain-it:
+    build:
+      context: .
+      dockerfile: services/org-brain-service/Dockerfile
+      target: dev
+    image: cortex-poc/org-brain-service:dev-tools
+    environment:
+      <<: *test-db-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/org-brain-service:/app
+      - ./libraries:/libraries

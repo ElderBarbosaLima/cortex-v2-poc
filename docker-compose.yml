@@ -3,7 +3,41 @@
 # containers AND volumes. Host ports bind to 127.0.0.1 only.
 name: cortex-poc
 
+x-org-brain-db-env: &org-brain-db-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: org_brain
+  ORG_BRAIN_APP_USER: org_brain_app
+  ORG_BRAIN_APP_PASSWORD: ${ORG_BRAIN_APP_PASSWORD:?set it in .env (make init-env)}
+  ORG_BRAIN_OWNER_USER: org_brain_owner
+  ORG_BRAIN_OWNER_PASSWORD: ${ORG_BRAIN_OWNER_PASSWORD:?set it in .env (make init-env)}
+
 services:
+  postgres:
+    build:
+      context: .
+      dockerfile: infra/postgres/Dockerfile
+    image: cortex-poc/postgres:16-pgvector0.8.7-bigm1.2.20250903
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env (make init-env)}
+      ORG_BRAIN_OWNER_PASSWORD: ${ORG_BRAIN_OWNER_PASSWORD:?set it in .env (make init-env)}
+      ORG_BRAIN_APP_PASSWORD: ${ORG_BRAIN_APP_PASSWORD:?set it in .env (make init-env)}
+    ports:
+      - "127.0.0.1:${CORTEX_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # TCP on purpose: during first-boot init the server listens on the unix
+      # socket only, so a socket check would report healthy before the init
+      # scripts (roles, extensions) have run.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "org_brain"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      - cortex
+
   org-brain-service:
     build:
       context: .
@@ -14,9 +48,13 @@ services:
       - path: .env
         required: false
     environment:
+      <<: *org-brain-db-env
       SERVICE_NAME: org-brain-service
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${ORG_BRAIN_SERVICE_PORT:-5008}:5008"
     healthcheck:
@@ -57,3 +95,6 @@ services:
 
 networks:
   cortex:
+
+volumes:
+  postgres-data:

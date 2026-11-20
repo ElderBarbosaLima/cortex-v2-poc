@@ -2,6 +2,7 @@
 # docker compose; the host only needs Docker. Run `make help`.
 
 COMPOSE   ?= docker compose
+TEST_COMPOSE = docker compose -p cortex-poc-test -f docker-compose.test.yml
 SVC       ?= org-brain-service
 DEV_TOOLS  = $(COMPOSE) run --rm --no-deps org-brain-dev
 PLATFORMS ?= linux/arm64,linux/amd64
@@ -13,7 +14,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
-        test lint format typecheck
+        test test-integration lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -21,8 +22,12 @@ help: ## List the targets
 
 # ── Stack ────────────────────────────────────────────────────────────────────
 
-init-env: ## Create .env from .env.example if it is missing
+init-env: ## Create .env from .env.example, or add the keys it lacks (never overwrites)
 	@[ -f .env ] || { cp .env.example .env; echo "$(GREEN)Created .env from .env.example$(RESET)"; }
+	@grep -E '^[A-Z_][A-Z0-9_]*=' .env.example | while IFS= read -r line; do \
+		key=$${line%%=*}; \
+		grep -qE "^$${key}=" .env || { echo "$$line" >> .env; echo "$(GREEN)Added $$key to .env$(RESET)"; }; \
+	done
 
 dev: init-env ## Build and start the whole stack, wait until healthy
 	@echo "$(YELLOW)Starting the Cortex PoC stack...$(RESET)"
@@ -46,21 +51,27 @@ shell: ## Open a shell in a running service (SVC=<name>)
 build: ## Build the stack images for the host architecture
 	$(COMPOSE) build
 
-build-tools: ## Build the test/lint image
+build-tools: init-env ## Build the test/lint image
 	$(COMPOSE) --profile tools build org-brain-dev
 
 build-multiarch: ## Build every image for linux/arm64 and linux/amd64 (no push, no load)
 	@docker buildx inspect $(BUILDER) >/dev/null 2>&1 || docker buildx create --name $(BUILDER) --driver docker-container >/dev/null
 	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) \
 		-f services/org-brain-service/Dockerfile --target runtime .
+	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) -f infra/postgres/Dockerfile .
 
-lock: ## Regenerate Pipfile.lock (SVC=<service>, default org-brain-service)
+lock: init-env ## Regenerate Pipfile.lock (SVC=<service>, default org-brain-service)
 	SVC=$(SVC) $(COMPOSE) run --rm --no-deps pipenv-lock
 
 # ── Checks (all in containers) ───────────────────────────────────────────────
 
 test: build-tools ## Hermetic unit tests (no network, no stack)
 	$(DEV_TOOLS) pipenv run pytest -q $(ARGS)
+
+test-integration: ## Integration tests on an ephemeral stack (own project, no host ports, wiped after)
+	@$(TEST_COMPOSE) build --quiet
+	@$(TEST_COMPOSE) run --rm org-brain-it pipenv run pytest -q -m integration $(ARGS); \
+		status=$$?; $(TEST_COMPOSE) down -v --remove-orphans >/dev/null 2>&1; exit $$status
 
 lint: build-tools ## Ruff check + format check
 	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests && pipenv run ruff format --check app tests"
