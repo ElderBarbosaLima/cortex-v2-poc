@@ -219,7 +219,7 @@ Ver seção 7. Primeira vez de OPA e de Rego na arbitr. **Padrão adotado (issue
 A regra da casa (`PROD:CLAUDE.md`, "Tests — NEVER touch a live Postgres") manda SQLite em memória por padrão e deixa `@pytest.mark.integration` como último recurso. Os critérios de aceite da PoC dependem de RLS, trigger, pgvector, pg_bigm e OPA, que o SQLite não emula. Proposta: dois níveis, os dois em container — (a) unit herméticos (SQLite/fakes/`httpx.MockTransport`, socket guard ligado, rodam sem a stack); (b) `integration` contra Postgres/OPA/emulador **efêmeros do próprio compose de teste** (projeto compose separado, volumes descartáveis), nunca contra o banco de dev. `make test` roda os dois. Ver Q3.
 
 ### 6.9 Terraform
-Sem IaC na arbitr. Pasta `infra/terraform/aws-emulator/` (nome provisório), state local num volume ligado ao ciclo de vida do emulador, rodando como serviço one-shot `terraform` no compose depois do healthcheck do emulador.
+Sem IaC na arbitr. **Padrão adotado (issue 5):** módulo `infra/terraform/aws/` (nome por nuvem, não por emulador: nada nele cita o emulador), Terraform 1.17.2 + provider `hashicorp/aws` 6.73.0 fixos, `.terraform.lock.hcl` com hashes `linux_arm64` e `linux_amd64` (`make tf-lock`). Roda no serviço `terraform` (compose, `network_mode: service:aws-emulator`), state local num volume que morre com o emulador, cache de providers num volume externo. Se o emulador reinicia, o refresh vê os recursos sumirem e o `apply` os recria (testado). Políticas IAM ficam como `aws_iam_policy_document` renderizado em `infra/iam/*.json` (revisável, nunca aplicado). Chaves KMS ficam fora: são por tenant e nascem na aplicação.
 
 ---
 
