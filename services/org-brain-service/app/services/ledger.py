@@ -1,0 +1,271 @@
+"""Ledger commands: append, transition, supersede, and reads "as of T".
+
+Same contract as the monorepo's `knowledge_commands`: each command writes its
+ledger row(s) and exactly one outbox row per row in the caller's transaction,
+and flushes but never commits, so a command and its side effects land
+atomically or not at all. Nothing is updated in place: a status change appends
+the next version of the record (Rev. B rule 3, "supersede, don't delete").
+
+Two clocks (bitemporal): `recorded_at` is system time (when the ledger learned
+it, set by the database); `valid_from`/`valid_to` is business time (when the
+fact or rule holds in the world).
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from dataclasses import dataclass, field
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models import Kind, MemoryRecord, Outbox, Status
+from app.services.body_codec import Body, BodyCodec, PlainJsonCodec, body_hash
+from app.utils.ids import new_record_id
+
+# A model may never assert above "preference", at any confidence (governance v1
+# MODEL_ACTOR_CEILING). Only an approval by a person lifts a record above it.
+MODEL_AUTHORITY_CEILING = 10
+
+RECORD_APPENDED = "record.appended"
+
+# status -> statuses it may move to. erased is terminal; so is superseded.
+_TRANSITIONS: dict[Status, frozenset[Status]] = {
+    Status.PROPOSED: frozenset(
+        {Status.APPROVED, Status.DEPRECATED, Status.SUPERSEDED, Status.ERASED}
+    ),
+    Status.APPROVED: frozenset({Status.DEPRECATED, Status.STALE, Status.SUPERSEDED, Status.ERASED}),
+    Status.STALE: frozenset({Status.APPROVED, Status.DEPRECATED, Status.SUPERSEDED, Status.ERASED}),
+    Status.DEPRECATED: frozenset({Status.ERASED}),
+    Status.SUPERSEDED: frozenset({Status.ERASED}),
+    Status.ERASED: frozenset(),
+}
+TERMINAL_STATUSES = frozenset(s for s, nxt in _TRANSITIONS.items() if not nxt)
+
+
+class IllegalTransitionError(ValueError):
+    """A command was issued against a status that does not allow it."""
+
+
+class ModelCeilingError(ValueError):
+    """A model actor tried to hold a record above the model authority ceiling."""
+
+
+class RecordNotFoundError(LookupError):
+    """No visible record with that id (absent, or another tenant's under RLS)."""
+
+
+@dataclass(frozen=True)
+class RecordDraft:
+    kind: Kind
+    schema_version: str
+    body: Body
+    scope: str
+    asserted_by: dict[str, Any]
+    authority: int
+    source: dict[str, Any]
+    valid_from: dt.datetime
+    enforcement: str | None = None
+    entities: tuple[str, ...] = ()
+    assurance_level: str = "unverified"
+    valid_to: dt.datetime | None = None
+    derived_from: tuple[str, ...] = ()
+    sensitivity: dict[str, Any] = field(
+        default_factory=lambda: {"class": "internal", "personal_data": False}
+    )
+
+
+def _check_ceiling(
+    asserted_by: dict[str, Any], authority: int, approved_by: dict[str, Any] | None
+) -> None:
+    approved_by_person = approved_by is not None and approved_by.get("approver_type") == "user"
+    if (
+        asserted_by.get("type") == "model"
+        and authority > MODEL_AUTHORITY_CEILING
+        and not approved_by_person
+    ):
+        raise ModelCeilingError(
+            f"a model actor cannot hold authority {authority}; the ceiling is "
+            f"{MODEL_AUTHORITY_CEILING} until a person approves"
+        )
+
+
+def _emit(session: Session, row: MemoryRecord) -> None:
+    session.add(
+        Outbox(
+            tenant_id=row.tenant_id,
+            event_type=RECORD_APPENDED,
+            payload={
+                "record_id": row.record_id,
+                "version": row.version,
+                "status": row.status,
+                "kind": row.kind,
+            },
+            subject_record_id=row.record_id,
+        )
+    )
+
+
+def append_new(
+    session: Session,
+    *,
+    tenant_id: str,
+    draft: RecordDraft,
+    status: Status = Status.PROPOSED,
+    approved_by: dict[str, Any] | None = None,
+    supersedes: str | None = None,
+    codec: BodyCodec | None = None,
+) -> MemoryRecord:
+    """Version 1 of a new record."""
+    if status not in (Status.PROPOSED, Status.APPROVED):
+        raise IllegalTransitionError(f"a new record starts proposed or approved, not {status}")
+    if status is Status.APPROVED and approved_by is None:
+        raise IllegalTransitionError("an approved record needs approved_by")
+    _check_ceiling(draft.asserted_by, draft.authority, approved_by)
+    codec = codec or PlainJsonCodec()
+    record_id = new_record_id()
+    row = MemoryRecord(
+        record_id=record_id,
+        version=1,
+        tenant_id=tenant_id,
+        kind=draft.kind.value,
+        schema_version=draft.schema_version,
+        body_sealed=codec.seal(tenant_id=tenant_id, record_id=record_id, body=draft.body),
+        body_codec=codec.name,
+        body_hash=body_hash(draft.body),
+        entities=list(draft.entities),
+        scope=draft.scope,
+        source=draft.source,
+        asserted_by=draft.asserted_by,
+        approved_by=approved_by,
+        status=status.value,
+        enforcement=draft.enforcement,
+        authority=draft.authority,
+        assurance_level=draft.assurance_level,
+        valid_from=draft.valid_from,
+        valid_to=draft.valid_to,
+        supersedes=supersedes,
+        derived_from=list(draft.derived_from),
+        sensitivity_class=str(draft.sensitivity["class"]),
+        sensitivity=draft.sensitivity,
+    )
+    session.add(row)
+    _emit(session, row)
+    session.flush()
+    return row
+
+
+def latest(session: Session, record_id: str) -> MemoryRecord:
+    row = session.scalars(
+        select(MemoryRecord)
+        .where(MemoryRecord.record_id == record_id)
+        .order_by(MemoryRecord.version.desc())
+        .limit(1)
+    ).first()
+    if row is None:
+        raise RecordNotFoundError(record_id)
+    return row
+
+
+def transition(
+    session: Session,
+    *,
+    record_id: str,
+    to: Status,
+    approved_by: dict[str, Any] | None = None,
+    authority: int | None = None,
+    enforcement: str | None = None,
+) -> MemoryRecord:
+    """Append the next version of `record_id` with status `to`.
+
+    Approval may set the final authority and enforcement (the approver decides,
+    docs/discovery.md P5); every other field is carried over unchanged."""
+    current = latest(session, record_id)
+    if to not in _TRANSITIONS[Status(current.status)]:
+        raise IllegalTransitionError(f"cannot move a record from {current.status} to {to}")
+    if to is Status.APPROVED and approved_by is None:
+        raise IllegalTransitionError("approving needs approved_by")
+    if to is not Status.APPROVED and (authority is not None or enforcement is not None):
+        raise IllegalTransitionError("only an approval may change authority or enforcement")
+    new_authority = current.authority if authority is None else authority
+    new_approved_by = approved_by if to is Status.APPROVED else current.approved_by
+    _check_ceiling(current.asserted_by, new_authority, new_approved_by)
+    row = MemoryRecord(
+        **{
+            c: getattr(current, c)
+            for c in MemoryRecord.__table__.columns.keys()  # noqa: SIM118 -- ColumnCollection, not a dict
+            if c
+            not in (
+                "id",
+                "version",
+                "recorded_at",
+                "status",
+                "approved_by",
+                "authority",
+                "enforcement",
+            )
+        },
+        version=current.version + 1,
+        status=to.value,
+        approved_by=new_approved_by,
+        authority=new_authority,
+        enforcement=current.enforcement if enforcement is None else enforcement,
+    )
+    session.add(row)
+    _emit(session, row)
+    session.flush()
+    return row
+
+
+def supersede(
+    session: Session,
+    *,
+    tenant_id: str,
+    old_record_id: str,
+    draft: RecordDraft,
+    approved_by: dict[str, Any],
+    codec: BodyCodec | None = None,
+) -> MemoryRecord:
+    """A new approved record replaces `old_record_id`, which becomes superseded."""
+    transition(session, record_id=old_record_id, to=Status.SUPERSEDED)
+    return append_new(
+        session,
+        tenant_id=tenant_id,
+        draft=draft,
+        status=Status.APPROVED,
+        approved_by=approved_by,
+        supersedes=old_record_id,
+        codec=codec,
+    )
+
+
+def as_of(
+    session: Session,
+    record_id: str,
+    *,
+    system_time: dt.datetime,
+    business_time: dt.datetime | None = None,
+) -> MemoryRecord | None:
+    """The version the ledger held at `system_time`; None if it did not exist
+    yet, or if its validity window excludes `business_time`."""
+    row = session.scalars(
+        select(MemoryRecord)
+        .where(MemoryRecord.record_id == record_id, MemoryRecord.recorded_at <= system_time)
+        .order_by(MemoryRecord.version.desc())
+        .limit(1)
+    ).first()
+    if row is None or business_time is None:
+        return row
+    return row if is_valid_at(row, business_time) else None
+
+
+def is_valid_at(row: MemoryRecord, t: dt.datetime) -> bool:
+    return row.valid_from <= t and (row.valid_to is None or t < row.valid_to)
+
+
+def open_body(row: MemoryRecord, codec: BodyCodec | None = None) -> Body:
+    codec = codec or PlainJsonCodec()
+    if row.body_codec != codec.name:
+        raise ValueError(f"row sealed with {row.body_codec}, opened with {codec.name}")
+    return codec.open(tenant_id=row.tenant_id, record_id=row.record_id, sealed=row.body_sealed)

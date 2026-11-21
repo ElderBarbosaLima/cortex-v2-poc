@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–8 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger schema). Most of what the docs describe is not built yet.
+> Status: issues 1–9 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger schema and commands). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -66,7 +66,10 @@ make stop                             # stops everything and deletes volumes: th
 
 The ledger (`memory_record`, one immutable row per version; `memory_record_current` view; `outbox`) is
 append-only: a trigger refuses UPDATE, DELETE and TRUNCATE even for the owner, and row-level security
-(ENABLEd and FORCEd) keeps every tenant's rows invisible to the others.
+(ENABLEd and FORCEd) keeps every tenant's rows invisible to the others. `app/services/ledger.py` is the
+only way to write it: `append_new`, `transition` (a status change is the next version), `supersede`,
+and `as_of` reads by system time and business time. Each write adds an outbox row in the same
+transaction; commands flush and never commit, so the caller's transaction decides.
 
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
