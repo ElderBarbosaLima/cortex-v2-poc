@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–7 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows). Most of what the docs describe is not built yet.
+> Status: issues 1–8 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger schema). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -52,6 +52,7 @@ make stop                             # stops everything and deletes volumes: th
 | `make tf-lock` | refresh provider hashes for `linux_arm64` + `linux_amd64` |
 | `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
 | `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
+| `make migrate` / `make migrate-check` | Alembic upgrade as the table owner (`make dev` runs it before the service) / one head, ids ≤ 32 chars (also in `make lint`) |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
 ## Services
@@ -62,6 +63,10 @@ make stop                             # stops everything and deletes volumes: th
 | `opa` | Open Policy Agent 1.22.4, serving the `policies/` bundle (built by the one-shot `opa-bundle`) | `127.0.0.1:8181` (`CORTEX_OPA_PORT`) |
 | `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
 | `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
+
+The ledger (`memory_record`, one immutable row per version; `memory_record_current` view; `outbox`) is
+append-only: a trigger refuses UPDATE, DELETE and TRUNCATE even for the owner, and row-level security
+(ENABLEd and FORCEd) keeps every tenant's rows invisible to the others.
 
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from

@@ -119,6 +119,19 @@ services:
     networks:
       - cortex
 
+  # One-shot: `alembic upgrade head` as the table owner before the service
+  # starts (the deploy init-container pattern). The service never migrates.
+  org-brain-migrate:
+    image: cortex-poc/org-brain-service:dev
+    environment:
+      <<: *org-brain-db-env
+    command: ["pipenv", "run", "alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cortex
+
   org-brain-service:
     build:
       context: .
@@ -134,8 +147,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
     depends_on:
-      postgres:
-        condition: service_healthy
+      org-brain-migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${ORG_BRAIN_SERVICE_PORT:-5008}:5008"
     healthcheck:

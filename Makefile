@@ -15,7 +15,7 @@ RESET  := \033[0m
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
         test test-integration test-policies test-all opa-reload probe-emulator \
-        tf-cache provision tf-plan tf-lock gen-data lint format typecheck
+        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -79,6 +79,13 @@ probe-emulator: init-env build-tools ## AWS Emulator fidelity probe -> docs/emul
 	$(COMPOSE) up -d --build --wait aws-emulator
 	$(COMPOSE) run --rm aws-probe
 
+migrate: init-env ## Alembic upgrade head as the table owner (make dev runs it too)
+	$(COMPOSE) up -d --wait postgres
+	$(COMPOSE) run --rm --build org-brain-migrate
+
+migrate-check: build-tools ## One Alembic head, every revision id <= 32 chars (also part of make lint)
+	$(DEV_TOOLS) pipenv run python scripts/check_migrations.py
+
 gen-data: build-tools ## Generate data/synthetic/ (deterministic; rerun must leave git diff empty)
 	$(COMPOSE) run --rm synthetic
 
@@ -105,15 +112,16 @@ opa-reload: ## Rebuild the policy bundle and restart OPA (after editing policies
 	$(COMPOSE) run --rm opa-bundle
 	$(COMPOSE) restart opa
 
-lint: build-tools ## Ruff (Python), opa check --strict + Regal (Rego), terraform fmt -check
-	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts && pipenv run ruff format --check app tests scripts"
+lint: build-tools ## Ruff + migrate-check (Python), opa check --strict + Regal (Rego), terraform fmt -check
+	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts alembic && pipenv run ruff format --check app tests scripts alembic"
+	$(DEV_TOOLS) pipenv run python scripts/check_migrations.py
 	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -check -recursive -diff /workspace/infra/terraform
 	$(COMPOSE) run --rm opa-tools check --strict /policies
 	$(COMPOSE) run --rm regal lint /policies
 
 format: build-tools ## Ruff format + autofix, terraform fmt (writes to the working tree)
 	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -recursive /workspace/infra/terraform
-	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts && pipenv run ruff check --fix app tests scripts"
+	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts alembic && pipenv run ruff check --fix app tests scripts alembic"
 
 typecheck: build-tools ## Pyright (strict on app/)
 	$(DEV_TOOLS) pipenv run pyright
