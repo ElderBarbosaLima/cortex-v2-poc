@@ -293,6 +293,16 @@ services:
     volumes:
       - ./policies:/policies:ro
 
+  # `make contract`: TypeScript types from the API spec (openapi-typescript, pinned).
+  contract-ts:
+    profiles: ["tools"]
+    image: node:22.12.0-slim@sha256:35531c52ce27b6575d69755c73e65d4468dba93a25644eed56dc12879cae9213
+    working_dir: /contract
+    environment:
+      NPM_CONFIG_UPDATE_NOTIFIER: "false"
+    volumes:
+      - ./libraries/cortex-contract:/contract
+
   # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
   pipenv-lock:
     profiles: ["tools"]

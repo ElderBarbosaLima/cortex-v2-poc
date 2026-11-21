@@ -10,6 +10,6 @@ from app.schemas.health import HealthResponse
 router = APIRouter()
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health", response_model=HealthResponse, operation_id="health")
 async def health() -> HealthResponse:
     return HealthResponse(service="org-brain-service")

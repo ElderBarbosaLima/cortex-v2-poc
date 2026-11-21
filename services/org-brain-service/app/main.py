@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from sqlalchemy.dialects.postgresql import insert
 
+from app.api.errors import install_error_handlers
 from app.clients.opa import AccessGateUnavailable, OpaClient
 from app.config import OrgBrainConfig
 from app.db import app_engine
@@ -73,18 +73,17 @@ def create_app(
             _install(app, build_services(cfg))
         yield
 
-    app = FastAPI(title="Cortex (org-brain-service)", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Cortex API",
+        version="0.1.0",
+        summary="Governed organisational memory: the /v1/cortex consumer contract (PoC).",
+        lifespan=lifespan,
+    )
     if services is not None:
         _install(app, services)
     app.add_middleware(RequestIdMiddleware)
 
-    @app.exception_handler(AccessGateUnavailable)
-    async def _gate_unavailable(request: Request, exc: AccessGateUnavailable) -> JSONResponse:
-        return JSONResponse(
-            status_code=503,
-            content={"error": "access_gate_unavailable", "detail": str(exc)},
-        )
-
+    install_error_handlers(app)
     app.include_router(health_router)
     app.include_router(cortex_router)
     return app

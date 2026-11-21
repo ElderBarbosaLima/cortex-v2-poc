@@ -145,9 +145,9 @@ def test_policy_denials_are_403_with_the_reason(world: dict[str, object]) -> Non
     too_sensitive = _get(world, str(world["restricted"]))
 
     assert unregistered.status_code == 403
-    assert "is not registered" in unregistered.json()["detail"]["detail"]
+    assert "is not registered" in unregistered.json()["detail"]
     assert too_sensitive.status_code == 403
-    assert "above this purpose's ceiling" in too_sensitive.json()["detail"]["detail"]
+    assert "above this purpose's ceiling" in too_sensitive.json()["detail"]
 
 
 def test_an_unreachable_opa_is_a_503_never_a_read(world: dict[str, object]) -> None:
@@ -178,3 +178,37 @@ def test_after_opa_forgets_the_tenant_the_gate_reloads_it(world: dict[str, objec
         ).raise_for_status()  # what an OPA restart does
 
     assert _get(world, str(world["jp_record"])).status_code == 200
+
+
+def test_listing_pages_through_readable_records_only(world: dict[str, object]) -> None:
+    api: TestClient = world["api"]  # type: ignore[assignment]
+    seed: Seed = world["seed"]  # type: ignore[assignment]
+    extra = _record(seed, "jp", "jp/finance")
+    params = {"purpose": "invoice_drafting", "scope": seed.node_ids["jp/finance/q2c-invoicing"]}
+    headers = {"Authorization": f"Bearer {KEY}"}
+
+    with allow_network():
+        everything = api.get(
+            "/v1/cortex/records", params={**params, "limit": "100"}, headers=headers
+        ).json()
+        first = api.get(
+            "/v1/cortex/records", params={**params, "limit": "1"}, headers=headers
+        ).json()
+        second = api.get(
+            "/v1/cortex/records",
+            params={**params, "limit": "1", "cursor": first["next_cursor"]},
+            headers=headers,
+        ).json()
+        sibling = api.get(
+            "/v1/cortex/records",
+            params={**params, "scope": seed.node_ids["jp/finance/q2c-cash-application"]},
+            headers=headers,
+        ).json()
+
+    ids = [i["record_id"] for i in everything["items"]]
+    assert world["jp_record"] in ids and extra in ids  # own scope and an ancestor's
+    assert world["restricted"] not in ids  # above the purpose's sensitivity ceiling
+    assert world["other_record"] not in ids  # another tenant
+    assert ids == sorted(ids)
+    assert first["items"][0]["record_id"] == ids[0] and second["items"][0]["record_id"] == ids[1]
+    assert world["jp_record"] not in [i["record_id"] for i in sibling["items"]]  # never sideways

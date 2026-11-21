@@ -15,7 +15,7 @@ RESET  := \033[0m
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
         test test-integration test-policies test-all opa-reload probe-emulator \
-        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed lint format typecheck
+        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -92,6 +92,16 @@ seed: ## Register the seed's tenants and (re)load their scope tree and grants in
 
 reindex: ## Delete and rebuild every tenant's search projection from the ledger (stack must be up)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.reindex
+
+OPENAPI_TS = npx --yes openapi-typescript@7.13.0
+
+contract: build-tools ## Regenerate the API spec (libraries/cortex-contract/openapi.json) and its TS types
+	$(DEV_TOOLS) pipenv run python -m scripts.export_openapi --out /libraries/cortex-contract/openapi.json
+	$(COMPOSE) run --rm contract-ts sh -c "$(OPENAPI_TS) openapi.json -o ts/cortex.d.ts"
+
+contract-check: build-tools ## Fail if the committed spec or TS types differ from what the code produces
+	$(DEV_TOOLS) pipenv run python -m scripts.export_openapi --out /libraries/cortex-contract/openapi.json --check
+	$(COMPOSE) run --rm contract-ts sh -c "$(OPENAPI_TS) openapi.json -o /tmp/cortex.d.ts >/dev/null && cmp ts/cortex.d.ts /tmp/cortex.d.ts && echo 'ts/cortex.d.ts matches the spec'"
 
 gen-data: build-tools ## Generate data/synthetic/ (deterministic; rerun must leave git diff empty)
 	$(COMPOSE) run --rm synthetic

@@ -19,10 +19,11 @@ from collections.abc import Callable, Generator
 from typing import Any, cast
 
 import boto3  # pyright: ignore[reportMissingTypeStubs]
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.errors import CortexApiError
 from app.db import tenant_session
 from app.seed.tenants import ConsumerInfo
 
@@ -56,8 +57,8 @@ class ConsumerKeyStore:
         return found
 
 
-def _unauthorized(detail: str) -> HTTPException:
-    return HTTPException(status_code=401, detail={"error": "unauthorized", "detail": detail})
+def _unauthorized(detail: str) -> CortexApiError:
+    return CortexApiError(401, "unauthorized", detail)
 
 
 def get_caller(request: Request) -> AuthedCaller:
@@ -76,10 +77,7 @@ def get_caller(request: Request) -> AuthedCaller:
         try:
             end_user = str(uuid.UUID(end_user))
         except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail={"error": "invalid_end_user", "detail": "X-End-User-Id must be a UUID"},
-            ) from None
+            raise CortexApiError(400, "invalid_end_user", "X-End-User-Id must be a UUID") from None
     return AuthedCaller(
         consumer_id=info.consumer_id,
         tenant_id=info.tenant_id,
@@ -91,9 +89,7 @@ def get_caller(request: Request) -> AuthedCaller:
 def require_scope(scope: str) -> Callable[[AuthedCaller], AuthedCaller]:
     def dependency(caller: AuthedCaller = Depends(get_caller)) -> AuthedCaller:
         if scope not in caller.scopes:
-            raise HTTPException(
-                status_code=403, detail={"error": "insufficient_scope", "detail": scope}
-            )
+            raise CortexApiError(403, "insufficient_scope", scope)
         return caller
 
     return dependency

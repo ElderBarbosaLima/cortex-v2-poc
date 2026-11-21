@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–15 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys, domain pack interface). Most of what the docs describe is not built yet.
+> Status: issues 1–16 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys, domain pack interface, API contract). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -48,6 +48,12 @@ curl -s "127.0.0.1:5008/v1/cortex/records/<record_id>?purpose=invoice_drafting" 
      -H "Authorization: Bearer local-dev-askq2c-key" -H "X-End-User-Id: <person uuid>"
 ```
 
+The contract is generated from the code into [`libraries/cortex-contract/`](libraries/cortex-contract/)
+(`openapi.json` + TypeScript types; `make contract`, checked by `make contract-check` and `make test`).
+Errors always look like `{"error": "<code>", "detail": …}`. The three operations an agent needs
+(`request_context_pack`, `verify_output`, `submit_correction`) are marked `x-mcp-tool`; until their
+issues land they answer `501 not_implemented`.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
@@ -71,6 +77,7 @@ forgets them.
 | `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
 | `make migrate` / `make migrate-check` | Alembic upgrade as the table owner (`make dev` runs it before the service) / one head, ids ≤ 32 chars (also in `make lint`) |
 | `make seed` | register the seed's tenants and load their scope tree, grants and consumers into OPA |
+| `make contract` / `make contract-check` | regenerate / verify the API spec and its TS types |
 | `make reindex` | delete and rebuild every tenant's search projection from the ledger |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
