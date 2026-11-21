@@ -7,6 +7,7 @@ operations an agent needs are marked `x-mcp-tool`.
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from typing import Any
 
@@ -16,11 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
 from app.identity import AuthedCaller, caller_session, require_scope
+from app.models import Kind
 from app.schemas.cortex import (
     ContextPack,
     ContextPackRequest,
     CorrectionAccepted,
     CorrectionRequest,
+    ProposalAccepted,
+    ProposeRecordRequest,
     RecordPage,
     RecordRead,
     RecordSummary,
@@ -28,7 +32,7 @@ from app.schemas.cortex import (
     VerifyResult,
     WhoAmI,
 )
-from app.services import ledger
+from app.services import admission, ledger
 from app.services.policy_gate import PolicyGate, now_rfc3339
 
 router = APIRouter(prefix="/v1/cortex", tags=["cortex"], responses=ERROR_RESPONSES)
@@ -142,6 +146,101 @@ def get_record(
             policy_revision=decision.policy_revision,
         )
     return RecordRead(**_summary(row).model_dump(), policy_revision=decision.policy_revision)
+
+
+JST = dt.timezone(dt.timedelta(hours=9))  # business dates are Japanese calendar dates
+
+
+def _business_start(day: dt.date | None) -> dt.datetime | None:
+    return None if day is None else dt.datetime(day.year, day.month, day.day, tzinfo=JST)
+
+
+@router.post(
+    "/records",
+    response_model=ProposalAccepted,
+    status_code=201,
+    operation_id="propose_record",
+    responses={422: {"model": ApiError, "description": "Invalid proposal: every problem listed"}},
+)
+def propose_record(
+    body: ProposeRecordRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
+) -> ProposalAccepted:
+    """The admission gate: validate, authorise, then append as `proposed` and
+    route to the review queue (one open case per conflict). Never approved here."""
+    proposal = admission.Proposal(
+        domain=body.domain,
+        kind=Kind(body.kind),
+        schema_version=body.schema_version,
+        body=body.body,
+        scope=str(body.scope),
+        entities=tuple(body.entities),
+        enforcement=body.enforcement,
+        authority=body.authority,
+        sensitivity=body.sensitivity.model_dump(by_alias=True),
+        valid_from=_business_start(body.valid_from) or dt.datetime.now(JST),
+        valid_to=_business_start(body.valid_to),
+        source=body.source,
+        derived_from=tuple(str(d) for d in body.derived_from),
+    )
+    _, problems = admission.validate_proposal(proposal)
+    if problems:
+        raise CortexApiError(422, "invalid_proposal", admission.problems_payload(problems))
+
+    read = _authorise(request, caller, purpose=body.purpose, scope=proposal.scope)
+    ceiling = admission.SENSITIVITY_RANK.get(read.sensitivity_ceiling or "", -1)
+    if admission.SENSITIVITY_RANK[body.sensitivity.class_] > ceiling:
+        raise CortexApiError(
+            403,
+            "access_denied",
+            f"sensitivity {body.sensitivity.class_} is above the "
+            f"{read.sensitivity_ceiling} ceiling for purpose {body.purpose!r}",
+            policy_revision=read.policy_revision,
+        )
+    actor = (
+        {"type": "user", "id": caller.end_user_id}
+        if caller.end_user_id
+        else {"type": "consumer", "id": caller.consumer_id}
+    )
+    gate: PolicyGate = request.app.state.policy_gate
+    permit = gate.approval(
+        {
+            "tenant_id": caller.tenant_id,
+            "action": "propose",
+            "actor": actor,
+            "record": {"scope": proposal.scope, "contributors": []},
+            "now": now_rfc3339(),
+        }
+    )
+    if not permit.allow:
+        raise CortexApiError(
+            403, "access_denied", permit.reason, policy_revision=permit.policy_revision
+        )
+
+    # A person behind the call asserts it; an agent alone asserts as a model
+    # (authority capped at the model ceiling until a person approves).
+    asserted_by = (
+        {"type": "user", "id": caller.end_user_id}
+        if caller.end_user_id
+        else {"type": "model", "id": caller.consumer_id}
+    )
+    try:
+        admitted = admission.admit(
+            session, tenant_id=caller.tenant_id, proposal=proposal, asserted_by=asserted_by
+        )
+    except ledger.ModelCeilingError as exc:
+        raise CortexApiError(
+            422, "invalid_proposal", [{"code": "model_ceiling", "detail": str(exc)}]
+        ) from None
+    return ProposalAccepted(
+        record_id=admitted.record.record_id,
+        version=admitted.record.version,
+        status="proposed",
+        review_case_id=uuid.UUID(admitted.review_case_id) if admitted.review_case_id else None,
+        grouped=admitted.grouped,
+    )
 
 
 def _not_yet(issue: int) -> CortexApiError:

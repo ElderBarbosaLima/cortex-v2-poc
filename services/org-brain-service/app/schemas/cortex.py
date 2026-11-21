@@ -105,3 +105,41 @@ class CorrectionAccepted(BaseModel):
     decision_record_id: uuid.UUID
     proposed_record_id: uuid.UUID | None
     review_case_id: uuid.UUID | None
+
+
+# ── Admission (issue 17) ────────────────────────────────────────────────────
+
+
+class Sensitivity(BaseModel):
+    class_: Literal["public", "internal", "confidential", "restricted"] = Field(alias="class")
+    personal_data: bool = False
+    retention_days: int | None = Field(default=None, ge=1)
+
+
+class ProposeRecordRequest(BaseModel):
+    domain: str = Field(description="Domain pack name, e.g. custom_invoices")
+    kind: Literal["fact", "rule", "decision", "content"]
+    schema_version: str = Field(description="<domain>.<kind>/1")
+    body: dict[str, Any]
+    scope: uuid.UUID
+    entities: list[str] = Field(
+        default_factory=list[str], description="Canonical keys, e.g. customer:CUST-0042"
+    )
+    enforcement: Literal["mandatory", "prohibition", "default"] | None = None
+    authority: int = Field(default=10, ge=0, le=40)
+    sensitivity: Sensitivity
+    purpose: str = Field(description="Purpose the proposal is made under (sensitivity ceiling)")
+    valid_from: dt.date = Field(description="Business date from which it holds")
+    valid_to: dt.date | None = None
+    source: dict[str, Any] = Field(default_factory=dict[str, Any])
+    derived_from: list[uuid.UUID] = Field(default_factory=list[uuid.UUID])
+
+
+class ProposalAccepted(BaseModel):
+    record_id: uuid.UUID
+    version: int
+    status: Literal["proposed"]
+    review_case_id: uuid.UUID | None
+    grouped: bool = Field(
+        description="True when the proposal joined an open case for the same conflict"
+    )
