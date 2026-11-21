@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–6 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for custom invoices). Most of what the docs describe is not built yet.
+> Status: issues 1–7 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -112,11 +112,13 @@ people (role labels only) and consumers. Per workflow:
 
 | File | What |
 |---|---|
-| `cases.jsonl` | input cases (custom invoices: 40, the brief's format, JPY as integers) |
+| `cases.jsonl` | input cases: 40 invoices (custom invoices) or 40 bank payments (cash application), the brief's formats, JPY as integers |
+| `invoices.json` | cash application only: the open invoice each payment is matched against |
+| `customers.json` | fictitious customers (cash application: registered bank names in half-width kana, garnishment flag) |
 | `rules.json` | initial rules with their CEL condition, scope, entities and enforcement |
 | `corrections.jsonl` | reviewer corrections and the rule each should become |
 | `timeline.json` | the ordered steps a harness replays (process, correct, approve, retire) |
-| `expected.json` | golden set: the exact rules each case's pack must hold, overridden local rules, verify outcomes |
+| `expected.json` | golden set: the exact rules each case's pack must hold, overridden local rules, verify outcomes; cash application adds the expected payer resolution (entity, confidence band, evidence) and route (auto/review) |
 
 Covered: a happy path, a correction that becomes an approved rule and then applies, unrelated cases
 where it must not appear, and acceptance scenarios 2, 3 and 4. The unit tests fail if the committed

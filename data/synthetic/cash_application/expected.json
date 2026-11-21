@@ -1,0 +1,1089 @@
+[
+  {
+    "case_id": "PAY-0101",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0102",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-12",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0103",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾝ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0104",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-10",
+    "resolution": {
+      "payer_name_raw": "ｶｸｳﾃﾞﾝｷ(ｶ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "corporate_suffix_form"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0105",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0106",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾝ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0107",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0108",
+    "batch": "A",
+    "group": "garnishment",
+    "tags": [],
+    "as_of": "2026-12-12",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｹﾝｾﾂ",
+      "expected_entity": "customer:CUST-0105",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-GARNISH"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0109",
+    "batch": "A",
+    "group": "garnishment",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｹﾝｾﾂ",
+      "expected_entity": "customer:CUST-0105",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-GARNISH",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0110",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾝ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0111",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0112",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [
+      "difference_exactly_1000"
+    ],
+    "as_of": "2026-12-10",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾝ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0113",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction"
+    ],
+    "as_of": "2026-12-10",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0114",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction"
+    ],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0115",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction",
+      "fee_exactly_880"
+    ],
+    "as_of": "2026-12-10",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0116",
+    "batch": "A",
+    "group": "resolution",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "truncated_prefix"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0117",
+    "batch": "A",
+    "group": "resolution",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙ",
+      "expected_entity": null,
+      "band": "ambiguous",
+      "evidence": "prefix_matches_several"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0118",
+    "batch": "A",
+    "group": "resolution",
+    "tags": [],
+    "as_of": "2026-12-10",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾑ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "low",
+      "evidence": "edit_distance_1"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0119",
+    "batch": "A",
+    "group": "resolution",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾐﾄｳﾛｸｼﾔ",
+      "expected_entity": null,
+      "band": "none",
+      "evidence": "no_registered_name"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0120",
+    "batch": "A",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄﾌﾞﾂｻﾝ",
+      "expected_entity": "customer:CUST-0063",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0063-ALLOC",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0121",
+    "batch": "A",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄﾌﾞﾂｻﾝ",
+      "expected_entity": "customer:CUST-0063",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0063-ALLOC",
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0122",
+    "batch": "A",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ",
+      "expected_entity": "customer:CUST-0017",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0017-HOLD",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-hold",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CA-C-0017-HOLD"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0123",
+    "batch": "A",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ",
+      "expected_entity": "customer:CUST-0017",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0017-HOLD",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-hold",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CA-C-0017-HOLD"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0124",
+    "batch": "A",
+    "group": "garnishment",
+    "tags": [],
+    "as_of": "2026-12-11",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｹﾝｾﾂ",
+      "expected_entity": "customer:CUST-0105",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-GARNISH"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0125",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-16",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-NO-WRITEOFF",
+      "CA-L-0042-FEE"
+    ],
+    "overridden": {
+      "CA-G-EXACT-AMOUNT": "CA-L-0042-FEE",
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0126",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [
+      "fee_exactly_880"
+    ],
+    "as_of": "2026-12-16",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-NO-WRITEOFF",
+      "CA-L-0042-FEE"
+    ],
+    "overridden": {
+      "CA-G-EXACT-AMOUNT": "CA-L-0042-FEE",
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0127",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [
+      "fee_over_limit"
+    ],
+    "as_of": "2026-12-16",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0128",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [
+      "no_difference"
+    ],
+    "as_of": "2026-12-17",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0129",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [
+      "same_fee_other_customer"
+    ],
+    "as_of": "2026-12-18",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0130",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [
+      "same_fee_other_customer"
+    ],
+    "as_of": "2026-12-18",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0131",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [
+      "overpayment"
+    ],
+    "as_of": "2026-12-17",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0132",
+    "batch": "B",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-16",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄﾌﾞﾂｻﾝ",
+      "expected_entity": "customer:CUST-0063",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0063-ALLOC",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0133",
+    "batch": "B",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-17",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ",
+      "expected_entity": "customer:CUST-0017",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0017-HOLD",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-hold",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CA-C-0017-HOLD"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0134",
+    "batch": "B",
+    "group": "garnishment",
+    "tags": [],
+    "as_of": "2026-12-16",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｹﾝｾﾂ",
+      "expected_entity": "customer:CUST-0105",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-GARNISH",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0135",
+    "batch": "C",
+    "group": "scenario_4",
+    "tags": [
+      "after_retirement"
+    ],
+    "as_of": "2026-12-21",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ",
+      "expected_entity": "customer:CUST-0017",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0136",
+    "batch": "C",
+    "group": "scenario_4",
+    "tags": [
+      "after_retirement"
+    ],
+    "as_of": "2026-12-23",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ",
+      "expected_entity": "customer:CUST-0017",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0137",
+    "batch": "C",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-21",
+    "resolution": {
+      "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝ",
+      "expected_entity": "customer:CUST-0042",
+      "band": "high",
+      "evidence": "truncated_prefix"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-NO-WRITEOFF",
+      "CA-L-0042-FEE"
+    ],
+    "overridden": {
+      "CA-G-EXACT-AMOUNT": "CA-L-0042-FEE",
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0138",
+    "batch": "C",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-12-24",
+    "resolution": {
+      "payer_name_raw": "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ",
+      "expected_entity": "customer:CUST-0088",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0139",
+    "batch": "C",
+    "group": "unrelated",
+    "tags": [
+      "same_fee_other_customer"
+    ],
+    "as_of": "2026-12-22",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄｼﾖｸﾋﾝ",
+      "expected_entity": "customer:CUST-0121",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-G-EVIDENCE",
+      "CA-G-EXACT-AMOUNT",
+      "CA-G-NO-WRITEOFF"
+    ],
+    "overridden": {
+      "CA-L-SMALL-WRITEOFF": "CA-G-NO-WRITEOFF"
+    },
+    "route": "review",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "PAY-0140",
+    "batch": "C",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-23",
+    "resolution": {
+      "payer_name_raw": "ｶ)ﾃｽﾄﾌﾞﾂｻﾝ",
+      "expected_entity": "customer:CUST-0063",
+      "band": "high",
+      "evidence": "exact"
+    },
+    "expected_rules": [
+      "CA-C-0063-ALLOC",
+      "CA-G-EVIDENCE"
+    ],
+    "overridden": {},
+    "route": "auto",
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  }
+]

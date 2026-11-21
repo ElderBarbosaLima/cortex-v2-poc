@@ -12,11 +12,13 @@ import argparse
 from collections.abc import Callable
 from pathlib import Path
 
+from app.domain_packs.cash_application import synthetic as cash_application
 from app.domain_packs.custom_invoices import synthetic as custom_invoices
 from app.synthetic.common import tenant_document, write_json
 
 GENERATORS: dict[str, Callable[[Path], dict[str, int]]] = {
     custom_invoices.WORKFLOW: custom_invoices.generate,
+    cash_application.WORKFLOW: cash_application.generate,
 }
 
 

@@ -11,7 +11,7 @@ import hashlib
 import json
 import random
 import uuid
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -145,6 +145,108 @@ def tenant_document() -> JsonObj:
         "people": [{**p, "obj_id": stable_uuid("person", str(p["key"]))} for p in PEOPLE],
         "consumers": list(CONSUMERS),
     }
+
+
+# ── Rules and the golden-set oracle ──────────────────────────────────────────
+
+Context = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class RuleSpec:
+    """A seed rule: its CEL text for the system under test, and an independent
+    Python predicate over the same context that the golden set is computed from."""
+
+    key: str
+    scope: str
+    enforcement: str  # mandatory | prohibition | default
+    authority: int
+    text_ja: str
+    targets: tuple[str, ...]
+    condition: str
+    predicate: Callable[[Context], bool]
+    entities: tuple[str, ...] = ()
+    tenant: str = "jp"
+
+
+def rule_document(rule: RuleSpec, workflow: str, *, status: str = "approved") -> JsonObj:
+    """The rule as a memory_record-shaped seed document."""
+    return {
+        "key": rule.key,
+        "record_id": stable_uuid("record", rule.key),
+        "tenant": rule.tenant,
+        "kind": "rule",
+        "schema_version": f"{workflow}.rule/1",
+        "scope": rule.scope,
+        "entities": list(rule.entities),
+        "enforcement": rule.enforcement,
+        "authority": rule.authority,
+        "status": status,
+        "valid_from": "2026-11-01",
+        "valid_to": None,
+        "source": {"system": "synthetic", "document": "初期ルール一覧", "location": rule.key},
+        "asserted_by": {"type": "import", "id": "synthetic-seed"},
+        "approved_by": {"approver_type": "user", "user": "OWN-001"},
+        "sensitivity": {"class": "internal", "personal_data": False, "retention_days": 3650},
+        "body": {
+            "text_ja": rule.text_ja,
+            "targets": list(rule.targets),
+            "condition": rule.condition,
+        },
+    }
+
+
+_CONSTRAINT_RANK = {"prohibition": 0, "mandatory": 1}
+
+
+def expected_rules(
+    active: Sequence[RuleSpec],
+    ctx: Context,
+    *,
+    request_scope: str,
+    entities: set[str],
+    tenant: str = "jp",
+) -> tuple[list[str], dict[str, str]]:
+    """What a correct access gate returns (Rev. B rule 4), as the golden set states it.
+
+    Applicable = same tenant, scope at or above the request scope (never
+    sideways), no entities or one shared with the case, predicate true. Then a
+    default rule loses to any constraint on a shared target (attributed to a
+    prohibition before a mandatory rule); among defaults on a shared target,
+    higher authority wins, then the nearer (deeper) scope.
+    """
+    visible = set(path_up(request_scope))
+    applicable = [
+        r
+        for r in active
+        if r.tenant == tenant
+        and r.scope in visible
+        and (not r.entities or set(r.entities) & entities)
+        and r.predicate(ctx)
+    ]
+
+    def outranks(winner: RuleSpec, loser: RuleSpec) -> bool:
+        a, b = (
+            (winner.authority, len(path_up(winner.scope))),
+            (loser.authority, len(path_up(loser.scope))),
+        )
+        return a > b
+
+    overridden: dict[str, str] = {}
+    for rule in (r for r in applicable if r.enforcement == "default"):
+        rivals = [r for r in applicable if r is not rule and set(r.targets) & set(rule.targets)]
+        constraints = sorted(
+            (r for r in rivals if r.enforcement in _CONSTRAINT_RANK),
+            key=lambda r: (_CONSTRAINT_RANK[r.enforcement], r.key),
+        )
+        defaults = sorted(
+            (r for r in rivals if r.enforcement == "default" and outranks(r, rule)),
+            key=lambda r: (-r.authority, -len(path_up(r.scope)), r.key),
+        )
+        winner = (constraints or defaults or [None])[0]
+        if winner is not None:
+            overridden[rule.key] = winner.key
+    return sorted(r.key for r in applicable if r.key not in overridden), overridden
 
 
 # ── Output ───────────────────────────────────────────────────────────────────

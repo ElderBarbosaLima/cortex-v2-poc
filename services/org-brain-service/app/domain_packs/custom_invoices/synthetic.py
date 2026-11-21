@@ -20,17 +20,17 @@ from __future__ import annotations
 
 import datetime as dt
 import random
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from app.synthetic.common import (
     JsonObj,
+    RuleSpec,
     corporate_number,
-    path_up,
+    expected_rules,
     rng_for,
-    stable_uuid,
+    rule_document,
     tax_by_rate,
     write_json,
     write_jsonl,
@@ -61,21 +61,6 @@ CATALOG_10 = (
 CATALOG_8 = ("飲料（軽減税率対象）",)
 
 Invoice = dict[str, Any]
-Predicate = Callable[[Invoice], bool]
-
-
-@dataclass(frozen=True)
-class RuleSpec:
-    key: str
-    scope: str
-    enforcement: str
-    authority: int
-    text_ja: str
-    targets: tuple[str, ...]
-    condition: str
-    predicate: Predicate
-    entities: tuple[str, ...] = ()
-    tenant: str = "jp"
 
 
 def _date(inv: Invoice) -> dt.date:
@@ -321,65 +306,18 @@ def _build_case(spec: CaseSpec, rng: random.Random) -> Invoice:
     }  # fmt: skip
 
 
-def _rule_doc(rule: RuleSpec, *, status: str = "approved") -> JsonObj:
-    return {
-        "key": rule.key,
-        "record_id": stable_uuid("record", rule.key),
-        "tenant": rule.tenant,
-        "kind": "rule",
-        "schema_version": f"{WORKFLOW}.rule/1",
-        "scope": rule.scope,
-        "entities": list(rule.entities),
-        "enforcement": rule.enforcement,
-        "authority": rule.authority,
-        "status": status,
-        "valid_from": "2026-11-01",
-        "valid_to": None,
-        "source": {"system": "synthetic", "document": "初期ルール一覧", "location": rule.key},
-        "asserted_by": {"type": "import", "id": "synthetic-seed"},
-        "approved_by": {"approver_type": "user", "user": "OWN-001"},
-        "sensitivity": {"class": "internal", "personal_data": False, "retention_days": 3650},
-        "body": {
-            "text_ja": rule.text_ja,
-            "targets": list(rule.targets),
-            "condition": rule.condition,
-        },
-    }
-
-
 def _active_rules(batch: str) -> list[RuleSpec]:
     active = [r for r in RULES if not (batch == "C" and r.key == RETIRED_KEY)]
     return [*active, LEARNED] if batch in ("B", "C") else active
 
 
 def _resolve(case: Invoice, batch: str) -> tuple[list[str], dict[str, str]]:
-    """What a correct access gate returns: applicable rules, then constraints win."""
-    visible_scopes = set(path_up(REQUEST_SCOPE))
-    entity = f"customer:{case['customer_id']}"
-    applicable = [
-        r
-        for r in _active_rules(batch)
-        if r.tenant == "jp"
-        and r.scope in visible_scopes
-        and (not r.entities or entity in r.entities)
-        and r.predicate(case)
-    ]
-    constraint_rank = {"prohibition": 0, "mandatory": 1}  # attribution order for "overridden_by"
-    overridden: dict[str, str] = {}
-    for rule in applicable:
-        if rule.enforcement != "default":
-            continue
-        winners = sorted(
-            (
-                r
-                for r in applicable
-                if r.enforcement in constraint_rank and set(r.targets) & set(rule.targets)
-            ),
-            key=lambda r: (constraint_rank[r.enforcement], r.key),
-        )
-        if winners:
-            overridden[rule.key] = winners[0].key
-    return sorted(r.key for r in applicable if r.key not in overridden), overridden
+    return expected_rules(
+        _active_rules(batch),
+        case,
+        request_scope=REQUEST_SCOPE,
+        entities={f"customer:{case['customer_id']}"},
+    )
 
 
 def _verify_expectations(spec: CaseSpec) -> list[JsonObj]:
@@ -420,7 +358,7 @@ def generate(out_dir: Path) -> dict[str, int]:
         },
     )
     write_jsonl(directory / "cases.jsonl", cases)
-    write_json(directory / "rules.json", [_rule_doc(r) for r in RULES])
+    write_json(directory / "rules.json", [rule_document(r, WORKFLOW) for r in RULES])
 
     corrections = [
         {
@@ -433,7 +371,7 @@ def generate(out_dir: Path) -> dict[str, int]:
                 {"target": "invoice.attachments.kenshusho", "action": "require", "before": None, "after": "検収書（Coupa に添付）"},
             ],
             "note_ja": "Coupa では注文番号を備考に入れ、検収書を添付しないと差し戻される。",
-            "expected_rule": {**_rule_doc(LEARNED, status="proposed"), "enforcement": "default", "authority": 10,
+            "expected_rule": {**rule_document(LEARNED, WORKFLOW, status="proposed"), "enforcement": "default", "authority": 10,
                               "asserted_by": {"type": "policy", "id": "correction-to-rule"}, "approved_by": None,
                               "derived_from_corrections": [c[0] for c in CORRECTIONS]},
         }

@@ -1,0 +1,116 @@
+{
+  "request_scope": "jp/finance/q2c-cash-application",
+  "consumer": "askq2c-agent",
+  "purpose": "cash_matching",
+  "steps": [
+    {
+      "step": "seed",
+      "at": "2026-11-01T09:00:00+09:00",
+      "rules": [
+        "CA-G-EVIDENCE",
+        "CA-G-GARNISH",
+        "CA-G-EXACT-AMOUNT",
+        "CA-G-NO-WRITEOFF",
+        "CA-L-SMALL-WRITEOFF",
+        "CA-C-0063-ALLOC",
+        "CA-C-0017-HOLD",
+        "OT-CA-GARNISH"
+      ]
+    },
+    {
+      "step": "process-A",
+      "cases": [
+        "PAY-0101",
+        "PAY-0102",
+        "PAY-0103",
+        "PAY-0104",
+        "PAY-0105",
+        "PAY-0106",
+        "PAY-0107",
+        "PAY-0108",
+        "PAY-0109",
+        "PAY-0110",
+        "PAY-0111",
+        "PAY-0112",
+        "PAY-0113",
+        "PAY-0114",
+        "PAY-0115",
+        "PAY-0116",
+        "PAY-0117",
+        "PAY-0118",
+        "PAY-0119",
+        "PAY-0120",
+        "PAY-0121",
+        "PAY-0122",
+        "PAY-0123",
+        "PAY-0124"
+      ]
+    },
+    {
+      "step": "correct-C-101",
+      "correction": "C-101"
+    },
+    {
+      "step": "correct-C-102",
+      "correction": "C-102"
+    },
+    {
+      "step": "correct-C-103",
+      "correction": "C-103"
+    },
+    {
+      "step": "approve-0042-fee",
+      "at": "2026-12-14T10:00:00+09:00",
+      "rule": "CA-L-0042-FEE",
+      "approver": "OWN-001",
+      "enforcement": "default",
+      "authority": 20
+    },
+    {
+      "step": "process-B",
+      "cases": [
+        "PAY-0125",
+        "PAY-0126",
+        "PAY-0127",
+        "PAY-0128",
+        "PAY-0129",
+        "PAY-0130",
+        "PAY-0131",
+        "PAY-0132",
+        "PAY-0133",
+        "PAY-0134"
+      ]
+    },
+    {
+      "step": "retire-0017-hold",
+      "at": "2026-12-19T10:00:00+09:00",
+      "rule": "CA-C-0017-HOLD",
+      "by": "OWN-001",
+      "reason_ja": "与信管理部が与信保留を解除した。",
+      "projection": "lagging"
+    },
+    {
+      "step": "process-C",
+      "cases": [
+        "PAY-0135",
+        "PAY-0136",
+        "PAY-0137",
+        "PAY-0138",
+        "PAY-0139",
+        "PAY-0140"
+      ]
+    }
+  ],
+  "thresholds": {
+    "demo": [
+      1,
+      1,
+      30
+    ],
+    "strict": [
+      3,
+      2,
+      30
+    ]
+  }
+}

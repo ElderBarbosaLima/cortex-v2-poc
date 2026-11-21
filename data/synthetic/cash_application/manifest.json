@@ -1,0 +1,27 @@
+{
+  "workflow": "cash_application",
+  "seed": 20261120,
+  "generator_version": "1",
+  "counts": {
+    "cases": 40,
+    "rules": 8,
+    "corrections": 3,
+    "group:happy": 7,
+    "group:garnishment": 4,
+    "group:scenario_2": 4,
+    "group:learned_rule": 8,
+    "group:resolution": 4,
+    "group:scenario_3": 3,
+    "group:scenario_4": 5,
+    "group:unrelated": 5
+  },
+  "sha256": {
+    "cases.jsonl": "0754bef35d58b847c0e144cc1a57a804334d631d4797073955145a520457fa0a",
+    "corrections.jsonl": "f9651b3f1bc386bfe2fc39afc0ddd1fbda6320bad79145939c023fb035766f3d",
+    "customers.json": "85ba8bcd20da584b30c7ba340991ca87f9db0b522f18e57ac4697ba6e9811980",
+    "expected.json": "2bdd82b1f9e3c73588d77fee7618ea3139cf47ee586abae59fd0f938fbe7e910",
+    "invoices.json": "8a484631f246581fd99d193225609de9a2b6d55490dc120ac9de0e1b50acfc70",
+    "rules.json": "156ad8addefb07a9915b9711472eea2e4b527e8c0c1224ab62e0898c6af337b8",
+    "timeline.json": "39e04340cb15a42cc593eaf94d71dfaca9de8bf68f7eaba997539b745ba6ad70"
+  }
+}

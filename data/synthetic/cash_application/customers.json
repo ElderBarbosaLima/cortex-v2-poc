@@ -1,0 +1,52 @@
+{
+  "customers": [
+    {
+      "customer_id": "CUST-0017",
+      "customer_name": "サンプル商事株式会社",
+      "bank_names": [
+        "ｶ)ｻﾝﾌﾟﾙｼﾖｳｼﾞ"
+      ],
+      "garnishment_registered": false
+    },
+    {
+      "customer_id": "CUST-0042",
+      "customer_name": "架空電機株式会社",
+      "bank_names": [
+        "ｶ)ｶｸｳﾃﾞﾝｷ"
+      ],
+      "garnishment_registered": false
+    },
+    {
+      "customer_id": "CUST-0063",
+      "customer_name": "テスト物産株式会社",
+      "bank_names": [
+        "ｶ)ﾃｽﾄﾌﾞﾂｻﾝ"
+      ],
+      "garnishment_registered": false
+    },
+    {
+      "customer_id": "CUST-0088",
+      "customer_name": "架空ソフトウェア合同会社",
+      "bank_names": [
+        "ﾄﾞ)ｶｸｳｿﾌﾄｳｴｱ"
+      ],
+      "garnishment_registered": false
+    },
+    {
+      "customer_id": "CUST-0105",
+      "customer_name": "サンプル建設株式会社",
+      "bank_names": [
+        "ｶ)ｻﾝﾌﾟﾙｹﾝｾﾂ"
+      ],
+      "garnishment_registered": true
+    },
+    {
+      "customer_id": "CUST-0121",
+      "customer_name": "テスト食品株式会社",
+      "bank_names": [
+        "ｶ)ﾃｽﾄｼﾖｸﾋﾝ"
+      ],
+      "garnishment_registered": false
+    }
+  ]
+}

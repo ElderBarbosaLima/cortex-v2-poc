@@ -1,0 +1,318 @@
+[
+  {
+    "key": "CA-G-EVIDENCE",
+    "record_id": "19c78b3a-c8f3-541c-b519-884d2efb448b",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-G-EVIDENCE"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "消込の根拠として、入金明細と請求書番号を記録する。",
+      "targets": [
+        "match.evidence"
+      ],
+      "condition": "true"
+    }
+  },
+  {
+    "key": "CA-G-GARNISH",
+    "record_id": "a6c0ae65-f014-5120-896e-16c92ed9633d",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-G-GARNISH"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "差押登録のある口座からの入金は自動消込せず、担当者が確認する。",
+      "targets": [
+        "match.mode"
+      ],
+      "condition": "payment.garnishment_registered == true"
+    }
+  },
+  {
+    "key": "CA-G-EXACT-AMOUNT",
+    "record_id": "d53821ae-993b-52d8-8348-8572913d07f5",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "default",
+    "authority": 10,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-G-EXACT-AMOUNT"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "請求額と入金額に差額がある場合は担当者が確認する。",
+      "targets": [
+        "match.difference"
+      ],
+      "condition": "invoice.total != payment.amount"
+    }
+  },
+  {
+    "key": "CA-G-NO-WRITEOFF",
+    "record_id": "8c8f62a5-2eb0-5407-9c17-6f9215b2b741",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "prohibition",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-G-NO-WRITEOFF"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "差額を担当者の確認なしに雑損失として処理しない。",
+      "targets": [
+        "match.difference.writeoff"
+      ],
+      "condition": "invoice.total != payment.amount"
+    }
+  },
+  {
+    "key": "CA-L-SMALL-WRITEOFF",
+    "record_id": "febda508-58a7-5a87-87c6-01b80007d64b",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-L-SMALL-WRITEOFF"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "1,000円未満の差額は雑損失として自動処理し、消込する。",
+      "targets": [
+        "match.difference.writeoff"
+      ],
+      "condition": "invoice.total - payment.amount > 0 && invoice.total - payment.amount < 1000"
+    }
+  },
+  {
+    "key": "CA-C-0063-ALLOC",
+    "record_id": "c210544f-4854-5297-9686-f65def16a7a8",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0063"
+    ],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-C-0063-ALLOC"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "契約第8条に基づき、前受金残高から先に充当する。",
+      "targets": [
+        "match.allocation_order"
+      ],
+      "condition": "payment.customer_id == \"CUST-0063\""
+    }
+  },
+  {
+    "key": "CA-C-0017-HOLD",
+    "record_id": "2df3e16a-1b51-5347-8f09-43f400c7f7d7",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0017"
+    ],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CA-C-0017-HOLD"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "与信管理部の承認があるまで、サンプル商事の入金は消込しない。",
+      "targets": [
+        "match.mode"
+      ],
+      "condition": "payment.customer_id == \"CUST-0017\""
+    }
+  },
+  {
+    "key": "OT-CA-GARNISH",
+    "record_id": "04372c4d-ea8e-5b67-b6af-a3b9eac5789f",
+    "tenant": "other",
+    "kind": "rule",
+    "schema_version": "cash_application.rule/1",
+    "scope": "other",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "OT-CA-GARNISH"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "（別テナント）差押口座の入金は確認する。",
+      "targets": [
+        "match.mode"
+      ],
+      "condition": "true"
+    }
+  }
+]
