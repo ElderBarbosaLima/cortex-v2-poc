@@ -5,6 +5,16 @@
 # The passwords below exist only inside this throwaway stack.
 name: cortex-poc-test
 
+x-aws-client-env: &aws-client-env
+  AWS_ENDPOINT_URL: https://127.0.0.1:9297
+  AWS_CA_BUNDLE: /home/emulator/.aws/emulator/9297/ca.pem
+  AWS_SHARED_CREDENTIALS_FILE: /home/emulator/.aws/emulator/9297/emulator_credentials
+  AWS_CONFIG_FILE: /home/emulator/.aws/emulator/9297/config
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_EC2_METADATA_DISABLED: "true"
+  AWS_DISABLE_HOST_PREFIX_INJECTION: "true"
+
 x-test-db-env: &test-db-env
   POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
@@ -16,6 +26,21 @@ x-test-db-env: &test-db-env
   POSTGRES_SUPERUSER_PASSWORD: test-superuser
 
 services:
+  aws-emulator:
+    build:
+      context: infra/aws-emulator
+    image: cortex-poc/aws-emulator:1.0.545
+    environment:
+      EMULATOR_TELEMETRY: "off"
+    mem_limit: 2g
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--cacert", "/home/emulator/.aws/emulator/9297/ca.pem", "https://127.0.0.1:9297/__admin/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   opa-bundle:
     image: openpolicyagent/opa:1.22.4-debug@sha256:bc5909a9ee68feaac292690909361ec489383dad61e72e5c7e84696fab041977
     user: "0"
@@ -70,7 +95,7 @@ services:
       target: dev
     image: cortex-poc/org-brain-service:dev-tools
     environment:
-      <<: *test-db-env
+      <<: [*test-db-env, *aws-client-env]
       OPA_URL: http://opa:8181
       SEED_DIR: /data/synthetic
     depends_on:
@@ -78,10 +103,16 @@ services:
         condition: service_healthy
       opa:
         condition: service_healthy
+      aws-emulator:
+        condition: service_healthy
+    # KMS through the emulator on 127.0.0.1, like every AWS client.
+    network_mode: service:aws-emulator
     volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator:ro
       - ./services/org-brain-service:/app
       - ./libraries:/libraries
       - ./data:/data:ro
 
 volumes:
   opa-bundle:
+  aws-emulator-home:

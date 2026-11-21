@@ -12,6 +12,7 @@ from app.clients.opa import AccessGateUnavailable, OpaClient
 from app.config import OrgBrainConfig
 from app.db import app_engine
 from app.identity import ConsumerKeyStore
+from app.keys import install as install_keys
 from app.logging_config import configure_logging
 from app.models import Tenant
 from app.routers.cortex import router as cortex_router
@@ -44,6 +45,7 @@ def build_services(cfg: OrgBrainConfig) -> AppServices:
     gate = PolicyGate(OpaClient(cfg.opa_url, timeout_s=cfg.opa_timeout_s), seed)
     keys = ConsumerKeyStore.from_secrets_manager(cfg.consumer_keys_secret)
     register_tenants(seed)
+    install_keys(t.tenant_id for t in seed.tenants)  # tenant KEKs; aes-gcm/1 for new bodies
     try:
         gate.load_all()
     except AccessGateUnavailable as exc:

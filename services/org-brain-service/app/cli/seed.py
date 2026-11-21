@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.clients.opa import OpaClient
 from app.config import OrgBrainConfig
+from app.keys import install as install_keys
 from app.main import register_tenants
 from app.seed.tenants import load_seed
 from app.services.policy_gate import PolicyGate
@@ -21,6 +22,7 @@ def main() -> None:
     cfg = OrgBrainConfig()
     seed = load_seed(Path(cfg.seed_dir))
     register_tenants(seed)
+    install_keys(t.tenant_id for t in seed.tenants)
     PolicyGate(OpaClient(cfg.opa_url, timeout_s=cfg.opa_timeout_s), seed).load_all()
     for tenant in seed.tenants:
         grants = len(tenant.opa_data["grants"])

@@ -71,6 +71,8 @@ class MemoryRecord(Base):
     body_sealed: Mapped[bytes] = mapped_column(Bytes, nullable=False)
     body_codec: Mapped[str] = mapped_column(String(32), nullable=False)
     body_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The lineage root whose data key seals the body (migration 003).
+    key_ref: Mapped[str | None] = mapped_column(UuidCol, nullable=True)
     entities: Mapped[list[str]] = mapped_column(TextArray, nullable=False, default=list)
     scope: Mapped[str] = mapped_column(UuidCol, nullable=False)
     source: Mapped[dict[str, Any]] = mapped_column(JsonCol, nullable=False)
@@ -94,6 +96,24 @@ class MemoryRecord(Base):
         UniqueConstraint("record_id", "version", name="uq_memory_record_version"),
         Index("ix_memory_record_tenant_record", "tenant_id", "record_id", "version"),
     )
+
+
+class RecordKey(Base):
+    """One wrapped data key per lineage root (migration 003). The only ledger-side
+    table rows are ever deleted from: deleting one is crypto-shredding (Q10)."""
+
+    __tablename__ = "record_key"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    key_ref: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    wrapped_dek: Mapped[bytes] = mapped_column(Bytes, nullable=False)
+    kek_alias: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("tenant_id", "key_ref", name="uq_record_key_ref"),)
 
 
 class Outbox(Base):

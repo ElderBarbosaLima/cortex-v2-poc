@@ -74,7 +74,7 @@ def _vector_literal(values: Any) -> str | None:
 
 class PostgresSearchProjection:
     def _upsert(self, session: Session, row: MemoryRecord) -> None:
-        body = ledger.open_body(row)
+        body = ledger.open_body(session, row)
         session.execute(
             _UPSERT,
             {

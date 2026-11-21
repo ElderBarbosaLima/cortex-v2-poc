@@ -42,7 +42,7 @@ def test_append_writes_version_1_and_one_outbox_row(sqlite_session: Session) -> 
 
     assert (row.version, row.status, row.body_codec) == (1, "proposed", "plain-json/1")
     assert row.body_hash == body_hash(draft().body)
-    assert ledger.open_body(row) == draft().body
+    assert ledger.open_body(sqlite_session, row) == draft().body
     event = sqlite_session.scalars(select(Outbox)).one()
     assert event.payload == {
         "record_id": row.record_id,
@@ -208,4 +208,4 @@ def test_opening_with_the_wrong_codec_is_refused(sqlite_session: Session) -> Non
         name = "aes-gcm/1"
 
     with pytest.raises(ValueError, match="sealed with plain-json/1"):
-        ledger.open_body(row, OtherCodec())
+        ledger.open_body(sqlite_session, row, OtherCodec())

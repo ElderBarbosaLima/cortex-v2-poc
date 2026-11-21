@@ -6,6 +6,7 @@ from app.models.ledger import (
     Kind,
     MemoryRecord,
     Outbox,
+    RecordKey,
     SensitivityClass,
     Status,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "LedgerImmutableError",
     "MemoryRecord",
     "Outbox",
+    "RecordKey",
     "SensitivityClass",
     "Status",
     "Tenant",

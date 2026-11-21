@@ -140,15 +140,20 @@ services:
   org-brain-projector:
     image: cortex-poc/org-brain-service:dev
     environment:
-      <<: *org-brain-db-env
+      <<: [*org-brain-db-env, *aws-client-env]
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
     command: ["pipenv", "run", "python", "-m", "app.workers.projector"]
+    # Opens sealed bodies (KMS data keys), so it is an AWS client too.
+    network_mode: service:aws-emulator
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator:ro
     depends_on:
+      aws-emulator:
+        condition: service_healthy
+        restart: true
       org-brain-migrate:
         condition: service_completed_successfully
-    networks:
-      - cortex
 
   org-brain-service:
     build:

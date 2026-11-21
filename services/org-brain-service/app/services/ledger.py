@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Kind, MemoryRecord, Outbox, Status
-from app.services.body_codec import Body, BodyCodec, PlainJsonCodec, body_hash
+from app.services.body_codec import Body, BodyCodec, body_hash, codec_for, default_codec
 from app.utils.ids import new_record_id
 
 # A model may never assert above "preference", at any confidence (governance v1
@@ -123,17 +123,19 @@ def append_new(
     if status is Status.APPROVED and approved_by is None:
         raise IllegalTransitionError("an approved record needs approved_by")
     _check_ceiling(draft.asserted_by, draft.authority, approved_by)
-    codec = codec or PlainJsonCodec()
+    codec = codec or default_codec()
     record_id = new_record_id()
+    key_ref = _lineage_root(session, record_id, draft.derived_from)
     row = MemoryRecord(
         record_id=record_id,
         version=1,
         tenant_id=tenant_id,
         kind=draft.kind.value,
         schema_version=draft.schema_version,
-        body_sealed=codec.seal(tenant_id=tenant_id, record_id=record_id, body=draft.body),
+        body_sealed=codec.seal(session, tenant_id=tenant_id, key_ref=key_ref, body=draft.body),
         body_codec=codec.name,
         body_hash=body_hash(draft.body),
+        key_ref=key_ref,
         entities=list(draft.entities),
         scope=draft.scope,
         source=draft.source,
@@ -264,8 +266,20 @@ def is_valid_at(row: MemoryRecord, t: dt.datetime) -> bool:
     return row.valid_from <= t and (row.valid_to is None or t < row.valid_to)
 
 
-def open_body(row: MemoryRecord, codec: BodyCodec | None = None) -> Body:
-    codec = codec or PlainJsonCodec()
-    if row.body_codec != codec.name:
+def _lineage_root(session: Session, record_id: str, derived_from: tuple[str, ...]) -> str:
+    """Whose data key seals this body: the lineage root (Q10). A record derived
+    from others shares its first parent's key, so erasing the root's key makes
+    every derived body unreadable too."""
+    if not derived_from:
+        return record_id
+    parent = latest(session, derived_from[0])
+    return parent.key_ref or parent.record_id
+
+
+def open_body(session: Session, row: MemoryRecord, codec: BodyCodec | None = None) -> Body:
+    """The plaintext body, opened with the codec the row names."""
+    if codec is not None and row.body_codec != codec.name:
         raise ValueError(f"row sealed with {row.body_codec}, opened with {codec.name}")
-    return codec.open(tenant_id=row.tenant_id, record_id=row.record_id, sealed=row.body_sealed)
+    codec = codec or codec_for(row.body_codec)
+    key_ref = row.key_ref or row.record_id
+    return codec.open(session, tenant_id=row.tenant_id, key_ref=key_ref, sealed=row.body_sealed)

@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–13 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client). Most of what the docs describe is not built yet.
+> Status: issues 1–14 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -91,6 +91,11 @@ append-only: a trigger refuses UPDATE, DELETE and TRUNCATE even for the owner, a
 only way to write it: `append_new`, `transition` (a status change is the next version), `supersede`,
 and `as_of` reads by system time and business time. Each write adds an outbox row in the same
 transaction; commands flush and never commit, so the caller's transaction decides.
+
+Record bodies are encrypted (`aes-gcm/1`): each tenant has a KMS key (`alias/cortex/tenant/<id>`) and
+each record lineage its own data key, wrapped by KMS and kept in `record_key`. Deleting that row
+shreds the record and everything derived from it; scheduling the tenant key's deletion shreds the
+tenant. Governance metadata (status, scope, validity, entities) stays in clear for queries.
 
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from

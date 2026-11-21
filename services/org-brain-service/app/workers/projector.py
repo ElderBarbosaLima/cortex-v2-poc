@@ -19,10 +19,11 @@ import structlog
 
 from app.config import OrgBrainConfig
 from app.db import app_engine
+from app.keys import install as install_keys
 from app.logging_config import configure_logging
 from app.models import Outbox
 from app.workers import handlers
-from app.workers.outbox import drain_all
+from app.workers.outbox import drain_all, tenant_ids
 
 _logger = structlog.get_logger("org-brain.projector")
 # Imported for its side effect: it registers the outbox handlers this process runs.
@@ -46,6 +47,7 @@ def main() -> None:
     configure_logging(cfg.log_level, cfg.log_format)
     signal.signal(signal.SIGTERM, _stop)
     engine = app_engine()
+    install_keys(tenant_ids(engine))  # the projection opens sealed bodies
     _logger.info("projector.started", table=Outbox.__tablename__)
     while _running:
         for tenant, result in drain_all(engine).items():
