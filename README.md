@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–3 of 29 (skeleton, Postgres, AWS Emulator). Most of what the docs describe is not built yet.
+> Status: issues 1–4 of 29 (skeleton, Postgres, AWS Emulator, OPA). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -42,10 +42,13 @@ make stop                             # stops everything and deletes volumes: th
 |---|---|
 | `make test` | hermetic unit tests (no network, no stack) — see [ADR 0001](docs/adr/0001-test-tiers.md) |
 | `make test-integration` | integration tests on an ephemeral stack (`-p cortex-poc-test`, no host ports, wiped after) |
-| `make lint` / `make format` | Ruff check + format check / Ruff format + fix |
+| `make test-policies` | `opa test` on `policies/` |
+| `make test-all` | `test` + `test-integration` + `test-policies`: the definition of "tests pass" |
+| `make lint` / `make format` | Ruff check + format check, `opa check --strict` + Regal / Ruff format + fix |
 | `make typecheck` | Pyright (strict on `app/`) |
 | `make build-multiarch` | builds the images for `linux/arm64` and `linux/amd64` |
 | `make probe-emulator` | AWS Emulator fidelity probe → [`docs/emulator-probe-1.0.545.md`](docs/emulator-probe-1.0.545.md); exits non-zero if a required operation is missing |
+| `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
 ## Services
@@ -53,12 +56,24 @@ make stop                             # stops everything and deletes volumes: th
 | Service | What | Host port |
 |---|---|---|
 | `aws-emulator` | AWS Emulator 1.0.545 (S3, KMS, Secrets Manager), built from the signed RPM (`infra/aws-emulator/`) | `127.0.0.1:9297` (HTTPS) |
+| `opa` | Open Policy Agent 1.22.4, serving the `policies/` bundle (built by the one-shot `opa-bundle`) | `127.0.0.1:8181` (`CORTEX_OPA_PORT`) |
 | `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
 | `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
 
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
 `.env` (see `.env.example`); `make init-env` adds keys a new issue introduces without touching yours.
+
+### OPA
+
+Authorisation decisions (who may read, propose or approve what) live in Rego under `policies/`, never
+in Python (D22). `opa-bundle` builds them into a bundle whose revision is a content hash; the policy
+exposes it as `data.cortex.policy.revision` so every context pack can record which policies it was
+authorised under. Tenant trees and grants are pushed through OPA's Data API under `cortex/tenants`.
+
+```bash
+curl -s -X POST 127.0.0.1:8181/v1/data/cortex/policy/revision -d '{"input":{}}'   # {"result":"sha256:…"}
+```
 
 ### AWS Emulator
 
@@ -81,6 +96,7 @@ Mirrors the arbitr monorepo so the code can move there later:
 
 ```
 services/org-brain-service/   FastAPI service (app/, tests/, Pipfile, Dockerfile)
+policies/                     Rego policies (OPA bundle) + tests
 libraries/                    shared libraries (arbitr-test-utils, copied from the monorepo)
 docs/                         architecture, discovery, tasks, ADRs, PR descriptions (docs/prs/)
 ```

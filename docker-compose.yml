@@ -49,6 +49,51 @@ services:
     networks:
       - cortex
 
+  # One-shot: builds policies/ into a bundle whose revision is a content hash.
+  # Uses the official -debug variant only because it has a shell and sha256sum.
+  opa-bundle:
+    image: openpolicyagent/opa:1.22.4-debug@sha256:bc5909a9ee68feaac292690909361ec489383dad61e72e5c7e84696fab041977
+    user: "0"
+    entrypoint: ["sh", "/build/build-bundle.sh"]
+    network_mode: none
+    volumes:
+      - ./policies:/policies:ro
+      - ./infra/opa:/build:ro
+      - opa-bundle:/bundles
+
+  # Authorisation for the access gate and approvals (D22). The official,
+  # distroless image: the healthcheck uses OPA itself (http.send against its
+  # own /health?bundles), so it needs no shell or curl.
+  opa:
+    image: openpolicyagent/opa:1.22.4@sha256:ff50f50332ff9e722ffafe2658c195ced1f9b6d4f3064000c2ecfa8cdf7acccf
+    command:
+      - run
+      - --server
+      - --addr=0.0.0.0:8181
+      - --log-format=json
+      - --log-level=info
+      - --bundle
+      - /bundles/cortex.tar.gz
+    depends_on:
+      opa-bundle:
+        condition: service_completed_successfully
+    volumes:
+      - opa-bundle:/bundles:ro
+    ports:
+      - "127.0.0.1:${CORTEX_OPA_PORT:-8181}:8181"
+    healthcheck:
+      test:
+        - CMD
+        - /opa
+        - eval
+        - --fail
+        - 'http.send({"method": "get", "url": "http://127.0.0.1:8181/health?bundles", "timeout": "2s"}).status_code == 200'
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    networks:
+      - cortex
+
   postgres:
     build:
       context: .
@@ -139,6 +184,23 @@ services:
       - ./docs:/docs
     command: ["pipenv", "run", "python", "scripts/aws_probe.py", "--out-dir", "/docs"]
 
+  # `opa test` and `opa check --strict` on policies/ (make test-policies, make lint).
+  opa-tools:
+    profiles: ["tools"]
+    image: openpolicyagent/opa:1.22.4@sha256:ff50f50332ff9e722ffafe2658c195ced1f9b6d4f3064000c2ecfa8cdf7acccf
+    network_mode: none
+    volumes:
+      - ./policies:/policies:ro
+
+  # Regal, the Rego linter (make lint).
+  regal:
+    profiles: ["tools"]
+    image: ghcr.io/open-policy-agent/regal:0.43.0@sha256:29460f0ec1340d37f6c0c74bcbd88dd232fd8382c7a2337f0684415bd4c46da1
+    network_mode: none
+    working_dir: /policies
+    volumes:
+      - ./policies:/policies:ro
+
   # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
   pipenv-lock:
     profiles: ["tools"]
@@ -157,3 +219,4 @@ networks:
 volumes:
   postgres-data:
   aws-emulator-home:
+  opa-bundle:

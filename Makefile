@@ -14,7 +14,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
-        test test-integration probe-emulator lint format typecheck
+        test test-integration test-policies test-all opa-reload probe-emulator lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -78,8 +78,20 @@ test-integration: ## Integration tests on an ephemeral stack (own project, no ho
 	@$(TEST_COMPOSE) run --rm org-brain-it pipenv run pytest -q -m integration $(ARGS); \
 		status=$$?; $(TEST_COMPOSE) down -v --remove-orphans >/dev/null 2>&1; exit $$status
 
-lint: build-tools ## Ruff check + format check
+test-policies: init-env ## opa test on policies/ (in a container)
+	$(COMPOSE) run --rm opa-tools test /policies --verbose
+
+test-all: test test-integration test-policies ## Everything that defines "tests pass" (ADR 0001)
+	@echo "$(GREEN)All test tiers passed$(RESET)"
+
+opa-reload: ## Rebuild the policy bundle and restart OPA (after editing policies/)
+	$(COMPOSE) run --rm opa-bundle
+	$(COMPOSE) restart opa
+
+lint: build-tools ## Ruff (Python), opa check --strict + Regal (Rego)
 	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts && pipenv run ruff format --check app tests scripts"
+	$(COMPOSE) run --rm opa-tools check --strict /policies
+	$(COMPOSE) run --rm regal lint /policies
 
 format: build-tools ## Ruff format + autofix (writes to the working tree)
 	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts && pipenv run ruff check --fix app tests scripts"

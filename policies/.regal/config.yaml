@@ -1,0 +1,9 @@
+# Regal (Rego linter) — run with `make lint`. Defaults are kept; anything
+# relaxed here needs a comment saying why.
+rules:
+  imports:
+    unresolved-reference:
+      # data.system.bundles is populated by OPA itself at runtime (bundle
+      # manifests), not by a file in this repository.
+      except-paths:
+        - data.system.bundles
