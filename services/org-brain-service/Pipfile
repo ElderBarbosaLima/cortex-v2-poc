@@ -12,6 +12,8 @@ psycopg2-binary = "*"
 sqlalchemy = ">=2.0.0"
 alembic = ">=1.14.0"
 python-ulid = ">=3.0.0"
+# CEL conditions (D22). Pinned exactly: 0.x API (docs/discovery.md section 5).
+cel-expr-python = "==0.1.4"
 boto3 = ">=1.35.0"
 cryptography = ">=43.0.0"
 

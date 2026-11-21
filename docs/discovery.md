@@ -184,6 +184,15 @@ Nota: **CEL padrão não tem `date()`**. As condições do brief (`invoice.issue
 
 **Escolha: `cel-expr-python`**, atrás da interface `ConditionEvaluator` (`compile(expr, declarations) -> CompiledCondition`, `evaluate(compiled, context) -> bool`). Motivos: é a implementação oficial (mesmo motor do cel-go/cel-cpp, conformance da spec), tem wheels multi-arch e é a única que rejeita na **compilação** variável/função desconhecida e erro de tipo — exatamente o que a admissão precisa. Os 3 pontos não documentados (dict aninhado, timestamp, overflow) viram o **primeiro critério de aceite** da issue do avaliador (teste de caracterização). Se algum falhar, troca-se para `common-expression-language` dentro da mesma interface, com validação de variáveis via `Program.variables()`. Ver Q8.
 
+**Resultado da caracterização (issue 11, cel-expr-python 0.1.4, arm64 e amd64):** fica `cel-expr-python`; o fallback não foi necessário.
+- Dict aninhado (`invoice.customer_id`, `invoice.lines[0].desc`): ok. Variáveis declaradas como `map(string, dyn)`.
+- Compilação rejeita sintaxe, variável e função não declaradas; condição não booleana é rejeitada por nós (`return_type() != BOOL`).
+- Overflow int64 → `OUT_OF_RANGE: integer overflow` (spec CEL); int fora de int64 é recusado na conversão.
+- Chave ausente → `NOT_FOUND`; `null == "x"` → `false`. Erros de avaliação vêm como valor CEL de erro, não exceção (o adaptador os converte em `ConditionEvalError`).
+- **Limitação encontrada:** `datetime` do Python só é aceito como variável de topo, nunca dentro de um mapa. **Decisão:** datas entram no CEL como `int` = dias desde 1970-01-01 da data de calendário, e `date("YYYY-MM-DD")` devolve o mesmo `int`. Preserva o texto das condições do brief, compara datas de calendário sem fuso e permite diferença em dias. `datetime` e `float` no contexto são recusados antes da avaliação.
+- A biblioteca não expõe introspecção de identificadores; a regra Q6 (CEL × `entities`) é verificada por expressão regular sobre o texto da condição.
+- Concordância: as condições CEL de todas as regras sintéticas (inclusive as aprendidas) dão o mesmo resultado que os predicados do golden set nos 80 casos.
+
 ---
 
 ## 6. Decisões sem precedente na arbitr (registradas antes de criar o padrão)

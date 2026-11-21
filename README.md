@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–10 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger, search projection). Most of what the docs describe is not built yet.
+> Status: issues 1–11 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -77,6 +77,14 @@ transaction; commands flush and never commit, so the caller's transaction decide
 Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
 service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
 `.env` (see `.env.example`); `make init-env` adds keys a new issue introduces without touching yours.
+
+### Rule conditions (CEL)
+
+"To which cases does this rule apply" is a CEL expression stored in the rule (D22), compiled at
+admission and evaluated on the applicability path through `ConditionEvaluator`
+(`app/conditions/`, engine: `cel-expr-python`). Amounts are `int`; dates reach CEL as day numbers,
+so `invoice.issue_date >= date("2023-10-01")` compares calendar dates. A condition that does not
+compile, is not boolean, or names an unknown variable or function is never admitted.
 
 ### OPA
 
