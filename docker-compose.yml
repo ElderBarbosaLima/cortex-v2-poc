@@ -41,6 +41,9 @@ services:
       - aws-emulator-home:/home/emulator/.aws/emulator
     ports:
       - "127.0.0.1:9297:9297"
+      # org-brain-service shares this network namespace (AWS clients reach the
+      # emulator on 127.0.0.1), so its port is published here.
+      - "127.0.0.1:${ORG_BRAIN_SERVICE_PORT:-5008}:5008"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "--cacert", "/home/emulator/.aws/emulator/9297/ca.pem", "https://127.0.0.1:9297/__admin/health"]
       interval: 3s
@@ -157,22 +160,31 @@ services:
       - path: .env
         required: false
     environment:
-      <<: *org-brain-db-env
+      <<: [*org-brain-db-env, *aws-client-env]
       SERVICE_NAME: org-brain-service
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
+      OPA_URL: http://opa:8181
+      SEED_DIR: /data/synthetic
+    # An AWS client: it reaches the emulator on 127.0.0.1 (the certificate's
+    # only names), reading the emulator's CA and rotating keys read-only.
+    network_mode: service:aws-emulator
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator:ro
+      - ./data:/data:ro
     depends_on:
+      aws-emulator:
+        condition: service_healthy
+        restart: true
+      opa:
+        condition: service_healthy
       org-brain-migrate:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:${ORG_BRAIN_SERVICE_PORT:-5008}:5008"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5008/health', timeout=2)"]
       interval: 5s
       timeout: 3s
       retries: 10
-    networks:
-      - cortex
 
   # ── tools (profile "tools": never started by `make dev`) ──────────────────
 

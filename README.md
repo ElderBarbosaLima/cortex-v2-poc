@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–12 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies). Most of what the docs describe is not built yet.
+> Status: issues 1–13 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -36,6 +36,23 @@ make stop                             # stops everything and deletes volumes: th
 
 `make help` lists every target. Never call `docker compose`, `pipenv` or `pytest` directly.
 
+### Calling the API
+
+Consumers authenticate with a static API key per consumer (PoC stand-in for OIDC); the tenant always
+comes from that identity, never from the request. Local keys are in `CORTEX_DEV_API_KEYS` (`.env`);
+Secrets Manager holds only their sha256.
+
+```bash
+curl -s 127.0.0.1:5008/v1/cortex/whoami -H "Authorization: Bearer local-dev-askq2c-key"
+curl -s "127.0.0.1:5008/v1/cortex/records/<record_id>?purpose=invoice_drafting" \
+     -H "Authorization: Bearer local-dev-askq2c-key" -H "X-End-User-Id: <person uuid>"
+```
+
+Every read asks OPA first and **fails closed**: if OPA is down, the answer is
+`503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
+and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
+forgets them.
+
 ## Checks (all in containers)
 
 | Target | What it runs |
@@ -53,6 +70,7 @@ make stop                             # stops everything and deletes volumes: th
 | `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
 | `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
 | `make migrate` / `make migrate-check` | Alembic upgrade as the table owner (`make dev` runs it before the service) / one head, ids ≤ 32 chars (also in `make lint`) |
+| `make seed` | register the seed's tenants and load their scope tree, grants and consumers into OPA |
 | `make reindex` | delete and rebuild every tenant's search projection from the ledger |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
@@ -63,7 +81,7 @@ make stop                             # stops everything and deletes volumes: th
 | `aws-emulator` | AWS Emulator 1.0.545 (S3, KMS, Secrets Manager), built from the signed RPM (`infra/aws-emulator/`) | `127.0.0.1:9297` (HTTPS) |
 | `opa` | Open Policy Agent 1.22.4, serving the `policies/` bundle (built by the one-shot `opa-bundle`) | `127.0.0.1:8181` (`CORTEX_OPA_PORT`) |
 | `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
-| `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
+| `org-brain-service` | Cortex backend (FastAPI); shares the emulator's network namespace (AWS client), so its port is published by `aws-emulator` | `127.0.0.1:5008` |
 | `org-brain-projector` | drains the outbox into the search projection (`search_doc`: pg_bigm, `simple` FTS, pgvector for test vectors) | — |
 | `org-brain-migrate` | one-shot `alembic upgrade head` before the service and projector start | — |
 

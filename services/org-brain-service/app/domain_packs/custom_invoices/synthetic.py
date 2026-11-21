@@ -177,12 +177,19 @@ class CaseSpec:
 
 # The case from the brief, verbatim.
 INV_0007: Invoice = {
-    "case_id": "INV-0007", "customer_id": "CUST-0042", "customer_name": "架空電機株式会社",
-    "channel": "coupa", "issue_date": "2026-12-03", "currency": "JPY",
+    "case_id": "INV-0007",
+    "customer_id": "CUST-0042",
+    "customer_name": "架空電機株式会社",
+    "channel": "coupa",
+    "issue_date": "2026-12-03",
+    "currency": "JPY",
     "lines": [{"desc": "保守サービス 12月分", "amount_excl_tax": 900000, "tax_rate": 10}],
     "tax_by_rate": {"10": 90000},
-    "tax_total": 90000, "total": 990000, "po_number": "PO-88231", "attachments": [],
-}  # fmt: skip
+    "tax_total": 90000,
+    "total": 990000,
+    "po_number": "PO-88231",
+    "attachments": [],
+}
 
 CASES: tuple[CaseSpec, ...] = (
     CaseSpec("INV-0001", "A", "happy", "CUST-0105"),
@@ -303,7 +310,7 @@ def _build_case(spec: CaseSpec, rng: random.Random) -> Invoice:
         "total": sum(int(line["amount_excl_tax"]) for line in lines) + sum(taxes.values()),
         "po_number": f"PO-{rng.randrange(10000, 99999)}" if channel in ("coupa", "ariba") else None,
         "attachments": [],
-    }  # fmt: skip
+    }
 
 
 def _active_rules(batch: str) -> list[RuleSpec]:
@@ -367,16 +374,31 @@ def generate(out_dir: Path) -> dict[str, int]:
             "reviewer": reviewer,
             "corrected_at": f"{(dt.date.fromisoformat(by_id[case_id]['issue_date']) + dt.timedelta(days=1)).isoformat()}T15:00:00+09:00",
             "changes": [
-                {"target": "invoice.remarks.po_number", "action": "set", "before": None, "after": f"注文番号: {by_id[case_id]['po_number']}"},
-                {"target": "invoice.attachments.kenshusho", "action": "require", "before": None, "after": "検収書（Coupa に添付）"},
+                {
+                    "target": "invoice.remarks.po_number",
+                    "action": "set",
+                    "before": None,
+                    "after": f"注文番号: {by_id[case_id]['po_number']}",
+                },
+                {
+                    "target": "invoice.attachments.kenshusho",
+                    "action": "require",
+                    "before": None,
+                    "after": "検収書（Coupa に添付）",
+                },
             ],
             "note_ja": "Coupa では注文番号を備考に入れ、検収書を添付しないと差し戻される。",
-            "expected_rule": {**rule_document(LEARNED, WORKFLOW, status="proposed"), "enforcement": "default", "authority": 10,
-                              "asserted_by": {"type": "policy", "id": "correction-to-rule"}, "approved_by": None,
-                              "derived_from_corrections": [c[0] for c in CORRECTIONS]},
+            "expected_rule": {
+                **rule_document(LEARNED, WORKFLOW, status="proposed"),
+                "enforcement": "default",
+                "authority": 10,
+                "asserted_by": {"type": "policy", "id": "correction-to-rule"},
+                "approved_by": None,
+                "derived_from_corrections": [c[0] for c in CORRECTIONS],
+            },
         }
         for cid, case_id, reviewer in CORRECTIONS
-    ]  # fmt: skip
+    ]
     write_jsonl(directory / "corrections.jsonl", corrections)
 
     batches = {b: [s.case_id for s in CASES if s.batch == b] for b in ("A", "B", "C")}
@@ -384,16 +406,35 @@ def generate(out_dir: Path) -> dict[str, int]:
         {"step": "seed", "at": SEEDED_AT, "rules": [r.key for r in RULES]},
         {"step": "process-A", "cases": batches["A"]},
         *({"step": f"correct-{cid}", "correction": cid} for cid, _, _ in CORRECTIONS),
-        {"step": "approve-0042", "at": APPROVED_AT, "rule": LEARNED.key, "approver": "OWN-001",
-         "enforcement": "mandatory", "authority": 30},
+        {
+            "step": "approve-0042",
+            "at": APPROVED_AT,
+            "rule": LEARNED.key,
+            "approver": "OWN-001",
+            "enforcement": "mandatory",
+            "authority": 30,
+        },
         {"step": "process-B", "cases": batches["B"]},
-        {"step": "retire-0017-dept", "at": RETIRED_AT, "rule": RETIRED_KEY, "by": "OWN-001",
-         "reason_ja": "顧客の部門統合により部門コードの指定が廃止された。", "projection": "lagging"},
+        {
+            "step": "retire-0017-dept",
+            "at": RETIRED_AT,
+            "rule": RETIRED_KEY,
+            "by": "OWN-001",
+            "reason_ja": "顧客の部門統合により部門コードの指定が廃止された。",
+            "projection": "lagging",
+        },
         {"step": "process-C", "cases": batches["C"]},
-    ]  # fmt: skip
-    write_json(directory / "timeline.json", {"request_scope": REQUEST_SCOPE, "consumer": "askq2c-agent",
-                                            "purpose": "invoice_drafting", "steps": timeline,
-                                            "thresholds": {"demo": [1, 1, 30], "strict": [3, 2, 30]}})  # fmt: skip
+    ]
+    write_json(
+        directory / "timeline.json",
+        {
+            "request_scope": REQUEST_SCOPE,
+            "consumer": "askq2c-agent",
+            "purpose": "invoice_drafting",
+            "steps": timeline,
+            "thresholds": {"demo": [1, 1, 30], "strict": [3, 2, 30]},
+        },
+    )
 
     expected: list[JsonObj] = []
     for spec in CASES:

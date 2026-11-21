@@ -15,7 +15,7 @@ RESET  := \033[0m
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
         test test-integration test-policies test-all opa-reload probe-emulator \
-        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex lint format typecheck
+        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -32,8 +32,9 @@ init-env: ## Create .env from .env.example, or add the keys it lacks (never over
 
 dev: init-env ## Build and start the whole stack, wait until healthy
 	@echo "$(YELLOW)Starting the Cortex PoC stack...$(RESET)"
-	$(COMPOSE) up -d --build --wait
+	$(COMPOSE) up -d --build --wait aws-emulator postgres opa
 	@$(MAKE) --no-print-directory provision
+	$(COMPOSE) up -d --build --wait
 	@echo "$(GREEN)Stack up — org-brain-service: http://127.0.0.1:$${ORG_BRAIN_SERVICE_PORT:-5008}/health$(RESET)"
 
 stop: ## Stop the stack and DELETE its volumes (the stack is ephemeral)
@@ -85,6 +86,9 @@ migrate: init-env ## Alembic upgrade head as the table owner (make dev runs it t
 
 migrate-check: build-tools ## One Alembic head, every revision id <= 32 chars (also part of make lint)
 	$(DEV_TOOLS) pipenv run python scripts/check_migrations.py
+
+seed: ## Register the seed's tenants and (re)load their scope tree and grants into OPA
+	$(COMPOSE) exec org-brain-service pipenv run python -m app.cli.seed
 
 reindex: ## Delete and rebuild every tenant's search projection from the ledger (stack must be up)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.reindex

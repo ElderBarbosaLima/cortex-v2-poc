@@ -76,9 +76,14 @@ def test_no_floats_and_amounts_are_yen_integers(data: dict[str, Any]) -> None:
 
 def test_brief_case_pay_0113_is_verbatim_and_matches_inv_0007(data: dict[str, Any]) -> None:
     assert data["payments"]["PAY-0113"] == {
-        "payment_id": "PAY-0113", "value_date": "2026-12-10", "amount": 989340, "currency": "JPY",
-        "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ", "bank": "サンプル銀行", "open_invoices": ["INV-0007"],
-    }  # fmt: skip
+        "payment_id": "PAY-0113",
+        "value_date": "2026-12-10",
+        "amount": 989340,
+        "currency": "JPY",
+        "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+        "bank": "サンプル銀行",
+        "open_invoices": ["INV-0007"],
+    }
     # Same invoice as the custom_invoices brief case: ¥990,000, ¥660 fee deducted.
     assert data["invoices"]["INV-0007"]["total"] == 990000
     assert _difference(data, "PAY-0113") == 660

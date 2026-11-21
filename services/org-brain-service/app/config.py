@@ -20,6 +20,13 @@ class OrgBrainConfig(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
 
+    # OPA (access gate and approvals). Fail closed below this timeout.
+    opa_url: str = "http://opa:8181"
+    opa_timeout_s: float = 0.5
+    # Tenant seed (scope tree, people, consumers) and the consumer key hashes.
+    seed_dir: str = "/data/synthetic"
+    consumer_keys_secret: str = "cortex-poc/consumer-api-keys"
+
     # Postgres. The service connects as org_brain_app (owns nothing, cannot
     # bypass RLS); migrations connect as org_brain_owner. See infra/postgres/initdb.
     postgres_host: str = "postgres"

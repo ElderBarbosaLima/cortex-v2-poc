@@ -105,6 +105,7 @@ CONSUMERS: tuple[JsonObj, ...] = (
     {
         "key": "askq2c-agent",
         "tenant": "jp",
+        "scopes": ["cortex:read", "cortex:write"],
         "purposes": {
             "invoice_drafting": {"sensitivity_ceiling": "confidential"},
             "cash_matching": {"sensitivity_ceiling": "confidential"},
@@ -113,6 +114,7 @@ CONSUMERS: tuple[JsonObj, ...] = (
     {
         "key": "decision-desk",
         "tenant": "jp",
+        "scopes": ["cortex:read", "cortex:write"],
         "purposes": {"rule_review": {"sensitivity_ceiling": "confidential"}},
     },
 )

@@ -16,6 +16,35 @@ x-test-db-env: &test-db-env
   POSTGRES_SUPERUSER_PASSWORD: test-superuser
 
 services:
+  opa-bundle:
+    image: openpolicyagent/opa:1.22.4-debug@sha256:bc5909a9ee68feaac292690909361ec489383dad61e72e5c7e84696fab041977
+    user: "0"
+    entrypoint: ["sh", "/build/build-bundle.sh"]
+    network_mode: none
+    volumes:
+      - ./policies:/policies:ro
+      - ./infra/opa:/build:ro
+      - opa-bundle:/bundles
+
+  opa:
+    image: openpolicyagent/opa:1.22.4@sha256:ff50f50332ff9e722ffafe2658c195ced1f9b6d4f3064000c2ecfa8cdf7acccf
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--bundle", "/bundles/cortex.tar.gz"]
+    depends_on:
+      opa-bundle:
+        condition: service_completed_successfully
+    volumes:
+      - opa-bundle:/bundles:ro
+    healthcheck:
+      test:
+        - CMD
+        - /opa
+        - eval
+        - --fail
+        - 'http.send({"method": "get", "url": "http://127.0.0.1:8181/health?bundles", "timeout": "2s"}).status_code == 200'
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
   postgres:
     build:
       context: .
@@ -42,10 +71,17 @@ services:
     image: cortex-poc/org-brain-service:dev-tools
     environment:
       <<: *test-db-env
+      OPA_URL: http://opa:8181
+      SEED_DIR: /data/synthetic
     depends_on:
       postgres:
+        condition: service_healthy
+      opa:
         condition: service_healthy
     volumes:
       - ./services/org-brain-service:/app
       - ./libraries:/libraries
       - ./data:/data:ro
+
+volumes:
+  opa-bundle:

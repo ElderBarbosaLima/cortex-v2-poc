@@ -74,3 +74,5 @@ def configure_logging(log_level: str, log_format: str) -> None:
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(log_level.upper())
+    # httpx logs every request at INFO; the OPA client logs its own decisions.
+    logging.getLogger("httpx").setLevel(logging.WARNING)

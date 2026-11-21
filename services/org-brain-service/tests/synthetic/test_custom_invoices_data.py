@@ -120,11 +120,18 @@ def test_brief_case_inv_0007_is_verbatim(generated: Path) -> None:
     case = next(c for c in _load(generated)["cases"] if c["case_id"] == "INV-0007")
 
     assert {k: v for k, v in case.items() if k != "tax_by_rate"} == {
-        "case_id": "INV-0007", "customer_id": "CUST-0042", "customer_name": "架空電機株式会社",
-        "channel": "coupa", "issue_date": "2026-12-03", "currency": "JPY",
+        "case_id": "INV-0007",
+        "customer_id": "CUST-0042",
+        "customer_name": "架空電機株式会社",
+        "channel": "coupa",
+        "issue_date": "2026-12-03",
+        "currency": "JPY",
         "lines": [{"desc": "保守サービス 12月分", "amount_excl_tax": 900000, "tax_rate": 10}],
-        "tax_total": 90000, "total": 990000, "po_number": "PO-88231", "attachments": [],
-    }  # fmt: skip
+        "tax_total": 90000,
+        "total": 990000,
+        "po_number": "PO-88231",
+        "attachments": [],
+    }
 
 
 def test_golden_set_covers_every_required_group(generated: Path) -> None:
@@ -189,8 +196,12 @@ def test_scenario_4_retired_rule_is_held_then_absent(generated: Path) -> None:
     assert before and after
     for e in before:
         assert ci.RETIRED_KEY in e["expected_rules"]
-        assert {"after": "retire-0017-dept", "result": "hold", "reason": "rule_no_longer_approved",
-                "rule": ci.RETIRED_KEY} in e["verify"]  # fmt: skip
+        assert {
+            "after": "retire-0017-dept",
+            "result": "hold",
+            "reason": "rule_no_longer_approved",
+            "rule": ci.RETIRED_KEY,
+        } in e["verify"]
     for e in after:
         assert ci.RETIRED_KEY not in e["expected_rules"]
     retire = next(s for s in data["timeline"]["steps"] if s["step"] == "retire-0017-dept")

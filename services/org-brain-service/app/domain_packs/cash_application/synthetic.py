@@ -217,9 +217,14 @@ def _hi(
 
 
 PAY_0113: JsonObj = {
-    "payment_id": "PAY-0113", "value_date": "2026-12-10", "amount": 989340, "currency": "JPY",
-    "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ", "bank": "サンプル銀行", "open_invoices": ["INV-0007"],
-}  # fmt: skip
+    "payment_id": "PAY-0113",
+    "value_date": "2026-12-10",
+    "amount": 989340,
+    "currency": "JPY",
+    "payer_name_raw": "ｶ)ｶｸｳﾃﾞﾝｷ",
+    "bank": "サンプル銀行",
+    "open_invoices": ["INV-0007"],
+}
 
 CASES: tuple[CaseSpec, ...] = (
     _hi("PAY-0101", "A", "happy", "CUST-0042"),
@@ -234,12 +239,49 @@ CASES: tuple[CaseSpec, ...] = (
     _hi("PAY-0110", "A", "scenario_2", "CUST-0121", diff=300),
     _hi("PAY-0111", "A", "scenario_2", "CUST-0088", diff=999),
     _hi("PAY-0112", "A", "scenario_2", "CUST-0121", diff=1000, tags=("difference_exactly_1000",)),
-    CaseSpec("PAY-0113", "A", "learned_rule", "CUST-0042", "ｶ)ｶｸｳﾃﾞﾝｷ", "CUST-0042", "high", "exact", 660, pinned=PAY_0113, tags=("correction",)),
+    CaseSpec(
+        "PAY-0113",
+        "A",
+        "learned_rule",
+        "CUST-0042",
+        "ｶ)ｶｸｳﾃﾞﾝｷ",
+        "CUST-0042",
+        "high",
+        "exact",
+        660,
+        pinned=PAY_0113,
+        tags=("correction",),
+    ),
     _hi("PAY-0114", "A", "learned_rule", "CUST-0042", diff=440, tags=("correction",)),
-    _hi("PAY-0115", "A", "learned_rule", "CUST-0042", diff=880, tags=("correction", "fee_exactly_880")),
+    _hi(
+        "PAY-0115",
+        "A",
+        "learned_rule",
+        "CUST-0042",
+        diff=880,
+        tags=("correction", "fee_exactly_880"),
+    ),
     _hi("PAY-0116", "A", "resolution", "CUST-0042", name="ｶ)ｶｸｳﾃﾞﾝ", evidence="truncated_prefix"),
-    CaseSpec("PAY-0117", "A", "resolution", "CUST-0017", "ｶ)ｻﾝﾌﾟﾙ", None, "ambiguous", "prefix_matches_several"),
-    CaseSpec("PAY-0118", "A", "resolution", "CUST-0121", "ｶ)ﾃｽﾄｼﾖｸﾋﾑ", "CUST-0121", "low", "edit_distance_1"),
+    CaseSpec(
+        "PAY-0117",
+        "A",
+        "resolution",
+        "CUST-0017",
+        "ｶ)ｻﾝﾌﾟﾙ",
+        None,
+        "ambiguous",
+        "prefix_matches_several",
+    ),
+    CaseSpec(
+        "PAY-0118",
+        "A",
+        "resolution",
+        "CUST-0121",
+        "ｶ)ﾃｽﾄｼﾖｸﾋﾑ",
+        "CUST-0121",
+        "low",
+        "edit_distance_1",
+    ),
     CaseSpec("PAY-0119", "A", "resolution", None, "ｶ)ﾐﾄｳﾛｸｼﾔ", None, "none", "no_registered_name"),
     _hi("PAY-0120", "A", "scenario_3", "CUST-0063"),
     _hi("PAY-0121", "A", "scenario_3", "CUST-0063", diff=200),
@@ -258,11 +300,19 @@ CASES: tuple[CaseSpec, ...] = (
     _hi("PAY-0134", "B", "garnishment", "CUST-0105", diff=660),
     _hi("PAY-0135", "C", "scenario_4", "CUST-0017", tags=("after_retirement",)),
     _hi("PAY-0136", "C", "scenario_4", "CUST-0017", tags=("after_retirement",)),
-    _hi("PAY-0137", "C", "learned_rule", "CUST-0042", diff=660, name="ｶ)ｶｸｳﾃﾞﾝ", evidence="truncated_prefix"),
+    _hi(
+        "PAY-0137",
+        "C",
+        "learned_rule",
+        "CUST-0042",
+        diff=660,
+        name="ｶ)ｶｸｳﾃﾞﾝ",
+        evidence="truncated_prefix",
+    ),
     _hi("PAY-0138", "C", "scenario_2", "CUST-0088", diff=120),
     _hi("PAY-0139", "C", "unrelated", "CUST-0121", diff=660, tags=("same_fee_other_customer",)),
     _hi("PAY-0140", "C", "unrelated", "CUST-0063", diff=0),
-)  # fmt: skip
+)
 
 BATCH_DATES = {
     "A": (dt.date(2026, 12, 8), dt.date(2026, 12, 12)),
@@ -323,10 +373,14 @@ def generate(out_dir: Path) -> dict[str, int]:
                 "issue_date": "2026-11-30",
             }
             payment = {
-                "payment_id": spec.payment_id, "value_date": value_date, "amount": total - spec.difference,
-                "currency": "JPY", "payer_name_raw": spec.payer_name_raw, "bank": rng.choice(BANKS),
+                "payment_id": spec.payment_id,
+                "value_date": value_date,
+                "amount": total - spec.difference,
+                "currency": "JPY",
+                "payer_name_raw": spec.payer_name_raw,
+                "bank": rng.choice(BANKS),
                 "open_invoices": [invoice["invoice_id"]],
-            }  # fmt: skip
+            }
         payments.append(payment)
         invoices.append(invoice)
 
@@ -341,9 +395,11 @@ def generate(out_dir: Path) -> dict[str, int]:
             "invoice": invoice,
         }
         rules, overridden = expected_rules(
-            _active_rules(spec.batch), ctx, request_scope=REQUEST_SCOPE,
+            _active_rules(spec.batch),
+            ctx,
+            request_scope=REQUEST_SCOPE,
             entities={f"customer:{resolved}"} if resolved else set(),
-        )  # fmt: skip
+        )
         verify: list[JsonObj] = [{"after": f"process-{spec.batch}", "result": "pass"}]
         if RETIRED_KEY in rules and spec.batch in ("A", "B"):
             verify.append(
@@ -354,13 +410,25 @@ def generate(out_dir: Path) -> dict[str, int]:
                     "rule": RETIRED_KEY,
                 }
             )
-        expected.append({
-            "case_id": spec.payment_id, "batch": spec.batch, "group": spec.group, "tags": list(spec.tags),
-            "as_of": payment["value_date"],
-            "resolution": {"payer_name_raw": spec.payer_name_raw, "expected_entity": f"customer:{spec.resolves_to}" if spec.resolves_to else None,
-                           "band": spec.band, "evidence": spec.evidence},
-            "expected_rules": rules, "overridden": overridden, "route": _route(spec, rules), "verify": verify,
-        })  # fmt: skip
+        expected.append(
+            {
+                "case_id": spec.payment_id,
+                "batch": spec.batch,
+                "group": spec.group,
+                "tags": list(spec.tags),
+                "as_of": payment["value_date"],
+                "resolution": {
+                    "payer_name_raw": spec.payer_name_raw,
+                    "expected_entity": f"customer:{spec.resolves_to}" if spec.resolves_to else None,
+                    "band": spec.band,
+                    "evidence": spec.evidence,
+                },
+                "expected_rules": rules,
+                "overridden": overridden,
+                "route": _route(spec, rules),
+                "verify": verify,
+            }
+        )
 
     write_json(directory / "customers.json", {"customers": list(CUSTOMERS)})
     write_json(directory / "invoices.json", invoices)
@@ -369,31 +437,64 @@ def generate(out_dir: Path) -> dict[str, int]:
     by_id = {p["payment_id"]: p for p in payments}
     corrections = [
         {
-            "correction_id": cid, "case_id": pid, "reviewer": reviewer,
+            "correction_id": cid,
+            "case_id": pid,
+            "reviewer": reviewer,
             "corrected_at": f"{(dt.date.fromisoformat(by_id[pid]['value_date']) + dt.timedelta(days=1)).isoformat()}T15:00:00+09:00",
-            "changes": [{"target": "match.difference", "action": "set", "before": "担当者確認（差額あり）",
-                         "after": f"全額入金として消込、差額 {next(c.difference for c in CASES if c.payment_id == pid)} 円を支払手数料に計上"}],
+            "changes": [
+                {
+                    "target": "match.difference",
+                    "action": "set",
+                    "before": "担当者確認（差額あり）",
+                    "after": f"全額入金として消込、差額 {next(c.difference for c in CASES if c.payment_id == pid)} 円を支払手数料に計上",
+                }
+            ],
             "note_ja": "架空電機は毎回振込手数料を差し引いて入金してくる。",
-            "expected_rule": {**rule_document(LEARNED, WORKFLOW, status="proposed"), "authority": 10,
-                              "asserted_by": {"type": "policy", "id": "correction-to-rule"}, "approved_by": None,
-                              "derived_from_corrections": [c[0] for c in CORRECTIONS]},
+            "expected_rule": {
+                **rule_document(LEARNED, WORKFLOW, status="proposed"),
+                "authority": 10,
+                "asserted_by": {"type": "policy", "id": "correction-to-rule"},
+                "approved_by": None,
+                "derived_from_corrections": [c[0] for c in CORRECTIONS],
+            },
         }
         for cid, pid, reviewer in CORRECTIONS
-    ]  # fmt: skip
+    ]
     write_jsonl(directory / "corrections.jsonl", corrections)
     batches = {b: [s.payment_id for s in CASES if s.batch == b] for b in ("A", "B", "C")}
     steps: list[JsonObj] = [
         {"step": "seed", "at": SEEDED_AT, "rules": [r.key for r in RULES]},
         {"step": "process-A", "cases": batches["A"]},
         *({"step": f"correct-{cid}", "correction": cid} for cid, _, _ in CORRECTIONS),
-        {"step": "approve-0042-fee", "at": APPROVED_AT, "rule": LEARNED.key, "approver": "OWN-001", "enforcement": "default", "authority": 20},
+        {
+            "step": "approve-0042-fee",
+            "at": APPROVED_AT,
+            "rule": LEARNED.key,
+            "approver": "OWN-001",
+            "enforcement": "default",
+            "authority": 20,
+        },
         {"step": "process-B", "cases": batches["B"]},
-        {"step": "retire-0017-hold", "at": RETIRED_AT, "rule": RETIRED_KEY, "by": "OWN-001",
-         "reason_ja": "与信管理部が与信保留を解除した。", "projection": "lagging"},
+        {
+            "step": "retire-0017-hold",
+            "at": RETIRED_AT,
+            "rule": RETIRED_KEY,
+            "by": "OWN-001",
+            "reason_ja": "与信管理部が与信保留を解除した。",
+            "projection": "lagging",
+        },
         {"step": "process-C", "cases": batches["C"]},
-    ]  # fmt: skip
-    write_json(directory / "timeline.json", {"request_scope": REQUEST_SCOPE, "consumer": "askq2c-agent", "purpose": "cash_matching",
-                                            "steps": steps, "thresholds": {"demo": [1, 1, 30], "strict": [3, 2, 30]}})  # fmt: skip
+    ]
+    write_json(
+        directory / "timeline.json",
+        {
+            "request_scope": REQUEST_SCOPE,
+            "consumer": "askq2c-agent",
+            "purpose": "cash_matching",
+            "steps": steps,
+            "thresholds": {"demo": [1, 1, 30], "strict": [3, 2, 30]},
+        },
+    )
     write_json(directory / "expected.json", expected)
 
     counts = {"cases": len(payments), "rules": len(RULES), "corrections": len(corrections)}

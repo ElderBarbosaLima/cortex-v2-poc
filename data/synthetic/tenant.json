@@ -145,6 +145,10 @@
     {
       "key": "askq2c-agent",
       "tenant": "jp",
+      "scopes": [
+        "cortex:read",
+        "cortex:write"
+      ],
       "purposes": {
         "invoice_drafting": {
           "sensitivity_ceiling": "confidential"
@@ -157,6 +161,10 @@
     {
       "key": "decision-desk",
       "tenant": "jp",
+      "scopes": [
+        "cortex:read",
+        "cortex:write"
+      ],
       "purposes": {
         "rule_review": {
           "sensitivity_ceiling": "confidential"

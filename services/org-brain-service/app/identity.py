@@ -1,0 +1,105 @@
+"""Consumer identity (PoC stand-in for OIDC, D1; docs/discovery.md P3).
+
+`Authorization: Bearer <static API key>` → sha256 → one consumer, which belongs
+to one tenant. The tenant always comes from that identity, never from the URL,
+query or body (doc 12). `X-End-User-Id` names the person behind the call (a
+UUID), when there is one; OPA must allow both. Only key hashes are held, loaded
+from Secrets Manager at startup; raw keys exist only in the caller's hands.
+
+Shape follows integrations-service's `AuthedCaller` and `require_scope`.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import uuid
+from collections.abc import Callable, Generator
+from typing import Any, cast
+
+import boto3  # pyright: ignore[reportMissingTypeStubs]
+from fastapi import Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.db import tenant_session
+from app.seed.tenants import ConsumerInfo
+
+
+class AuthedCaller(BaseModel):
+    consumer_id: str
+    tenant_id: str
+    end_user_id: str | None = None
+    scopes: list[str] = []
+
+
+class ConsumerKeyStore:
+    """sha256(api key) -> consumer id, compared in constant time."""
+
+    def __init__(self, hashes: dict[str, str]) -> None:
+        self._hashes = dict(hashes)
+
+    @classmethod
+    def from_secrets_manager(cls, secret_id: str, client: Any | None = None) -> ConsumerKeyStore:
+        sm: Any = client if client is not None else cast(Any, boto3).client("secretsmanager")
+        response: Any = sm.get_secret_value(SecretId=secret_id)
+        payload: dict[str, Any] = json.loads(str(response["SecretString"]))
+        return cls({consumer: str(entry["sha256"]) for consumer, entry in payload.items()})
+
+    def consumer_for(self, api_key: str) -> str | None:
+        digest = hashlib.sha256(api_key.encode()).hexdigest()
+        found = None
+        for consumer, expected in self._hashes.items():
+            if hmac.compare_digest(digest, expected):
+                found = consumer
+        return found
+
+
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(status_code=401, detail={"error": "unauthorized", "detail": detail})
+
+
+def get_caller(request: Request) -> AuthedCaller:
+    keys: ConsumerKeyStore = request.app.state.consumer_keys
+    consumers: dict[str, ConsumerInfo] = request.app.state.consumers
+    auth = request.headers.get("Authorization", "")
+    scheme, _, token = auth.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise _unauthorized("missing bearer API key")
+    consumer_id = keys.consumer_for(token.strip())
+    info = consumers.get(consumer_id or "")
+    if info is None:
+        raise _unauthorized("unknown API key")
+    end_user = request.headers.get("X-End-User-Id")
+    if end_user is not None:
+        try:
+            end_user = str(uuid.UUID(end_user))
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "invalid_end_user", "detail": "X-End-User-Id must be a UUID"},
+            ) from None
+    return AuthedCaller(
+        consumer_id=info.consumer_id,
+        tenant_id=info.tenant_id,
+        end_user_id=end_user,
+        scopes=list(info.scopes),
+    )
+
+
+def require_scope(scope: str) -> Callable[[AuthedCaller], AuthedCaller]:
+    def dependency(caller: AuthedCaller = Depends(get_caller)) -> AuthedCaller:
+        if scope not in caller.scopes:
+            raise HTTPException(
+                status_code=403, detail={"error": "insufficient_scope", "detail": scope}
+            )
+        return caller
+
+    return dependency
+
+
+def caller_session(caller: AuthedCaller = Depends(get_caller)) -> Generator[Session]:
+    """A database session bound to the caller's tenant (RLS) for the request."""
+    with tenant_session(caller.tenant_id) as session:
+        yield session

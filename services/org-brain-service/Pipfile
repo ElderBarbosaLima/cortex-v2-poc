@@ -8,6 +8,8 @@ fastapi = ">=0.115.0"
 uvicorn = {extras = ["standard"], version = ">=0.34.0"}
 pydantic-settings = ">=2.0.0"
 structlog = ">=24.0.0"
+# Runtime: the OPA client (issue 13). Also what FastAPI's TestClient uses.
+httpx = ">=0.28.0"
 psycopg2-binary = "*"
 sqlalchemy = ">=2.0.0"
 alembic = ">=1.14.0"
@@ -20,7 +22,6 @@ cryptography = ">=43.0.0"
 [dev-packages]
 pytest = ">=8.0.0"
 pytest-asyncio = ">=0.24.0"
-httpx = ">=0.28.0"
 ruff = ">=0.4.0"
 # The nodejs extra bundles Node in a wheel, so pyright runs with no network.
 pyright = {extras = ["nodejs"], version = ">=1.1.0"}

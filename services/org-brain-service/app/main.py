@@ -1,19 +1,93 @@
-from fastapi import FastAPI
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
 
+import structlog
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.dialects.postgresql import insert
+
+from app.clients.opa import AccessGateUnavailable, OpaClient
 from app.config import OrgBrainConfig
+from app.db import app_engine
+from app.identity import ConsumerKeyStore
 from app.logging_config import configure_logging
+from app.models import Tenant
+from app.routers.cortex import router as cortex_router
 from app.routers.health import router as health_router
+from app.seed.tenants import ConsumerInfo, Seed, load_seed
+from app.services.policy_gate import PolicyGate
 from app.utils.middleware import RequestIdMiddleware
 
+_logger = structlog.get_logger("org-brain.main")
 
-def create_app(cfg: OrgBrainConfig | None = None) -> FastAPI:
+
+@dataclass
+class AppServices:
+    """Everything a request needs from the outside world. Tests inject fakes."""
+
+    seed: Seed
+    consumer_keys: ConsumerKeyStore
+    policy_gate: PolicyGate
+
+
+def register_tenants(seed: Seed) -> None:
+    """The tenant registry the outbox drainer iterates (idempotent)."""
+    rows = [{"tenant_id": t.tenant_id, "key": t.key} for t in seed.tenants]
+    with app_engine().begin() as conn:
+        conn.execute(insert(Tenant).values(rows).on_conflict_do_nothing())
+
+
+def build_services(cfg: OrgBrainConfig) -> AppServices:
+    seed = load_seed(Path(cfg.seed_dir))
+    gate = PolicyGate(OpaClient(cfg.opa_url, timeout_s=cfg.opa_timeout_s), seed)
+    keys = ConsumerKeyStore.from_secrets_manager(cfg.consumer_keys_secret)
+    register_tenants(seed)
+    try:
+        gate.load_all()
+    except AccessGateUnavailable as exc:
+        # Not fatal: reads fail closed until OPA answers, then the gate reloads.
+        _logger.error("startup.opa_unavailable", error=str(exc))
+    return AppServices(seed=seed, consumer_keys=keys, policy_gate=gate)
+
+
+def _install(app: FastAPI, services: AppServices) -> None:
+    app.state.consumer_keys = services.consumer_keys
+    app.state.consumers = services.seed.consumers
+    app.state.policy_gate = services.policy_gate
+    app.state.seed = services.seed
+
+
+def create_app(
+    cfg: OrgBrainConfig | None = None, *, services: AppServices | None = None
+) -> FastAPI:
     cfg = cfg or OrgBrainConfig()
     configure_logging(cfg.log_level, cfg.log_format)
 
-    app = FastAPI(title="Cortex (org-brain-service)", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        if services is None:
+            _install(app, build_services(cfg))
+        yield
+
+    app = FastAPI(title="Cortex (org-brain-service)", version="0.1.0", lifespan=lifespan)
+    if services is not None:
+        _install(app, services)
     app.add_middleware(RequestIdMiddleware)
+
+    @app.exception_handler(AccessGateUnavailable)
+    async def _gate_unavailable(request: Request, exc: AccessGateUnavailable) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "access_gate_unavailable", "detail": str(exc)},
+        )
+
     app.include_router(health_router)
+    app.include_router(cortex_router)
     return app
 
+
+__all__ = ["AppServices", "ConsumerInfo", "create_app"]
 
 app = create_app()
