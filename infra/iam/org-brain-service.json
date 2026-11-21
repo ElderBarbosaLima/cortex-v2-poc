@@ -1,0 +1,76 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EvidenceArchiveWriteRead",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObjectRetention",
+        "s3:PutObject",
+        "s3:GetObjectRetention",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::cortex-poc-evidence/*"
+    },
+    {
+      "Sid": "OriginalsReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::cortex-poc-originals/*"
+    },
+    {
+      "Sid": "CreateTenantKeys",
+      "Effect": "Allow",
+      "Action": "kms:CreateKey",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AliasTenantKeys",
+      "Effect": "Allow",
+      "Action": "kms:CreateAlias",
+      "Resource": [
+        "arn:aws:kms:us-east-1:000000000000:key/*",
+        "arn:aws:kms:us-east-1:000000000000:alias/cortex/tenant/*"
+      ]
+    },
+    {
+      "Sid": "UseTenantKeys",
+      "Effect": "Allow",
+      "Action": [
+        "kms:ScheduleKeyDeletion",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey",
+        "kms:Decrypt"
+      ],
+      "Resource": "arn:aws:kms:us-east-1:000000000000:key/*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "kms:ResourceAliases": "alias/cortex/tenant/*"
+        }
+      }
+    },
+    {
+      "Sid": "RequireTenantEncryptionContext",
+      "Effect": "Deny",
+      "Action": [
+        "kms:GenerateDataKey",
+        "kms:Decrypt"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "kms:EncryptionContext:tenant_id": "true"
+        }
+      }
+    },
+    {
+      "Sid": "ReadConsumerKeyHashes",
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:us-east-1:000000000000:secret:cortex-poc/consumer-api-keys-??????"
+    }
+  ]
+}

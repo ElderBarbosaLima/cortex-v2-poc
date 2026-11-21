@@ -14,7 +14,8 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
-        test test-integration test-policies test-all opa-reload probe-emulator lint format typecheck
+        test test-integration test-policies test-all opa-reload probe-emulator \
+        tf-cache provision tf-plan tf-lock lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -32,6 +33,7 @@ init-env: ## Create .env from .env.example, or add the keys it lacks (never over
 dev: init-env ## Build and start the whole stack, wait until healthy
 	@echo "$(YELLOW)Starting the Cortex PoC stack...$(RESET)"
 	$(COMPOSE) up -d --build --wait
+	@$(MAKE) --no-print-directory provision
 	@echo "$(GREEN)Stack up — org-brain-service: http://127.0.0.1:$${ORG_BRAIN_SERVICE_PORT:-5008}/health$(RESET)"
 
 stop: ## Stop the stack and DELETE its volumes (the stack is ephemeral)
@@ -61,6 +63,18 @@ build-multiarch: ## Build every image for linux/arm64 and linux/amd64 (no push, 
 	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) -f infra/postgres/Dockerfile .
 	docker buildx build --builder $(BUILDER) --platform $(PLATFORMS) infra/aws-emulator
 
+tf-cache:
+	@docker volume inspect cortex-poc-terraform-plugins >/dev/null 2>&1 || docker volume create cortex-poc-terraform-plugins >/dev/null
+
+provision: init-env tf-cache ## Terraform apply against the AWS Emulator (idempotent; also run by make dev)
+	$(COMPOSE) run --rm terraform apply
+
+tf-plan: init-env tf-cache ## Terraform plan; exit 0 = no changes, 2 = changes pending
+	$(COMPOSE) run --rm terraform plan
+
+tf-lock: init-env tf-cache ## Refresh provider hashes for linux_arm64 + linux_amd64 (.terraform.lock.hcl)
+	$(COMPOSE) run --rm terraform-lock
+
 probe-emulator: init-env build-tools ## AWS Emulator fidelity probe -> docs/emulator-probe-<version>.md (gate for AWS issues)
 	$(COMPOSE) up -d --build --wait aws-emulator
 	$(COMPOSE) run --rm aws-probe
@@ -88,12 +102,14 @@ opa-reload: ## Rebuild the policy bundle and restart OPA (after editing policies
 	$(COMPOSE) run --rm opa-bundle
 	$(COMPOSE) restart opa
 
-lint: build-tools ## Ruff (Python), opa check --strict + Regal (Rego)
+lint: build-tools ## Ruff (Python), opa check --strict + Regal (Rego), terraform fmt -check
 	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts && pipenv run ruff format --check app tests scripts"
+	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -check -recursive -diff /workspace/infra/terraform
 	$(COMPOSE) run --rm opa-tools check --strict /policies
 	$(COMPOSE) run --rm regal lint /policies
 
-format: build-tools ## Ruff format + autofix (writes to the working tree)
+format: build-tools ## Ruff format + autofix, terraform fmt (writes to the working tree)
+	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -recursive /workspace/infra/terraform
 	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts && pipenv run ruff check --fix app tests scripts"
 
 typecheck: build-tools ## Pyright (strict on app/)

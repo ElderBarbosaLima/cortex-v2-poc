@@ -184,6 +184,40 @@ services:
       - ./docs:/docs
     command: ["pipenv", "run", "python", "scripts/aws_probe.py", "--out-dir", "/docs"]
 
+  # `make provision` / `make tf-plan`: Terraform against the emulator (Rev. C:
+  # "cloud differences live only in this module"). Shares the emulator's
+  # network namespace like every AWS client. State lives on a volume that
+  # `make stop` removes with the emulator; the provider plugin cache is an
+  # external volume so the provider is not downloaded on every `make dev`.
+  terraform:
+    profiles: ["tools"]
+    image: hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
+    entrypoint: ["sh", "/workspace/infra/terraform/provision.sh"]
+    network_mode: service:aws-emulator
+    depends_on:
+      aws-emulator:
+        condition: service_healthy
+    environment:
+      <<: *aws-client-env
+      TF_IN_AUTOMATION: "1"
+      TF_DATA_DIR: /state/.terraform
+      TF_PLUGIN_CACHE_DIR: /plugins
+      TF_VAR_consumer_api_keys: ${CORTEX_DEV_API_KEYS:?set it in .env (make init-env)}
+    volumes:
+      - aws-emulator-home:/home/emulator/.aws/emulator:ro
+      - ./infra:/workspace/infra
+      - terraform-state:/state
+      - terraform-plugins:/plugins
+
+  # `make tf-lock`: provider hashes for linux_arm64 and linux_amd64.
+  terraform-lock:
+    profiles: ["tools"]
+    image: hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
+    working_dir: /workspace/infra/terraform/aws
+    command: ["providers", "lock", "-platform=linux_arm64", "-platform=linux_amd64"]
+    volumes:
+      - ./infra:/workspace/infra
+
   # `opa test` and `opa check --strict` on policies/ (make test-policies, make lint).
   opa-tools:
     profiles: ["tools"]
@@ -220,3 +254,8 @@ volumes:
   postgres-data:
   aws-emulator-home:
   opa-bundle:
+  terraform-state:
+  terraform-plugins:
+    # External: survives `make stop` (it is a download cache, not state).
+    external: true
+    name: cortex-poc-terraform-plugins

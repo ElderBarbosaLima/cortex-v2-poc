@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–4 of 29 (skeleton, Postgres, AWS Emulator, OPA). Most of what the docs describe is not built yet.
+> Status: issues 1–5 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ Keep the clone under your home directory: Colima only shares `$HOME` with its VM
 ## Run
 
 ```bash
-make dev                              # build + start, waits until healthy (creates .env from .env.example)
+make dev                              # build + start, wait until healthy, provision AWS resources (Terraform)
 curl -s 127.0.0.1:5008/health         # {"status":"ok","service":"org-brain-service","version":"0.1.0"}
 make stop                             # stops everything and deletes volumes: the stack is ephemeral
 ```
@@ -48,6 +48,8 @@ make stop                             # stops everything and deletes volumes: th
 | `make typecheck` | Pyright (strict on `app/`) |
 | `make build-multiarch` | builds the images for `linux/arm64` and `linux/amd64` |
 | `make probe-emulator` | AWS Emulator fidelity probe → [`docs/emulator-probe-1.0.545.md`](docs/emulator-probe-1.0.545.md); exits non-zero if a required operation is missing |
+| `make provision` / `make tf-plan` | Terraform apply / plan against the emulator (`make dev` runs `provision`; plan exits 0 when nothing changes) |
+| `make tf-lock` | refresh provider hashes for `linux_arm64` + `linux_amd64` |
 | `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
@@ -89,6 +91,17 @@ AWS SDK, configured only by environment variables (`x-aws-client-env` in `docker
   emulator loses every bucket, secret and key: that is why the whole stack is ephemeral.
 - Telemetry is off (`--telemetry off`).
 - It does not enforce IAM: "works locally" is not proof of a permission.
+
+### Provisioning (Terraform)
+
+`infra/terraform/aws/` creates the AWS side (Rev. C: cloud differences live only in this module):
+`cortex-poc-evidence` (versioned, Object Lock COMPLIANCE), `cortex-poc-originals` (versioned), both
+private with SSE, and the `cortex-poc/consumer-api-keys` secret (sha256 of each consumer's API key
+from `CORTEX_DEV_API_KEYS` in `.env`, never the key itself). KMS keys are per tenant and created by
+the application, not here. The least-privilege IAM policy for org-brain is rendered to
+[`infra/iam/org-brain-service.json`](infra/iam/org-brain-service.json) as a reviewable artefact; it
+is not applied anywhere. Terraform runs in a container, shares the emulator's network namespace,
+and keeps its state on a volume that `make stop` removes with the emulator.
 
 ## Layout
 
