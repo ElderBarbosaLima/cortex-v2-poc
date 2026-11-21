@@ -264,6 +264,8 @@ Sem IaC na arbitr. **Padrão adotado (issue 5):** módulo `infra/terraform/aws/`
 - A decisão vira filtros SQL (`scope = ANY(:readable_scopes)`, `sensitivity <= :ceiling`); RLS continua garantindo o tenant.
 - Testes: `policies/cortex/*_test.rego` cobrindo os veredictos do resolver (inclusive barrier e expiração exatamente em `now`), `opa test` + `regal lint` em container.
 
+**Implementado (issue 12):** `policies/cortex/policy/rbac/rbac.rego` (resolver, paridade com `test_authorize.py` do `arbitr-rbac`), `authz/authz.rego` (`data.cortex.policy.authz.decision`) e `approval/approval.rego` (`data.cortex.policy.approval.decision`). Diferenças em relação ao desenho acima: os escopos legíveis são o nó pedido e seus ancestrais dentro do tenant (permissão exigida no nó pedido; o que está acima "desce" para ele), e os `consumers` com seus propósitos ficam dentro de `data.cortex.tenants[<id>]`. Sem `now` válido (RFC 3339), a decisão é negada explicitamente (nunca indefinida). `separation of duties` usa `record.contributors` (corretores e quem afirmou o registro).
+
 ---
 
 ## 8. Riscos e premissas

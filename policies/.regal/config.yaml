@@ -3,7 +3,22 @@
 rules:
   imports:
     unresolved-reference:
-      # data.system.bundles is populated by OPA itself at runtime (bundle
-      # manifests), not by a file in this repository.
+      # Both are filled in at runtime, not by files in this repository:
+      # data.system.bundles by OPA itself (bundle manifests), data.cortex.tenants
+      # by org-brain through the Data API (scope tree, grants, consumers).
       except-paths:
         - data.system.bundles
+        - data.cortex.tenants
+  performance:
+    with-outside-test-context:
+      # Test helpers (`read(...)`, `decide(...)`) set up `input` and `data` with
+      # `with` on behalf of the tests that call them; they are test context.
+      ignore:
+        files:
+          - "*_test.rego"
+  style:
+    external-reference:
+      # Test helpers read the shared fixtures (`now`, `tenant`, `nodes`) by name.
+      ignore:
+        files:
+          - "*_test.rego"

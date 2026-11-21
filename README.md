@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–11 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions). Most of what the docs describe is not built yet.
+> Status: issues 1–12 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -92,6 +92,13 @@ Authorisation decisions (who may read, propose or approve what) live in Rego und
 in Python (D22). `opa-bundle` builds them into a bundle whose revision is a content hash; the policy
 exposes it as `data.cortex.policy.revision` so every context pack can record which policies it was
 authorised under. Tenant trees and grants are pushed through OPA's Data API under `cortex/tenants`.
+
+| Decision | Path | Answers |
+|---|---|---|
+| read | `data.cortex.policy.authz.decision` | may this consumer (and end user) read at this scope for this purpose; readable scopes (the node and its ancestors); sensitivity ceiling |
+| propose / approve / reject | `data.cortex.policy.approval.decision` | `memory.write` to propose, `memory.approve` to decide; only a person decides, and never on a record they contributed to |
+
+Both translate the `arbitr-rbac` resolver (nearest grant up the tree, information barriers, expiry at `now`).
 
 ```bash
 curl -s -X POST 127.0.0.1:8181/v1/data/cortex/policy/revision -d '{"input":{}}'   # {"result":"sha256:…"}
