@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–14 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys). Most of what the docs describe is not built yet.
+> Status: issues 1–15 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys, domain pack interface). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -152,6 +152,16 @@ the application, not here. The least-privilege IAM policy for org-brain is rende
 [`infra/iam/org-brain-service.json`](infra/iam/org-brain-service.json) as a reviewable artefact; it
 is not applied anywhere. Terraform runs in a container, shares the emulator's network namespace,
 and keeps its state on a volume that `make stop` removes with the emulator.
+
+## Domain packs
+
+The core never knows which workflow is running (D18). Everything workflow-specific sits in a domain
+pack behind `DomainPack` (`app/domain_packs/base.py`): entity types and resolver, what conditions may
+read (variables, fields, which fields name an entity), rule targets, rule and correction schemas,
+correction → proposed rule, search text, and an optional output check for verify. The core is tested
+with a made-up pack (`tests/fakes/fake_pack.py`); real packs must pass the same contract
+(`tests/domain_packs/contract.py`), and a guard test fails if core code imports a real pack or
+branches on a workflow name.
 
 ## Synthetic data
 
