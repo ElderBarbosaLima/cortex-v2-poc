@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–5 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform). Most of what the docs describe is not built yet.
+> Status: issues 1–6 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for custom invoices). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -51,6 +51,7 @@ make stop                             # stops everything and deletes volumes: th
 | `make provision` / `make tf-plan` | Terraform apply / plan against the emulator (`make dev` runs `provision`; plan exits 0 when nothing changes) |
 | `make tf-lock` | refresh provider hashes for `linux_arm64` + `linux_amd64` |
 | `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
+| `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
 ## Services
@@ -103,12 +104,31 @@ the application, not here. The least-privilege IAM policy for org-brain is rende
 is not applied anywhere. Terraform runs in a container, shares the emulator's network namespace,
 and keeps its state on a volume that `make stop` removes with the emulator.
 
+## Synthetic data
+
+Everything in [`data/synthetic/`](data/synthetic/) is fictitious, in Japanese, and generated with a fixed
+seed (`make gen-data`; generators live in each domain pack). `tenant.json` is the shared scope tree,
+people (role labels only) and consumers. Per workflow:
+
+| File | What |
+|---|---|
+| `cases.jsonl` | input cases (custom invoices: 40, the brief's format, JPY as integers) |
+| `rules.json` | initial rules with their CEL condition, scope, entities and enforcement |
+| `corrections.jsonl` | reviewer corrections and the rule each should become |
+| `timeline.json` | the ordered steps a harness replays (process, correct, approve, retire) |
+| `expected.json` | golden set: the exact rules each case's pack must hold, overridden local rules, verify outcomes |
+
+Covered: a happy path, a correction that becomes an approved rule and then applies, unrelated cases
+where it must not appear, and acceptance scenarios 2, 3 and 4. The unit tests fail if the committed
+data drifts from the generator.
+
 ## Layout
 
 Mirrors the arbitr monorepo so the code can move there later:
 
 ```
 services/org-brain-service/   FastAPI service (app/, tests/, Pipfile, Dockerfile)
+data/synthetic/               generated synthetic data + golden sets (see above)
 policies/                     Rego policies (OPA bundle) + tests
 libraries/                    shared libraries (arbitr-test-utils, copied from the monorepo)
 docs/                         architecture, discovery, tasks, ADRs, PR descriptions (docs/prs/)

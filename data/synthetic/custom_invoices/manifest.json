@@ -1,0 +1,24 @@
+{
+  "workflow": "custom_invoices",
+  "seed": 20261120,
+  "generator_version": "1",
+  "counts": {
+    "cases": 40,
+    "rules": 7,
+    "corrections": 3,
+    "group:happy": 7,
+    "group:learned_rule": 10,
+    "group:scenario_2": 5,
+    "group:scenario_3": 4,
+    "group:scenario_4": 5,
+    "group:unrelated": 9
+  },
+  "sha256": {
+    "cases.jsonl": "92145ab8c0f15f8d31962e49cb5822a6c8a93521cc744d0adc4df77c117d9f25",
+    "corrections.jsonl": "1b9de637152afdb074ddc492a89be550be46963f461d0b42997d7d0bb11fbbd6",
+    "customers.json": "fd41bca86e1e5050ce75c66170056e832d897560f906e2d106884c15fa019106",
+    "expected.json": "e168adeaf31a2355b588a8e27fc359504c52c68db240344bca6adeb82a89c86c",
+    "rules.json": "630bcdf10b4dc63e1bb213c7d71b7e321125e887629778d5b8343b2d35b96c1b",
+    "timeline.json": "adaedbdd3866fc7e20775b18431ac6b494db74b71e41965a4c26c1423edbc7ec"
+  }
+}

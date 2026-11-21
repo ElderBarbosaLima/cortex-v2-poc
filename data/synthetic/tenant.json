@@ -1,0 +1,167 @@
+{
+  "nodes": [
+    {
+      "key": "org",
+      "obj_id": "af22f7f0-2a04-503b-8714-20bcc23f55e1",
+      "name": "架空グループ",
+      "parent": null,
+      "type": "organization",
+      "is_barrier": false,
+      "path_up": [
+        "org"
+      ]
+    },
+    {
+      "key": "jp",
+      "obj_id": "442450b1-1ac6-5793-8eff-8c07c63a7fc1",
+      "name": "架空グループ日本",
+      "parent": "org",
+      "type": "tenant",
+      "is_barrier": false,
+      "path_up": [
+        "jp",
+        "org"
+      ]
+    },
+    {
+      "key": "jp/finance",
+      "obj_id": "0f13f6fb-c416-519c-8561-4caf66215638",
+      "name": "経理本部",
+      "parent": "jp",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "jp/finance",
+        "jp",
+        "org"
+      ]
+    },
+    {
+      "key": "jp/finance/q2c-invoicing",
+      "obj_id": "3ab4ee05-3475-5382-a583-3ef5a72ec2b3",
+      "name": "Q2C 請求書チーム",
+      "parent": "jp/finance",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "jp/finance/q2c-invoicing",
+        "jp/finance",
+        "jp",
+        "org"
+      ]
+    },
+    {
+      "key": "jp/finance/q2c-cash-application",
+      "obj_id": "987c8094-795e-577d-8704-f6fa77250f5f",
+      "name": "Q2C 入金消込チーム",
+      "parent": "jp/finance",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "jp/finance/q2c-cash-application",
+        "jp/finance",
+        "jp",
+        "org"
+      ]
+    },
+    {
+      "key": "other",
+      "obj_id": "e94289dc-b980-50ba-b51d-b76d10fd1176",
+      "name": "テスト別テナント",
+      "parent": "org",
+      "type": "tenant",
+      "is_barrier": false,
+      "path_up": [
+        "other",
+        "org"
+      ]
+    },
+    {
+      "key": "other/finance",
+      "obj_id": "69a90f53-87be-5810-b310-9ed220543a95",
+      "name": "テスト別テナント経理",
+      "parent": "other",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "other/finance",
+        "other",
+        "org"
+      ]
+    }
+  ],
+  "people": [
+    {
+      "key": "R-001",
+      "label": "請求書レビュアー 1",
+      "role": "reviewer",
+      "node": "jp/finance",
+      "obj_id": "dd55bdcc-baeb-53b8-9a96-dc9b3bf848fe"
+    },
+    {
+      "key": "R-002",
+      "label": "請求書レビュアー 2",
+      "role": "reviewer",
+      "node": "jp/finance",
+      "obj_id": "29bd6fc4-22e3-576b-9a8a-6d306e57e84d"
+    },
+    {
+      "key": "R-101",
+      "label": "入金消込レビュアー 1",
+      "role": "reviewer",
+      "node": "jp/finance",
+      "obj_id": "0745460f-ce71-5a33-a925-cc8dd9166d68"
+    },
+    {
+      "key": "R-102",
+      "label": "入金消込レビュアー 2",
+      "role": "reviewer",
+      "node": "jp/finance",
+      "obj_id": "76f4abb3-939f-5d8e-a6f6-e3cbdfaad081"
+    },
+    {
+      "key": "OWN-001",
+      "label": "ルール責任者",
+      "role": "final_validator",
+      "node": "jp/finance",
+      "obj_id": "62f15719-9a62-5783-966e-9b69a1a14dde"
+    },
+    {
+      "key": "OWN-002",
+      "label": "ルール責任者（代理）",
+      "role": "final_validator",
+      "node": "jp/finance",
+      "obj_id": "ca372a38-3d70-52d1-af12-9f3cbe409be2"
+    },
+    {
+      "key": "X-001",
+      "label": "別テナント担当",
+      "role": "final_validator",
+      "node": "other",
+      "obj_id": "aa29d668-d44d-5ed0-8db0-6c7e32f3749f"
+    }
+  ],
+  "consumers": [
+    {
+      "key": "askq2c-agent",
+      "tenant": "jp",
+      "purposes": {
+        "invoice_drafting": {
+          "sensitivity_ceiling": "confidential"
+        },
+        "cash_matching": {
+          "sensitivity_ceiling": "confidential"
+        }
+      }
+    },
+    {
+      "key": "decision-desk",
+      "tenant": "jp",
+      "purposes": {
+        "rule_review": {
+          "sensitivity_ceiling": "confidential"
+        }
+      }
+    }
+  ]
+}

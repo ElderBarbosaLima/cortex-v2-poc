@@ -161,6 +161,19 @@ services:
     volumes:
       - ./services/org-brain-service:/app
       - ./libraries:/libraries
+      # Read-only: tests compare the committed synthetic data with a fresh run.
+      - ./data:/data:ro
+
+  # `make gen-data`: writes data/synthetic/ (deterministic, no network).
+  synthetic:
+    profiles: ["tools"]
+    image: cortex-poc/org-brain-service:dev-tools
+    network_mode: none
+    volumes:
+      - ./services/org-brain-service:/app
+      - ./libraries:/libraries
+      - ./data:/data
+    command: ["pipenv", "run", "python", "-m", "app.cli.gen_synthetic", "--out", "/data/synthetic"]
 
   # `make probe-emulator`: fidelity probe of every AWS operation the PoC uses.
   # Writes docs/emulator-probe-<version>.md and exits non-zero if a required

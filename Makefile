@@ -15,7 +15,7 @@ RESET  := \033[0m
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
         test test-integration test-policies test-all opa-reload probe-emulator \
-        tf-cache provision tf-plan tf-lock lint format typecheck
+        tf-cache provision tf-plan tf-lock gen-data lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -78,6 +78,9 @@ tf-lock: init-env tf-cache ## Refresh provider hashes for linux_arm64 + linux_am
 probe-emulator: init-env build-tools ## AWS Emulator fidelity probe -> docs/emulator-probe-<version>.md (gate for AWS issues)
 	$(COMPOSE) up -d --build --wait aws-emulator
 	$(COMPOSE) run --rm aws-probe
+
+gen-data: build-tools ## Generate data/synthetic/ (deterministic; rerun must leave git diff empty)
+	$(COMPOSE) run --rm synthetic
 
 lock: init-env ## Regenerate Pipfile.lock (SVC=<service>, default org-brain-service)
 	SVC=$(SVC) $(COMPOSE) run --rm --no-deps pipenv-lock

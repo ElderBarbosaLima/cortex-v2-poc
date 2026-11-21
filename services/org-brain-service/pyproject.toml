@@ -27,6 +27,14 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # FastAPI Depends / Query in argument defaults is the framework pattern (B008).
 ignore = ["B008"]
+# Full-width punctuation is correct in Japanese text (synthetic data, rule texts),
+# and × / – appear in prose; they are not look-alike ASCII here.
+allowed-confusables = ["（", "）", "＋", "×", "–"]
+
+[tool.ruff.lint.per-file-ignores]
+# Synthetic-data generators are mostly literal tables (Japanese text, one case
+# or rule per row); wrapping them would hurt readability more than it helps.
+"app/domain_packs/*/synthetic.py" = ["E501"]
 
 [tool.pyright]
 include = ["app", "tests", "scripts"]

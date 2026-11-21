@@ -1,0 +1,38 @@
+{
+  "issuer": {
+    "name": "架空情報システム株式会社",
+    "registration_number": "T4945621817563"
+  },
+  "customers": [
+    {
+      "customer_id": "CUST-0017",
+      "customer_name": "サンプル商事株式会社",
+      "channel": "ariba"
+    },
+    {
+      "customer_id": "CUST-0042",
+      "customer_name": "架空電機株式会社",
+      "channel": "coupa"
+    },
+    {
+      "customer_id": "CUST-0063",
+      "customer_name": "テスト物産株式会社",
+      "channel": "email"
+    },
+    {
+      "customer_id": "CUST-0088",
+      "customer_name": "架空ソフトウェア合同会社",
+      "channel": "coupa"
+    },
+    {
+      "customer_id": "CUST-0105",
+      "customer_name": "サンプル建設株式会社",
+      "channel": "postal"
+    },
+    {
+      "customer_id": "CUST-0121",
+      "customer_name": "テスト食品株式会社",
+      "channel": "email"
+    }
+  ]
+}

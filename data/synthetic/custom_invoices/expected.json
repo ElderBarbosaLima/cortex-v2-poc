@@ -1,0 +1,832 @@
+[
+  {
+    "case_id": "INV-0001",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-02",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0002",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-12-03",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0003",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-11-25",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0004",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-11-20",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0005",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-11-23",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0006",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-11-18",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0007",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction"
+    ],
+    "as_of": "2026-12-03",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "approve-0042",
+        "result": "hold",
+        "reason": "new_mandatory_rule",
+        "rule": "CI-L-0042-COUPA"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0008",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-11-22",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {
+      "CI-L-SMALL-OMIT-REGNO": "CI-G-NO-REGNO-OMIT"
+    },
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0009",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-12-04",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {
+      "CI-L-SMALL-OMIT-REGNO": "CI-G-NO-REGNO-OMIT"
+    },
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0010",
+    "batch": "A",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-01",
+    "expected_rules": [
+      "CI-C-0063-PAYTERMS",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0011",
+    "batch": "A",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-03",
+    "expected_rules": [
+      "CI-C-0017-DEPT",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-dept",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CI-C-0017-DEPT"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0012",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction"
+    ],
+    "as_of": "2026-11-21",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "approve-0042",
+        "result": "hold",
+        "reason": "new_mandatory_rule",
+        "rule": "CI-L-0042-COUPA"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0013",
+    "batch": "A",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-11-18",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0014",
+    "batch": "A",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-04",
+    "expected_rules": [
+      "CI-C-0063-PAYTERMS",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0015",
+    "batch": "A",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-02",
+    "expected_rules": [
+      "CI-C-0017-DEPT",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-dept",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CI-C-0017-DEPT"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0016",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-11-26",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {
+      "CI-L-SMALL-OMIT-REGNO": "CI-G-NO-REGNO-OMIT"
+    },
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0017",
+    "batch": "A",
+    "group": "scenario_2",
+    "tags": [
+      "total_exactly_30000"
+    ],
+    "as_of": "2026-11-17",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0018",
+    "batch": "A",
+    "group": "happy",
+    "tags": [],
+    "as_of": "2026-11-28",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0019",
+    "batch": "A",
+    "group": "learned_rule",
+    "tags": [
+      "correction"
+    ],
+    "as_of": "2026-11-19",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      },
+      {
+        "after": "approve-0042",
+        "result": "hold",
+        "reason": "new_mandatory_rule",
+        "rule": "CI-L-0042-COUPA"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0020",
+    "batch": "A",
+    "group": "unrelated",
+    "tags": [
+      "pre_qis_reissue"
+    ],
+    "as_of": "2023-09-28",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-A",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0021",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-16",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0022",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-17",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0023",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-18",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0024",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-15",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0025",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-17",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0026",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-13",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0027",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-10",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0028",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-12",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0029",
+    "batch": "B",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-13",
+    "expected_rules": [
+      "CI-C-0063-PAYTERMS",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0030",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-15",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0031",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0032",
+    "batch": "B",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-08",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0033",
+    "batch": "B",
+    "group": "scenario_4",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "expected_rules": [
+      "CI-C-0017-DEPT",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      },
+      {
+        "after": "retire-0017-dept",
+        "result": "hold",
+        "reason": "rule_no_longer_approved",
+        "rule": "CI-C-0017-DEPT"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0034",
+    "batch": "B",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-09",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-B",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0035",
+    "batch": "C",
+    "group": "scenario_4",
+    "tags": [
+      "after_retirement"
+    ],
+    "as_of": "2026-12-23",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0036",
+    "batch": "C",
+    "group": "scenario_4",
+    "tags": [
+      "after_retirement"
+    ],
+    "as_of": "2026-12-21",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0037",
+    "batch": "C",
+    "group": "scenario_3",
+    "tags": [],
+    "as_of": "2026-12-26",
+    "expected_rules": [
+      "CI-C-0063-PAYTERMS",
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0038",
+    "batch": "C",
+    "group": "learned_rule",
+    "tags": [],
+    "as_of": "2026-12-24",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX",
+      "CI-L-0042-COUPA"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0039",
+    "batch": "C",
+    "group": "unrelated",
+    "tags": [],
+    "as_of": "2026-12-21",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {},
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  },
+  {
+    "case_id": "INV-0040",
+    "batch": "C",
+    "group": "scenario_2",
+    "tags": [],
+    "as_of": "2026-12-25",
+    "expected_rules": [
+      "CI-G-NO-REGNO-OMIT",
+      "CI-G-QIS-REGNO",
+      "CI-G-QIS-TAX"
+    ],
+    "overridden": {
+      "CI-L-SMALL-OMIT-REGNO": "CI-G-NO-REGNO-OMIT"
+    },
+    "verify": [
+      {
+        "after": "process-C",
+        "result": "pass"
+      }
+    ]
+  }
+]

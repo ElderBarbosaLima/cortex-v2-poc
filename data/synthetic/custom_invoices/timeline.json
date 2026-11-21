@@ -1,0 +1,115 @@
+{
+  "request_scope": "jp/finance/q2c-invoicing",
+  "consumer": "askq2c-agent",
+  "purpose": "invoice_drafting",
+  "steps": [
+    {
+      "step": "seed",
+      "at": "2026-11-01T09:00:00+09:00",
+      "rules": [
+        "CI-G-QIS-REGNO",
+        "CI-G-QIS-TAX",
+        "CI-G-NO-REGNO-OMIT",
+        "CI-L-SMALL-OMIT-REGNO",
+        "CI-C-0063-PAYTERMS",
+        "CI-C-0017-DEPT",
+        "OT-G-QIS-REGNO"
+      ]
+    },
+    {
+      "step": "process-A",
+      "cases": [
+        "INV-0001",
+        "INV-0002",
+        "INV-0003",
+        "INV-0004",
+        "INV-0005",
+        "INV-0006",
+        "INV-0007",
+        "INV-0008",
+        "INV-0009",
+        "INV-0010",
+        "INV-0011",
+        "INV-0012",
+        "INV-0013",
+        "INV-0014",
+        "INV-0015",
+        "INV-0016",
+        "INV-0017",
+        "INV-0018",
+        "INV-0019",
+        "INV-0020"
+      ]
+    },
+    {
+      "step": "correct-C-001",
+      "correction": "C-001"
+    },
+    {
+      "step": "correct-C-002",
+      "correction": "C-002"
+    },
+    {
+      "step": "correct-C-003",
+      "correction": "C-003"
+    },
+    {
+      "step": "approve-0042",
+      "at": "2026-12-05T10:00:00+09:00",
+      "rule": "CI-L-0042-COUPA",
+      "approver": "OWN-001",
+      "enforcement": "mandatory",
+      "authority": 30
+    },
+    {
+      "step": "process-B",
+      "cases": [
+        "INV-0021",
+        "INV-0022",
+        "INV-0023",
+        "INV-0024",
+        "INV-0025",
+        "INV-0026",
+        "INV-0027",
+        "INV-0028",
+        "INV-0029",
+        "INV-0030",
+        "INV-0031",
+        "INV-0032",
+        "INV-0033",
+        "INV-0034"
+      ]
+    },
+    {
+      "step": "retire-0017-dept",
+      "at": "2026-12-19T10:00:00+09:00",
+      "rule": "CI-C-0017-DEPT",
+      "by": "OWN-001",
+      "reason_ja": "顧客の部門統合により部門コードの指定が廃止された。",
+      "projection": "lagging"
+    },
+    {
+      "step": "process-C",
+      "cases": [
+        "INV-0035",
+        "INV-0036",
+        "INV-0037",
+        "INV-0038",
+        "INV-0039",
+        "INV-0040"
+      ]
+    }
+  ],
+  "thresholds": {
+    "demo": [
+      1,
+      1,
+      30
+    ],
+    "strict": [
+      3,
+      2,
+      30
+    ]
+  }
+}

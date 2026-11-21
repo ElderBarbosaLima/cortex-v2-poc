@@ -1,0 +1,279 @@
+[
+  {
+    "key": "CI-G-QIS-REGNO",
+    "record_id": "009f36de-494e-535e-8228-b06324a95bc7",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-G-QIS-REGNO"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "適格請求書発行事業者の登録番号（T＋13桁）を必ず記載する。",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "invoice.issue_date >= date(\"2023-10-01\")"
+    }
+  },
+  {
+    "key": "CI-G-QIS-TAX",
+    "record_id": "300c5b19-9046-5e51-b407-6c19def83878",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-G-QIS-TAX"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "税率ごとに区分した消費税額の合計を記載する。",
+      "targets": [
+        "invoice.tax_breakdown"
+      ],
+      "condition": "invoice.issue_date >= date(\"2023-10-01\")"
+    }
+  },
+  {
+    "key": "CI-G-NO-REGNO-OMIT",
+    "record_id": "e08d21fe-06c0-592c-988d-49b7a95c5c85",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp",
+    "entities": [],
+    "enforcement": "prohibition",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-G-NO-REGNO-OMIT"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "登録番号を記載しない請求書は発行しない。",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "true"
+    }
+  },
+  {
+    "key": "CI-L-SMALL-OMIT-REGNO",
+    "record_id": "7fa00e0f-7f7d-5315-912b-d896c2587655",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp/finance/q2c-invoicing",
+    "entities": [],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-L-SMALL-OMIT-REGNO"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "3万円未満の請求書では登録番号の記載を省略する。",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "invoice.total < 30000"
+    }
+  },
+  {
+    "key": "CI-C-0063-PAYTERMS",
+    "record_id": "70caae90-9b13-59a4-914e-2e5ef83ab7e7",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp/finance/q2c-invoicing",
+    "entities": [
+      "customer:CUST-0063"
+    ],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-C-0063-PAYTERMS"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "契約第12条に基づき、支払条件「月末締め翌月末払い」を備考に記載する。",
+      "targets": [
+        "invoice.remarks.payment_terms"
+      ],
+      "condition": "invoice.customer_id == \"CUST-0063\""
+    }
+  },
+  {
+    "key": "CI-C-0017-DEPT",
+    "record_id": "18610fc0-241c-5cec-a8bc-99eb5b44f240",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "jp/finance/q2c-invoicing",
+    "entities": [
+      "customer:CUST-0017"
+    ],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "CI-C-0017-DEPT"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "Ariba 請求書には顧客指定の部門コード「D-77」を記載する。",
+      "targets": [
+        "invoice.remarks.department_code"
+      ],
+      "condition": "invoice.customer_id == \"CUST-0017\" && invoice.channel == \"ariba\""
+    }
+  },
+  {
+    "key": "OT-G-QIS-REGNO",
+    "record_id": "bf0e27e8-4e2f-5f9a-80b1-57e5c043402a",
+    "tenant": "other",
+    "kind": "rule",
+    "schema_version": "custom_invoices.rule/1",
+    "scope": "other",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "OT-G-QIS-REGNO"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "（別テナント）登録番号を記載する。",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "true"
+    }
+  }
+]
