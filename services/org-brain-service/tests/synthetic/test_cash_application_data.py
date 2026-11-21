@@ -173,8 +173,12 @@ def test_scenario_4_credit_hold_is_held_then_absent(data: dict[str, Any]) -> Non
     assert before and after
     for e in before:
         assert ca.RETIRED_KEY in e["expected_rules"]
-        assert e["verify"][-1] == {"after": "retire-0017-hold", "result": "hold",
-                                   "reason": "rule_no_longer_approved", "rule": ca.RETIRED_KEY}  # fmt: skip
+        assert e["verify"][-1] == {
+            "after": "retire-0017-hold",
+            "result": "hold",
+            "reason": "rule_no_longer_approved",
+            "rule": ca.RETIRED_KEY,
+        }
     for e in after:
         assert ca.RETIRED_KEY not in e["expected_rules"]
 
