@@ -9,7 +9,7 @@ invoices and cash application), with synthetic Japanese data only.
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–9 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger schema and commands). Most of what the docs describe is not built yet.
+> Status: issues 1–10 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data for both workflows, ledger, search projection). Most of what the docs describe is not built yet.
 
 ## Prerequisites
 
@@ -53,6 +53,7 @@ make stop                             # stops everything and deletes volumes: th
 | `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
 | `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
 | `make migrate` / `make migrate-check` | Alembic upgrade as the table owner (`make dev` runs it before the service) / one head, ids ≤ 32 chars (also in `make lint`) |
+| `make reindex` | delete and rebuild every tenant's search projection from the ledger |
 | `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
 
 ## Services
@@ -63,6 +64,8 @@ make stop                             # stops everything and deletes volumes: th
 | `opa` | Open Policy Agent 1.22.4, serving the `policies/` bundle (built by the one-shot `opa-bundle`) | `127.0.0.1:8181` (`CORTEX_OPA_PORT`) |
 | `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
 | `org-brain-service` | Cortex backend (FastAPI) | `127.0.0.1:5008` |
+| `org-brain-projector` | drains the outbox into the search projection (`search_doc`: pg_bigm, `simple` FTS, pgvector for test vectors) | — |
+| `org-brain-migrate` | one-shot `alembic upgrade head` before the service and projector start | — |
 
 The ledger (`memory_record`, one immutable row per version; `memory_record_current` view; `outbox`) is
 append-only: a trigger refuses UPDATE, DELETE and TRUNCATE even for the owner, and row-level security

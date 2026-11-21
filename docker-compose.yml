@@ -132,6 +132,21 @@ services:
     networks:
       - cortex
 
+  # Drains the outbox into the search projection (issue 10). A separate process,
+  # so a projection can lag the ledger; tests drain explicitly instead.
+  org-brain-projector:
+    image: cortex-poc/org-brain-service:dev
+    environment:
+      <<: *org-brain-db-env
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    command: ["pipenv", "run", "python", "-m", "app.workers.projector"]
+    depends_on:
+      org-brain-migrate:
+        condition: service_completed_successfully
+    networks:
+      - cortex
+
   org-brain-service:
     build:
       context: .

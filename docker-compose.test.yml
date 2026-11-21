@@ -48,3 +48,4 @@ services:
     volumes:
       - ./services/org-brain-service:/app
       - ./libraries:/libraries
+      - ./data:/data:ro

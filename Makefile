@@ -15,7 +15,7 @@ RESET  := \033[0m
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
         test test-integration test-policies test-all opa-reload probe-emulator \
-        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check lint format typecheck
+        tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex lint format typecheck
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -85,6 +85,9 @@ migrate: init-env ## Alembic upgrade head as the table owner (make dev runs it t
 
 migrate-check: build-tools ## One Alembic head, every revision id <= 32 chars (also part of make lint)
 	$(DEV_TOOLS) pipenv run python scripts/check_migrations.py
+
+reindex: ## Delete and rebuild every tenant's search projection from the ledger (stack must be up)
+	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.reindex
 
 gen-data: build-tools ## Generate data/synthetic/ (deterministic; rerun must leave git diff empty)
 	$(COMPOSE) run --rm synthetic
