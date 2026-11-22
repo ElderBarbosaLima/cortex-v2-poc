@@ -86,19 +86,31 @@ class ContextPack(BaseModel):
 
 class VerifyRequest(BaseModel):
     pack_id: uuid.UUID
+    case: dict[str, Any] = Field(
+        description="The same case the pack was served for (checked by hash; Cortex keeps "
+        "only the hash), so applicability can be re-run as of the pack's business date"
+    )
     output: dict[str, Any] = Field(description="What the agent is about to post")
 
 
 class HoldReason(BaseModel):
-    reason: Literal["rule_no_longer_approved", "new_mandatory_rule", "output_check_failed"]
+    reason: Literal[
+        "rule_no_longer_approved",
+        "new_mandatory_rule",
+        "constraint_unevaluable",
+        "output_check_failed",
+    ]
     record_id: uuid.UUID | None = None
     detail: str | None = None
 
 
 class VerifyResult(BaseModel):
+    verification_id: uuid.UUID = Field(description="The stored, append-only result")
     pack_id: uuid.UUID
     result: Literal["pass", "hold"]
     reasons: list[HoldReason]
+    policy_revision: str | None
+    verified_at: dt.datetime
 
 
 class CorrectionRequest(BaseModel):

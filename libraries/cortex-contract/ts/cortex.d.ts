@@ -222,7 +222,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify Output */
+        /**
+         * Verify Output
+         * @description Release check, on the ledger only: constraints still approved, no new
+         *     constraint since, output satisfies the pack's rules. Stored; never blocks
+         *     the client's system itself (D3).
+         */
         post: operations["verify_output"];
         delete?: never;
         options?: never;
@@ -565,7 +570,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "rule_no_longer_approved" | "new_mandatory_rule" | "output_check_failed";
+            reason: "rule_no_longer_approved" | "new_mandatory_rule" | "constraint_unevaluable" | "output_check_failed";
             /** Record Id */
             record_id?: string | null;
         };
@@ -903,6 +908,13 @@ export interface components {
         /** VerifyRequest */
         VerifyRequest: {
             /**
+             * Case
+             * @description The same case the pack was served for (checked by hash; Cortex keeps only the hash), so applicability can be re-run as of the pack's business date
+             */
+            case: {
+                [key: string]: unknown;
+            };
+            /**
              * Output
              * @description What the agent is about to post
              */
@@ -922,6 +934,8 @@ export interface components {
              * Format: uuid
              */
             pack_id: string;
+            /** Policy Revision */
+            policy_revision: string | null;
             /** Reasons */
             reasons: components["schemas"]["HoldReason"][];
             /**
@@ -929,6 +943,17 @@ export interface components {
              * @enum {string}
              */
             result: "pass" | "hold";
+            /**
+             * Verification Id
+             * Format: uuid
+             * @description The stored, append-only result
+             */
+            verification_id: string;
+            /**
+             * Verified At
+             * Format: date-time
+             */
+            verified_at: string;
         };
         /** WhoAmI */
         WhoAmI: {
@@ -1694,8 +1719,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Invalid request */
-            422: {
+            /** @description No such pack (or another tenant's) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1703,8 +1728,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
+            /** @description Invalid request */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

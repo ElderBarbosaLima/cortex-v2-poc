@@ -25,6 +25,7 @@ from app.schemas.cortex import (
     ContextPackRequest,
     CorrectionAccepted,
     CorrectionRequest,
+    HoldReason,
     PackRecord,
     ProposalAccepted,
     ProposeRecordRequest,
@@ -36,7 +37,7 @@ from app.schemas.cortex import (
     WhoAmI,
 )
 from app.services import admission, ledger
-from app.services.access_gate import context_pack
+from app.services.access_gate import context_pack, verify
 from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
 from app.utils.business_dates import JST, business_start
@@ -315,7 +316,7 @@ def request_context_pack(
         sensitivity_ceiling=decision.sensitivity_ceiling,
         policy_revision=decision.policy_revision,
     )
-    trace_id = str(structlog.contextvars.get_contextvars().get("request_id") or uuid.uuid4())
+    trace_id = _trace_id()
     try:
         built = context_pack.build_and_store(
             session,
@@ -371,11 +372,15 @@ def get_context_pack(
     return _pack_response(stored)
 
 
+def _trace_id() -> str:
+    return str(structlog.contextvars.get_contextvars().get("request_id") or uuid.uuid4())
+
+
 @router.post(
     "/verify",
     response_model=VerifyResult,
     operation_id="verify_output",
-    responses={501: {"model": ApiError}},
+    responses={404: {"model": ApiError, "description": "No such pack (or another tenant's)"}},
     openapi_extra=_mcp(
         "verify_output",
         "Before posting, check an output against its pack: every mandatory rule still "
@@ -383,9 +388,52 @@ def get_context_pack(
     ),
 )
 def verify_output(
-    body: VerifyRequest, caller: AuthedCaller = Depends(require_scope("cortex:read"))
+    body: VerifyRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
 ) -> VerifyResult:
-    raise _not_yet(21)
+    """Release check, on the ledger only: constraints still approved, no new
+    constraint since, output satisfies the pack's rules. Stored; never blocks
+    the client's system itself (D3)."""
+    try:
+        stored = context_pack.load(session, str(body.pack_id))
+    except context_pack.PackNotFoundError:
+        raise CortexApiError(404, "not_found", "no such context pack") from None
+    decision = authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
+    pack = get_pack(stored.pack.domain)
+    try:
+        facts = case_facts(pack, body.case)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CortexApiError(422, "invalid_case", f"{type(exc).__name__}: {exc}") from None
+    try:
+        checked = verify.verify(
+            session,
+            stored=stored,
+            pack=pack,
+            facts=facts,
+            case=body.case,
+            output=body.output,
+            access=context_pack.Access(
+                readable_scopes=tuple(decision.readable_scopes),
+                sensitivity_ceiling=decision.sensitivity_ceiling,
+                policy_revision=decision.policy_revision,
+            ),
+            trace_id=_trace_id(),
+            consumer_id=caller.consumer_id,
+            end_user_id=str(caller.end_user_id) if caller.end_user_id else None,
+        )
+    except verify.CaseMismatchError as exc:
+        raise CortexApiError(422, "case_mismatch", str(exc)) from None
+    row = checked.verification
+    return VerifyResult(
+        verification_id=uuid.UUID(row.verification_id),
+        pack_id=body.pack_id,
+        result=checked.result,
+        reasons=[HoldReason.model_validate(r) for r in row.reasons],
+        policy_revision=row.policy_revision,
+        verified_at=row.verified_at,
+    )
 
 
 @router.post(
