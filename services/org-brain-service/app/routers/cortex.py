@@ -11,11 +11,13 @@ import datetime as dt
 import uuid
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
+from app.domain_packs.base import UnknownPackError, get_pack
 from app.identity import AuthedCaller, caller_session, require_scope
 from app.models import Kind
 from app.schemas.cortex import (
@@ -23,6 +25,7 @@ from app.schemas.cortex import (
     ContextPackRequest,
     CorrectionAccepted,
     CorrectionRequest,
+    PackRecord,
     ProposalAccepted,
     ProposeRecordRequest,
     RecordPage,
@@ -33,9 +36,12 @@ from app.schemas.cortex import (
     WhoAmI,
 )
 from app.services import admission, ledger
+from app.services.access_gate import context_pack
+from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
 from app.utils.business_dates import JST, business_start
 
+_logger = structlog.get_logger("org-brain.cortex")
 router = APIRouter(prefix="/v1/cortex", tags=["cortex"], responses=ERROR_RESPONSES)
 
 SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
@@ -245,12 +251,41 @@ def _not_yet(issue: int) -> CortexApiError:
     return CortexApiError(501, "not_implemented", f"arrives in issue {issue} (docs/tasks.md)")
 
 
+def _pack_response(stored: context_pack.StoredPack) -> ContextPack:
+    served = stored.pack
+    return ContextPack(
+        pack_id=uuid.UUID(served.pack_id),
+        trace_id=served.trace_id,
+        domain=served.domain,
+        scope=uuid.UUID(served.scope),
+        purpose=served.purpose,
+        as_of=served.as_of,
+        policy_revision=served.policy_revision,
+        served_at=served.served_at,
+        records=[
+            PackRecord(
+                record_id=uuid.UUID(item.record_id),
+                version=item.version,
+                kind=item.kind,
+                enforcement=item.enforcement,
+                role=item.role,  # type: ignore[arg-type]
+                overridden_by=uuid.UUID(item.overridden_by) if item.overridden_by else None,
+                body_hash=item.body_hash,
+                body=body,
+            )
+            for item, body in stored.items
+        ],
+    )
+
+
 @router.post(
     "/context-packs",
     response_model=ContextPack,
     status_code=201,
     operation_id="request_context_pack",
-    responses={501: {"model": ApiError}},
+    responses={
+        409: {"model": ApiError, "description": "Held: a constraint cannot be honoured"},
+    },
     openapi_extra=_mcp(
         "request_context_pack",
         "Get the governed context for one case: every applicable mandatory rule and "
@@ -258,9 +293,82 @@ def _not_yet(issue: int) -> CortexApiError:
     ),
 )
 def request_context_pack(
-    body: ContextPackRequest, caller: AuthedCaller = Depends(require_scope("cortex:read"))
+    body: ContextPackRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
 ) -> ContextPack:
-    raise _not_yet(20)
+    """Authorise (OPA) → rules by applicability and resolution (never search) →
+    knowledge by search, each hit revalidated against the ledger → stored, then
+    returned. Held (409) rather than served without a constraint."""
+    try:
+        pack = get_pack(body.domain)
+    except UnknownPackError:
+        raise CortexApiError(422, "unknown_domain", f"no domain pack {body.domain!r}") from None
+    decision = authorise(request, caller, purpose=body.purpose, scope=str(body.scope))
+    try:
+        facts = case_facts(pack, body.case)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CortexApiError(422, "invalid_case", f"{type(exc).__name__}: {exc}") from None
+    access = context_pack.Access(
+        readable_scopes=tuple(decision.readable_scopes),
+        sensitivity_ceiling=decision.sensitivity_ceiling,
+        policy_revision=decision.policy_revision,
+    )
+    trace_id = str(structlog.contextvars.get_contextvars().get("request_id") or uuid.uuid4())
+    try:
+        built = context_pack.build_and_store(
+            session,
+            request=context_pack.PackRequest(
+                tenant_id=caller.tenant_id,
+                consumer_id=caller.consumer_id,
+                end_user_id=str(caller.end_user_id) if caller.end_user_id else None,
+                trace_id=trace_id,
+                domain=body.domain,
+                case=body.case,
+                scope=str(body.scope),
+                purpose=body.purpose,
+                as_of=body.as_of,
+                query=body.query,
+            ),
+            pack=pack,
+            facts=facts,
+            access=access,
+            search=request.app.state.search,
+        )
+    except context_pack.PackHeldError as exc:
+        raise CortexApiError(
+            409, exc.error, exc.detail, policy_revision=decision.policy_revision
+        ) from None
+    if built.dropped:
+        _logger.info(
+            "context_pack.search_hits_dropped",
+            pack_id=built.pack_id,
+            dropped=[(d.record_id, d.reason) for d in built.dropped],
+        )
+    return _pack_response(context_pack.load(session, built.pack_id))
+
+
+@router.get(
+    "/context-packs/{pack_id}",
+    response_model=ContextPack,
+    operation_id="get_context_pack",
+    responses={404: {"model": ApiError, "description": "No such pack (or another tenant's)"}},
+)
+def get_context_pack(
+    pack_id: uuid.UUID,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> ContextPack:
+    """Replay: the pack exactly as it was served, from storage, nothing re-run.
+    Reading it is a read of its scope for its purpose, decided by OPA now."""
+    try:
+        stored = context_pack.load(session, str(pack_id))
+    except context_pack.PackNotFoundError:
+        raise CortexApiError(404, "not_found", "no such context pack") from None
+    authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
+    return _pack_response(stored)
 
 
 @router.post(

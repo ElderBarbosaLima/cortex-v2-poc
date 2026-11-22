@@ -126,16 +126,6 @@ def test_every_error_has_the_same_shape(
 @pytest.mark.parametrize(
     ("path", "body"),
     [
-        (
-            "/v1/cortex/context-packs",
-            {
-                "domain": "widgets",
-                "case": {},
-                "scope": "6c0b3a5e-3f1d-5c8e-9a51-20261120c0de",
-                "purpose": "p",
-                "as_of": "2026-12-03",
-            },
-        ),
         ("/v1/cortex/verify", {"pack_id": "6c0b3a5e-3f1d-5c8e-9a51-20261120c0de", "output": {}}),
         (
             "/v1/cortex/corrections",
