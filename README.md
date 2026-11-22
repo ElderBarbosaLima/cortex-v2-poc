@@ -69,6 +69,14 @@ it (OPA, separation of duties). An approval sets the final authority and enforce
 never approved, shown as `outcome: rejected`. Every decision is also a `kind=decision` record and an
 append-only `review_decision` row. With OPA down, a decision is a 503 and nothing is written.
 
+Which rules apply to a case is the **access gate's** job (`app/services/access_gate/`), and search
+never decides it. A SQL query on governed metadata finds the candidates: approved rules of the case's
+domain, at the requested scope or above it (never a sibling), with no entities or one shared with the
+case, and valid on the event's business date (never the clock). Then each rule's CEL condition runs on
+the case. A condition that cannot be evaluated is reported, never silently dropped. Resolution is per
+target: a prohibition or mandatory rule always beats a default; between defaults, higher authority
+wins, then the nearer scope. The loser is marked `overridden_by` the winner.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
