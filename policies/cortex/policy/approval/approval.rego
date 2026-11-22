@@ -9,7 +9,9 @@
 #   - propose needs memory.write at the record's scope;
 #   - approve and reject need memory.approve there, by a person (machines
 #     propose, people approve: Rev. B rule 6), and the person may not be a
-#     contributor (separation of duties, D17: "the corrector can't approve").
+#     contributor (separation of duties, D17: "the corrector can't approve"),
+#     and must be the named owner or backup of the nearest owned node at or
+#     above the record's scope (doc 06; data.cortex.tenants[t].owners).
 package cortex.policy.approval
 
 import data.cortex.policy.rbac
@@ -23,6 +25,21 @@ default _rbac := null
 _rbac := rbac.decide(_tenant, input.actor, _permission, input.record.scope, input.now)
 
 _deciding if input.action in {"approve", "reject"}
+
+# Owned nodes from the record's scope up to the root, nearest first.
+_owned := [n |
+	some n in object.get(_tenant.nodes, input.record.scope, {"path_up": []}).path_up
+	object.get(_tenant, "owners", {})[n]
+]
+
+_named := _tenant.owners[_owned[0]]
+
+_is_named if input.actor.id == _named.owner
+
+_is_named if {
+	_named.backup != null
+	input.actor.id == _named.backup
+}
 
 _denial := "unknown tenant" if {
 	not _tenant
@@ -38,6 +55,12 @@ _denial := "unknown tenant" if {
 	input.actor.id in object.get(input.record, "contributors", [])
 } else := _rbac.reason if {
 	not _rbac.allowed
+} else := "no named owner for this scope" if {
+	_deciding
+	count(_owned) == 0
+} else := "only the named owner or backup of this scope can decide" if {
+	_deciding
+	not _is_named
 }
 
 # A time that does not parse would make every rule below undefined; deny instead.

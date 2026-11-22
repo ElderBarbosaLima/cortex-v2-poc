@@ -143,3 +143,103 @@ class ProposalAccepted(BaseModel):
     grouped: bool = Field(
         description="True when the proposal joined an open case for the same conflict"
     )
+
+
+# ── Review queue (issue 18) ─────────────────────────────────────────────────
+
+Outcome = Literal["pending", "approved", "rejected", "retired", "superseded"]
+Enforcement = Literal["mandatory", "prohibition", "default"]
+
+
+class NamedOwners(BaseModel):
+    owner: uuid.UUID
+    backup: uuid.UUID | None
+
+
+class ReviewCaseSummary(BaseModel):
+    case_id: uuid.UUID
+    scope: uuid.UUID
+    title: str = Field(description="From the first proposal's sealed body; never stored in clear")
+    status: Literal["open", "decided"]
+    opened_at: dt.datetime
+    proposal_count: int
+    sensitivity_class: Literal["public", "internal", "confidential", "restricted"]
+    named_owners: NamedOwners | None = Field(
+        description="Who may decide: the nearest owned scope at or above this one"
+    )
+
+
+class ReviewCasePage(BaseModel):
+    items: list[ReviewCaseSummary]
+    next_cursor: str | None
+    policy_revision: str | None
+
+
+class CaseProposal(RecordSummary):
+    outcome: Outcome = Field(description="Derived from history: rejected = never approved")
+    asserted_by: dict[str, Any]
+    approved_by: dict[str, Any] | None
+    body: dict[str, Any]
+    body_hash: str
+    entities: list[str]
+    source: dict[str, Any] = Field(description="Evidence: where the proposal came from")
+    derived_from: list[uuid.UUID]
+    valid_from: dt.datetime
+    valid_to: dt.datetime | None
+
+
+class DecisionView(BaseModel):
+    decision_id: uuid.UUID = Field(description="Also the record_id of the kind=decision record")
+    decision: Literal["approve", "reject"]
+    decided_by: uuid.UUID
+    reason: str | None
+    approved_record_id: uuid.UUID | None
+    record_ids: list[uuid.UUID]
+    authority: int | None
+    enforcement: Enforcement | None
+    policy_revision: str | None
+    decided_at: dt.datetime
+
+
+class ReviewCaseDetail(ReviewCaseSummary):
+    proposals: list[CaseProposal]
+    affected_cases: list[str] = Field(
+        description="Work cases the proposals came from (source.case_ref / source.case_refs)"
+    )
+    contributors: list[uuid.UUID] = Field(
+        description="People behind the proposals: none of them may decide on this case"
+    )
+    decisions: list[DecisionView]
+    policy_revision: str | None
+
+
+class ApproveRequest(BaseModel):
+    record_id: uuid.UUID | None = Field(
+        default=None,
+        description="Which pending proposal to approve; default the first. The other "
+        "pending proposals in the case become superseded",
+    )
+    authority: int = Field(ge=0, le=40, description="Final authority, set by the approver")
+    enforcement: Enforcement | None = Field(
+        default=None, description="Final enforcement (rules only); default the proposed one"
+    )
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class RejectRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class DecidedRecord(BaseModel):
+    record_id: uuid.UUID
+    version: int
+    status: Literal["proposed", "approved", "stale", "deprecated", "superseded", "erased"]
+    outcome: Outcome
+
+
+class DecisionResult(BaseModel):
+    decision_id: uuid.UUID
+    case_id: uuid.UUID
+    decision: Literal["approve", "reject"]
+    records: list[DecidedRecord]
+    policy_revision: str | None

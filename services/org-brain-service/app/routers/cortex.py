@@ -56,7 +56,7 @@ def read_payload(caller: AuthedCaller, *, purpose: str, scope_node: str) -> dict
     }
 
 
-def _authorise(request: Request, caller: AuthedCaller, *, purpose: str, scope: str) -> Any:
+def authorise(request: Request, caller: AuthedCaller, *, purpose: str, scope: str) -> Any:
     gate: PolicyGate = request.app.state.policy_gate
     decision = gate.read(read_payload(caller, purpose=purpose, scope_node=scope))
     if not decision.allow:
@@ -90,7 +90,7 @@ def list_records(
     """Current versions visible at `scope` for `purpose`, ordered by record id
     (ULIDs: creation order). Only scopes OPA allows, never above the purpose's
     sensitivity ceiling; RLS keeps the tenant."""
-    decision = _authorise(request, caller, purpose=purpose, scope=str(scope))
+    decision = authorise(request, caller, purpose=purpose, scope=str(scope))
     allowed = [
         s
         for s, rank in SENSITIVITY_RANK.items()
@@ -136,7 +136,7 @@ def get_record(
         row = ledger.latest(session, str(record_id))
     except ledger.RecordNotFoundError:
         raise CortexApiError(404, "not_found", "no such record") from None
-    decision = _authorise(request, caller, purpose=purpose, scope=row.scope)
+    decision = authorise(request, caller, purpose=purpose, scope=row.scope)
     ceiling = SENSITIVITY_RANK.get(decision.sensitivity_ceiling or "", -1)
     if SENSITIVITY_RANK[row.sensitivity_class] > ceiling:
         raise CortexApiError(
@@ -189,7 +189,7 @@ def propose_record(
     if problems:
         raise CortexApiError(422, "invalid_proposal", admission.problems_payload(problems))
 
-    read = _authorise(request, caller, purpose=body.purpose, scope=proposal.scope)
+    read = authorise(request, caller, purpose=body.purpose, scope=proposal.scope)
     ceiling = admission.SENSITIVITY_RANK.get(read.sensitivity_ceiling or "", -1)
     if admission.SENSITIVITY_RANK[body.sensitivity.class_] > ceiling:
         raise CortexApiError(

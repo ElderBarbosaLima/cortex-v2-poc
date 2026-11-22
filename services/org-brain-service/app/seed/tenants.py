@@ -4,7 +4,8 @@ In production the scope tree, grants and consumers come from client-service
 (arbitr-rbac's access-context payload). In the PoC they come from the seed
 file, in the same shape: UUID node ids with a materialised `path_up` (as
 client-service's org_nodes.path), grants per principal, roles with their
-permissions (the UAT v1 catalog for people, plus a role for consumers).
+permissions (the UAT v1 catalog for people, plus a role for consumers), and
+the named owner + backup who decide on proposals at each owned scope.
 """
 
 from __future__ import annotations
@@ -99,6 +100,15 @@ def build_seed(doc: dict[str, Any]) -> Seed:
             }
             for c in tenant_consumers
         ]
+        people_ids = {p["key"]: str(p["obj_id"]) for p in doc["people"]}
+        owners = {
+            node_ids[o["node"]]: {
+                "owner": people_ids[o["owner"]],
+                "backup": people_ids[o["backup"]] if o.get("backup") else None,
+            }
+            for o in doc.get("owners", [])
+            if _tenant_key(o["node"]) == tkey
+        }
         tenant_id = node_ids[tkey]
         for c in tenant_consumers:
             consumers[c["key"]] = ConsumerInfo(
@@ -113,11 +123,24 @@ def build_seed(doc: dict[str, Any]) -> Seed:
                     "roles": ROLES,
                     "grants": sorted(grants, key=lambda g: g["id"]),
                     "consumers": {c["key"]: {"purposes": c["purposes"]} for c in tenant_consumers},
+                    "owners": owners,
                 },
             )
         )
     people = {str(p["key"]): str(p["obj_id"]) for p in doc["people"]}
     return Seed(tuple(tenants), consumers, node_ids, people)
+
+
+def named_owners(tenant: TenantSeed, scope: str) -> dict[str, str | None] | None:
+    """The owner and backup of the nearest owned node at or above `scope`, the
+    same lookup the approval policy makes."""
+    node: dict[str, Any] | None = tenant.opa_data["nodes"].get(scope)
+    owners: dict[str, dict[str, str | None]] = tenant.opa_data["owners"]
+    path: list[str] = node["path_up"] if node else []
+    for candidate in path:
+        if candidate in owners:
+            return owners[candidate]
+    return None
 
 
 def load_seed(seed_dir: Path) -> Seed:

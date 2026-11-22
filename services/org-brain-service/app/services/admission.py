@@ -145,13 +145,11 @@ def _join_or_open_case(
     ).first()
     grouped = case is not None
     if case is None:
-        title = str(proposal.body.get("text_ja", proposal.kind.value))[:200]
         case = ReviewCase(
             case_id=new_record_id(),
             tenant_id=tenant_id,
             conflict_key=key,
             scope=proposal.scope,
-            title=title,
         )
         session.add(case)
         session.flush()

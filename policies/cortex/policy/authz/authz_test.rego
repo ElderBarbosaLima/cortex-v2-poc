@@ -36,7 +36,13 @@ tenant := {
 		_grant("g-agent", "consumer", "askq2c-agent", "cortex_consumer", "jp/finance"),
 		_grant("g-r1", "user", "R-001", "reviewer", "jp/finance/q2c-invoicing"),
 		_grant("g-own", "user", "OWN-001", "final_validator", "jp/finance"),
+		_grant("g-own2", "user", "OWN-002", "final_validator", "jp/finance"),
+		_grant("g-fv9", "user", "FV-009", "final_validator", "jp"),
 	],
+	"owners": {
+		"jp/finance/q2c-invoicing": {"owner": "OWN-001", "backup": "OWN-002"},
+		"jp/finance": {"owner": "FV-009", "backup": null},
+	},
 	"consumers": {"askq2c-agent": {"purposes": {"invoice_drafting": {"sensitivity_ceiling": "confidential"}}}},
 }
 
