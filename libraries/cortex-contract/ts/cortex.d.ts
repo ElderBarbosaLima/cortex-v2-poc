@@ -30,8 +30,34 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request Context Pack */
+        /**
+         * Request Context Pack
+         * @description Authorise (OPA) → rules by applicability and resolution (never search) →
+         *     knowledge by search, each hit revalidated against the ledger → stored, then
+         *     returned. Held (409) rather than served without a constraint.
+         */
         post: operations["request_context_pack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/context-packs/{pack_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Context Pack
+         * @description Replay: the pack exactly as it was served, from storage, nothing re-run.
+         *     Reading it is a read of its scope for its purpose, decided by OPA now.
+         */
+        get: operations["get_context_pack"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -332,7 +358,10 @@ export interface components {
              */
             version: number;
         };
-        /** ContextPack */
+        /**
+         * ContextPack
+         * @description As served, and as stored: `GET /context-packs/{pack_id}` returns the same.
+         */
         ContextPack: {
             /**
              * As Of
@@ -348,8 +377,23 @@ export interface components {
             pack_id: string;
             /** Policy Revision */
             policy_revision: string | null;
-            /** Records */
+            /** Purpose */
+            purpose: string;
+            /**
+             * Records
+             * @description Constraints, then applied and overridden defaults (from the ledger, never search), then knowledge candidates found by search and revalidated against the ledger
+             */
             records: components["schemas"]["PackRecord"][];
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Served At
+             * Format: date-time
+             */
+            served_at: string;
             /** Trace Id */
             trace_id: string;
         };
@@ -969,6 +1013,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Held: a constraint cannot be honoured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Invalid request */
             422: {
                 headers: {
@@ -978,8 +1031,66 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_context_pack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextPack"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such pack (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -77,6 +77,18 @@ the case. A condition that cannot be evaluated is reported, never silently dropp
 target: a prohibition or mandatory rule always beats a default; between defaults, higher authority
 wins, then the nearer scope. The loser is marked `overridden_by` the winner.
 
+An agent gets a **context pack** with `POST /v1/cortex/context-packs` (`request_context_pack`):
+- **Rules** come from the access gate above, never from search.
+- **Knowledge** (facts, content) comes from the search projection, but only as candidates. Each hit is
+  checked again against the ledger: tenant, approved now, valid on the event's date, readable scope,
+  sensitivity. A record retired in the ledger but not yet re-indexed never gets in.
+- **Held packs:** the answer is `409` instead of a pack when a mandatory rule or prohibition cannot be
+  evaluated for the case, or is above the purpose's sensitivity ceiling.
+- **Stored before returned:** every pack is saved (append-only `served_pack`) with the policy revision
+  and the `(record_id, version)` pairs, and each body is sealed under the record's own key.
+  `GET /v1/cortex/context-packs/{pack_id}` returns exactly what was served, without re-running
+  anything. Another tenant's key gets a 404.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

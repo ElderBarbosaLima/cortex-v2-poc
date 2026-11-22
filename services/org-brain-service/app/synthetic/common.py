@@ -117,6 +117,13 @@ CONSUMERS: tuple[JsonObj, ...] = (
         "scopes": ["cortex:read", "cortex:write"],
         "purposes": {"rule_review": {"sensitivity_ceiling": "confidential"}},
     },
+    {
+        # The second tenant's agent: proves one tenant's key never reads another's data.
+        "key": "other-agent",
+        "tenant": "other",
+        "scopes": ["cortex:read", "cortex:write"],
+        "purposes": {"invoice_drafting": {"sensitivity_ceiling": "confidential"}},
+    },
 )
 
 

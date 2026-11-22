@@ -8,6 +8,7 @@ Cases are widget orders; the entity is the widget; a reviewer correction says
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from typing import Any
@@ -17,6 +18,8 @@ from pydantic import BaseModel
 from app.domain_packs.base import EntityMatch, RuleBody, RuleDraft
 
 KNOWN_WIDGETS = {"W-1", "W-2", "W-3"}
+# Codes integration tests mint per test (W-<8 hex>) so their records never meet.
+_TEST_WIDGET = re.compile(r"^W-[0-9a-f]{8}$")
 
 
 class WidgetRuleBody(RuleBody):
@@ -44,7 +47,7 @@ class FakeWidgetPack:
 
     def resolve_entities(self, case: Mapping[str, Any]) -> list[EntityMatch]:
         code = str(case.get("widget_code", ""))
-        if code in KNOWN_WIDGETS:
+        if code in KNOWN_WIDGETS or _TEST_WIDGET.match(code):
             return [EntityMatch(f"widget:{code}", "high", {"source": "widget_code", "value": code})]
         return [EntityMatch(None, "none", {"source": "widget_code", "value": code})]
 

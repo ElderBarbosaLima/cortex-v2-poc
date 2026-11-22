@@ -249,6 +249,7 @@
         "type": "object"
       },
       "ContextPack": {
+        "description": "As served, and as stored: `GET /context-packs/{pack_id}` returns the same.",
         "properties": {
           "as_of": {
             "format": "date",
@@ -275,12 +276,27 @@
             ],
             "title": "Policy Revision"
           },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
           "records": {
+            "description": "Constraints, then applied and overridden defaults (from the ledger, never search), then knowledge candidates found by search and revalidated against the ledger",
             "items": {
               "$ref": "#/components/schemas/PackRecord"
             },
             "title": "Records",
             "type": "array"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "served_at": {
+            "format": "date-time",
+            "title": "Served At",
+            "type": "string"
           },
           "trace_id": {
             "title": "Trace Id",
@@ -291,8 +307,11 @@
           "pack_id",
           "trace_id",
           "domain",
+          "scope",
+          "purpose",
           "as_of",
           "policy_revision",
+          "served_at",
           "records"
         ],
         "title": "ContextPack",
@@ -1575,6 +1594,7 @@
     },
     "/v1/cortex/context-packs": {
       "post": {
+        "description": "Authorise (OPA) → rules by applicability and resolution (never search) →\nknowledge by search, each hit revalidated against the ledger → stored, then\nreturned. Held (409) rather than served without a constraint.",
         "operationId": "request_context_pack",
         "requestBody": {
           "content": {
@@ -1617,6 +1637,16 @@
             },
             "description": "Insufficient scope, or denied by policy"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Held: a constraint cannot be honoured"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1626,16 +1656,6 @@
               }
             },
             "description": "Invalid request"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Implemented"
           },
           "503": {
             "content": {
@@ -1656,6 +1676,90 @@
           "description": "Get the governed context for one case: every applicable mandatory rule and prohibition, relevant approved knowledge, stored as a pack with an id to verify against.",
           "name": "request_context_pack"
         }
+      }
+    },
+    "/v1/cortex/context-packs/{pack_id}": {
+      "get": {
+        "description": "Replay: the pack exactly as it was served, from storage, nothing re-run.\nReading it is a read of its scope for its purpose, decided by OPA now.",
+        "operationId": "get_context_pack",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextPack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such pack (or another tenant's)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Get Context Pack",
+        "tags": [
+          "cortex"
+        ]
       }
     },
     "/v1/cortex/corrections": {

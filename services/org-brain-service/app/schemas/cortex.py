@@ -68,12 +68,20 @@ class PackRecord(BaseModel):
 
 
 class ContextPack(BaseModel):
+    """As served, and as stored: `GET /context-packs/{pack_id}` returns the same."""
+
     pack_id: uuid.UUID
     trace_id: str
     domain: str
+    scope: uuid.UUID
+    purpose: str
     as_of: dt.date
     policy_revision: str | None
-    records: list[PackRecord]
+    served_at: dt.datetime
+    records: list[PackRecord] = Field(
+        description="Constraints, then applied and overridden defaults (from the ledger, never "
+        "search), then knowledge candidates found by search and revalidated against the ledger"
+    )
 
 
 class VerifyRequest(BaseModel):

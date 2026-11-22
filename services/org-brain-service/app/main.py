@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
@@ -15,6 +15,8 @@ from app.identity import ConsumerKeyStore
 from app.keys import install as install_keys
 from app.logging_config import configure_logging
 from app.models import Tenant
+from app.projections import default_projection
+from app.projections.base import SearchProjection
 from app.routers.cortex import router as cortex_router
 from app.routers.health import router as health_router
 from app.routers.review_cases import router as review_router
@@ -32,6 +34,7 @@ class AppServices:
     seed: Seed
     consumer_keys: ConsumerKeyStore
     policy_gate: PolicyGate
+    search: SearchProjection = field(default_factory=default_projection)
 
 
 def register_tenants(seed: Seed) -> None:
@@ -60,6 +63,7 @@ def _install(app: FastAPI, services: AppServices) -> None:
     app.state.consumers = services.seed.consumers
     app.state.policy_gate = services.policy_gate
     app.state.seed = services.seed
+    app.state.search = services.search
 
 
 def create_app(
