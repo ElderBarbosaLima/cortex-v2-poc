@@ -116,15 +116,17 @@ def append_new(
     approved_by: dict[str, Any] | None = None,
     supersedes: str | None = None,
     codec: BodyCodec | None = None,
+    record_id: str | None = None,
 ) -> MemoryRecord:
-    """Version 1 of a new record."""
+    """Version 1 of a new record. `record_id` is minted here unless the caller
+    needs to know it first (a decision record is named by its own decision id)."""
     if status not in (Status.PROPOSED, Status.APPROVED):
         raise IllegalTransitionError(f"a new record starts proposed or approved, not {status}")
     if status is Status.APPROVED and approved_by is None:
         raise IllegalTransitionError("an approved record needs approved_by")
     _check_ceiling(draft.asserted_by, draft.authority, approved_by)
     codec = codec or default_codec()
-    record_id = new_record_id()
+    record_id = record_id or new_record_id()
     key_ref = _lineage_root(session, record_id, draft.derived_from)
     row = MemoryRecord(
         record_id=record_id,

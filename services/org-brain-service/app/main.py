@@ -17,6 +17,7 @@ from app.logging_config import configure_logging
 from app.models import Tenant
 from app.routers.cortex import router as cortex_router
 from app.routers.health import router as health_router
+from app.routers.review_cases import router as review_router
 from app.seed.tenants import ConsumerInfo, Seed, load_seed
 from app.services.policy_gate import PolicyGate
 from app.utils.middleware import RequestIdMiddleware
@@ -86,6 +87,7 @@ def create_app(
     install_error_handlers(app)
     app.include_router(health_router)
     app.include_router(cortex_router)
+    app.include_router(review_router)
     return app
 
 

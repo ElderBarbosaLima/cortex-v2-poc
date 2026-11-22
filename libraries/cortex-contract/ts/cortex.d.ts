@@ -103,6 +103,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/review-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Review Cases
+         * @description Cases in the scopes OPA lets this purpose read, oldest first, only those
+         *     whose most sensitive proposal is within the purpose's ceiling.
+         */
+        get: operations["list_review_cases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/review-cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review Case
+         * @description The proposals (bodies opened), their evidence, the work cases they
+         *     affect, the people behind them and every decision so far.
+         */
+        get: operations["get_review_case"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/review-cases/{case_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Review Case
+         * @description The named owner (or backup) approves one proposal, setting its final
+         *     authority and enforcement. Needs memory.approve and separation of duties.
+         */
+        post: operations["approve_review_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/review-cases/{case_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Review Case
+         * @description The named owner (or backup) rejects the case: every pending proposal
+         *     becomes deprecated without ever being approved (outcome: rejected).
+         */
+        post: operations["reject_review_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/verify": {
         parameters: {
             query?: never;
@@ -149,6 +233,104 @@ export interface components {
             error: string;
         } & {
             [key: string]: unknown;
+        };
+        /** ApproveRequest */
+        ApproveRequest: {
+            /**
+             * Authority
+             * @description Final authority, set by the approver
+             */
+            authority: number;
+            /**
+             * Enforcement
+             * @description Final enforcement (rules only); default the proposed one
+             */
+            enforcement?: ("mandatory" | "prohibition" | "default") | null;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Record Id
+             * @description Which pending proposal to approve; default the first. The other pending proposals in the case become superseded
+             */
+            record_id?: string | null;
+        };
+        /** CaseProposal */
+        CaseProposal: {
+            /** Approved By */
+            approved_by: {
+                [key: string]: unknown;
+            } | null;
+            /** Asserted By */
+            asserted_by: {
+                [key: string]: unknown;
+            };
+            /**
+             * Authority
+             * @description Authority ladder rung (0–40), not a key
+             */
+            authority: number;
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /** Body Hash */
+            body_hash: string;
+            /** Derived From */
+            derived_from: string[];
+            /** Enforcement */
+            enforcement: ("mandatory" | "prohibition" | "default") | null;
+            /** Entities */
+            entities: string[];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fact" | "rule" | "decision" | "content";
+            /**
+             * Outcome
+             * @description Derived from history: rejected = never approved
+             * @enum {string}
+             */
+            outcome: "pending" | "approved" | "rejected" | "retired" | "superseded";
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Sensitivity Class
+             * @enum {string}
+             */
+            sensitivity_class: "public" | "internal" | "confidential" | "restricted";
+            /**
+             * Source
+             * @description Evidence: where the proposal came from
+             */
+            source: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /** Valid To */
+            valid_to: string | null;
+            /**
+             * Version
+             * @description Version of the record (1, 2, …), not a database key
+             */
+            version: number;
         };
         /** ContextPack */
         ContextPack: {
@@ -238,6 +420,84 @@ export interface components {
              */
             pack_id: string;
         };
+        /** DecidedRecord */
+        DecidedRecord: {
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "pending" | "approved" | "rejected" | "retired" | "superseded";
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
+            /** Version */
+            version: number;
+        };
+        /** DecisionResult */
+        DecisionResult: {
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /**
+             * Decision Id
+             * Format: uuid
+             */
+            decision_id: string;
+            /** Policy Revision */
+            policy_revision: string | null;
+            /** Records */
+            records: components["schemas"]["DecidedRecord"][];
+        };
+        /** DecisionView */
+        DecisionView: {
+            /** Approved Record Id */
+            approved_record_id: string | null;
+            /** Authority */
+            authority: number | null;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /**
+             * Decided By
+             * Format: uuid
+             */
+            decided_by: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /**
+             * Decision Id
+             * Format: uuid
+             * @description Also the record_id of the kind=decision record
+             */
+            decision_id: string;
+            /** Enforcement */
+            enforcement: ("mandatory" | "prohibition" | "default") | null;
+            /** Policy Revision */
+            policy_revision: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Record Ids */
+            record_ids: string[];
+        };
         /** HealthResponse */
         HealthResponse: {
             /** Service */
@@ -264,6 +524,16 @@ export interface components {
             reason: "rule_no_longer_approved" | "new_mandatory_rule" | "output_check_failed";
             /** Record Id */
             record_id?: string | null;
+        };
+        /** NamedOwners */
+        NamedOwners: {
+            /** Backup */
+            backup: string | null;
+            /**
+             * Owner
+             * Format: uuid
+             */
+            owner: string;
         };
         /** PackRecord */
         PackRecord: {
@@ -466,6 +736,110 @@ export interface components {
              * @description Version of the record (1, 2, …), not a database key
              */
             version: number;
+        };
+        /** RejectRequest */
+        RejectRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** ReviewCaseDetail */
+        ReviewCaseDetail: {
+            /**
+             * Affected Cases
+             * @description Work cases the proposals came from (source.case_ref / source.case_refs)
+             */
+            affected_cases: string[];
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /**
+             * Contributors
+             * @description People behind the proposals: none of them may decide on this case
+             */
+            contributors: string[];
+            /** Decisions */
+            decisions: components["schemas"]["DecisionView"][];
+            /** @description Who may decide: the nearest owned scope at or above this one */
+            named_owners: components["schemas"]["NamedOwners"] | null;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Policy Revision */
+            policy_revision: string | null;
+            /** Proposal Count */
+            proposal_count: number;
+            /** Proposals */
+            proposals: components["schemas"]["CaseProposal"][];
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Sensitivity Class
+             * @enum {string}
+             */
+            sensitivity_class: "public" | "internal" | "confidential" | "restricted";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "decided";
+            /**
+             * Title
+             * @description From the first proposal's sealed body; never stored in clear
+             */
+            title: string;
+        };
+        /** ReviewCasePage */
+        ReviewCasePage: {
+            /** Items */
+            items: components["schemas"]["ReviewCaseSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Policy Revision */
+            policy_revision: string | null;
+        };
+        /** ReviewCaseSummary */
+        ReviewCaseSummary: {
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /** @description Who may decide: the nearest owned scope at or above this one */
+            named_owners: components["schemas"]["NamedOwners"] | null;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Proposal Count */
+            proposal_count: number;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Sensitivity Class
+             * @enum {string}
+             */
+            sensitivity_class: "public" | "internal" | "confidential" | "restricted";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "decided";
+            /**
+             * Title
+             * @description From the first proposal's sealed body; never stored in clear
+             */
+            title: string;
         };
         /** Sensitivity */
         Sensitivity: {
@@ -850,6 +1224,298 @@ export interface operations {
             };
             /** @description Insufficient scope, or denied by policy */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list_review_cases: {
+        parameters: {
+            query: {
+                /** @description Scope node to read at; resolves upward */
+                scope: string;
+                purpose: string;
+                status?: string;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewCasePage"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_review_case: {
+        parameters: {
+            query: {
+                purpose: string;
+            };
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewCaseDetail"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such case (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    approve_review_case: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such case (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The case is already decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    reject_review_case: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such case (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The case is already decided */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

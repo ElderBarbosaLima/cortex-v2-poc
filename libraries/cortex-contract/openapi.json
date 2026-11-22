@@ -18,6 +18,236 @@
         "title": "ApiError",
         "type": "object"
       },
+      "ApproveRequest": {
+        "properties": {
+          "authority": {
+            "description": "Final authority, set by the approver",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Authority",
+            "type": "integer"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Final enforcement (rules only); default the proposed one",
+            "title": "Enforcement"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which pending proposal to approve; default the first. The other pending proposals in the case become superseded",
+            "title": "Record Id"
+          }
+        },
+        "required": [
+          "authority"
+        ],
+        "title": "ApproveRequest",
+        "type": "object"
+      },
+      "CaseProposal": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "asserted_by": {
+            "additionalProperties": true,
+            "title": "Asserted By",
+            "type": "object"
+          },
+          "authority": {
+            "description": "Authority ladder rung (0–40), not a key",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Authority",
+            "type": "integer"
+          },
+          "body": {
+            "additionalProperties": true,
+            "title": "Body",
+            "type": "object"
+          },
+          "body_hash": {
+            "title": "Body Hash",
+            "type": "string"
+          },
+          "derived_from": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Derived From",
+            "type": "array"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "entities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "fact",
+              "rule",
+              "decision",
+              "content"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "outcome": {
+            "description": "Derived from history: rejected = never approved",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "retired",
+              "superseded"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "sensitivity_class": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "restricted"
+            ],
+            "title": "Sensitivity Class",
+            "type": "string"
+          },
+          "source": {
+            "additionalProperties": true,
+            "description": "Evidence: where the proposal came from",
+            "title": "Source",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved",
+              "stale",
+              "deprecated",
+              "superseded",
+              "erased"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "version": {
+            "description": "Version of the record (1, 2, …), not a database key",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "kind",
+          "status",
+          "scope",
+          "enforcement",
+          "authority",
+          "sensitivity_class",
+          "outcome",
+          "asserted_by",
+          "approved_by",
+          "body",
+          "body_hash",
+          "entities",
+          "source",
+          "derived_from",
+          "valid_from",
+          "valid_to"
+        ],
+        "title": "CaseProposal",
+        "type": "object"
+      },
       "ContextPack": {
         "properties": {
           "as_of": {
@@ -198,6 +428,210 @@
         "title": "CorrectionRequest",
         "type": "object"
       },
+      "DecidedRecord": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "retired",
+              "superseded"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved",
+              "stale",
+              "deprecated",
+              "superseded",
+              "erased"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "status",
+          "outcome"
+        ],
+        "title": "DecidedRecord",
+        "type": "object"
+      },
+      "DecisionResult": {
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "decision_id": {
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/DecidedRecord"
+            },
+            "title": "Records",
+            "type": "array"
+          }
+        },
+        "required": [
+          "decision_id",
+          "case_id",
+          "decision",
+          "records",
+          "policy_revision"
+        ],
+        "title": "DecisionResult",
+        "type": "object"
+      },
+      "DecisionView": {
+        "properties": {
+          "approved_record_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Record Id"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "decided_by": {
+            "format": "uuid",
+            "title": "Decided By",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "decision_id": {
+            "description": "Also the record_id of the kind=decision record",
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "record_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Record Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "decision_id",
+          "decision",
+          "decided_by",
+          "reason",
+          "approved_record_id",
+          "record_ids",
+          "authority",
+          "enforcement",
+          "policy_revision",
+          "decided_at"
+        ],
+        "title": "DecisionView",
+        "type": "object"
+      },
       "HealthResponse": {
         "properties": {
           "service": {
@@ -260,6 +694,33 @@
           "reason"
         ],
         "title": "HoldReason",
+        "type": "object"
+      },
+      "NamedOwners": {
+        "properties": {
+          "backup": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup"
+          },
+          "owner": {
+            "format": "uuid",
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "backup"
+        ],
+        "title": "NamedOwners",
         "type": "object"
       },
       "PackRecord": {
@@ -715,6 +1176,246 @@
           "sensitivity_class"
         ],
         "title": "RecordSummary",
+        "type": "object"
+      },
+      "RejectRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RejectRequest",
+        "type": "object"
+      },
+      "ReviewCaseDetail": {
+        "properties": {
+          "affected_cases": {
+            "description": "Work cases the proposals came from (source.case_ref / source.case_refs)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Cases",
+            "type": "array"
+          },
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "contributors": {
+            "description": "People behind the proposals: none of them may decide on this case",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Contributors",
+            "type": "array"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionView"
+            },
+            "title": "Decisions",
+            "type": "array"
+          },
+          "named_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedOwners"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who may decide: the nearest owned scope at or above this one"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "proposal_count": {
+            "title": "Proposal Count",
+            "type": "integer"
+          },
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/CaseProposal"
+            },
+            "title": "Proposals",
+            "type": "array"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "sensitivity_class": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "restricted"
+            ],
+            "title": "Sensitivity Class",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "decided"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "description": "From the first proposal's sealed body; never stored in clear",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "scope",
+          "title",
+          "status",
+          "opened_at",
+          "proposal_count",
+          "sensitivity_class",
+          "named_owners",
+          "proposals",
+          "affected_cases",
+          "contributors",
+          "decisions",
+          "policy_revision"
+        ],
+        "title": "ReviewCaseDetail",
+        "type": "object"
+      },
+      "ReviewCasePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewCaseSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "policy_revision"
+        ],
+        "title": "ReviewCasePage",
+        "type": "object"
+      },
+      "ReviewCaseSummary": {
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "named_owners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NamedOwners"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who may decide: the nearest owned scope at or above this one"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "proposal_count": {
+            "title": "Proposal Count",
+            "type": "integer"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "sensitivity_class": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "restricted"
+            ],
+            "title": "Sensitivity Class",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "decided"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "description": "From the first proposal's sealed body; never stored in clear",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "scope",
+          "title",
+          "status",
+          "opened_at",
+          "proposal_count",
+          "sensitivity_class",
+          "named_owners"
+        ],
+        "title": "ReviewCaseSummary",
         "type": "object"
       },
       "Sensitivity": {
@@ -1334,6 +2035,434 @@
         "summary": "Get Record",
         "tags": [
           "cortex"
+        ]
+      }
+    },
+    "/v1/cortex/review-cases": {
+      "get": {
+        "description": "Cases in the scopes OPA lets this purpose read, oldest first, only those\nwhose most sensitive proposal is within the purpose's ceiling.",
+        "operationId": "list_review_cases",
+        "parameters": [
+          {
+            "description": "Scope node to read at; resolves upward",
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "description": "Scope node to read at; resolves upward",
+              "format": "uuid",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "pattern": "^(open|decided)$",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewCasePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "List Review Cases",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/v1/cortex/review-cases/{case_id}": {
+      "get": {
+        "description": "The proposals (bodies opened), their evidence, the work cases they\naffect, the people behind them and every decision so far.",
+        "operationId": "get_review_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such case (or another tenant's)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Get Review Case",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/v1/cortex/review-cases/{case_id}/approve": {
+      "post": {
+        "description": "The named owner (or backup) approves one proposal, setting its final\nauthority and enforcement. Needs memory.approve and separation of duties.",
+        "operationId": "approve_review_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such case (or another tenant's)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The case is already decided"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Approve Review Case",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/v1/cortex/review-cases/{case_id}/reject": {
+      "post": {
+        "description": "The named owner (or backup) rejects the case: every pending proposal\nbecomes deprecated without ever being approved (outcome: rejected).",
+        "operationId": "reject_review_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such case (or another tenant's)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The case is already decided"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Reject Review Case",
+        "tags": [
+          "review"
         ]
       }
     },

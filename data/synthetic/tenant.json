@@ -171,5 +171,22 @@
         }
       }
     }
+  ],
+  "owners": [
+    {
+      "node": "jp/finance/q2c-invoicing",
+      "owner": "OWN-001",
+      "backup": "OWN-002"
+    },
+    {
+      "node": "jp/finance/q2c-cash-application",
+      "owner": "OWN-001",
+      "backup": "OWN-002"
+    },
+    {
+      "node": "other",
+      "owner": "X-001",
+      "backup": null
+    }
   ]
 }

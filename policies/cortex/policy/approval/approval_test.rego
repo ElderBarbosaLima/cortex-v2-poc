@@ -3,10 +3,12 @@ package cortex.policy.approval_test
 import data.cortex.policy.approval
 import data.cortex.policy.authz_test
 
-decide(action, actor, contributors) := d if {
+decide(action, actor, contributors) := decide_at("jp/finance/q2c-invoicing", action, actor, contributors)
+
+decide_at(scope, action, actor, contributors) := d if {
 	request := {
 		"tenant_id": "t-jp", "action": action, "actor": actor, "now": authz_test.now,
-		"record": {"scope": "jp/finance/q2c-invoicing", "contributors": contributors},
+		"record": {"scope": scope, "contributors": contributors},
 	}
 	d := approval.decision with input as request
 		with data.cortex.tenants as authz_test.tenants
@@ -70,4 +72,39 @@ test_malformed_now_is_denied if {
 	}
 		with data.cortex.tenants as authz_test.tenants
 	d.reason == "now is required (RFC 3339)"
+}
+
+test_the_backup_decides_too if {
+	decide("approve", {"type": "user", "id": "OWN-002"}, ["R-001"]).allow
+	decide("reject", {"type": "user", "id": "OWN-002"}, ["R-001"]).allow
+}
+
+test_a_final_validator_who_is_not_the_named_owner_cannot_decide if {
+	# FV-009 holds memory.approve above, and owns jp/finance, but q2c-invoicing
+	# has its own named owner: the nearest owned node wins.
+	d := decide("approve", {"type": "user", "id": "FV-009"}, [])
+	not d.allow
+	d.rbac.allowed
+	d.reason == "only the named owner or backup of this scope can decide"
+}
+
+test_a_scope_without_its_own_owner_uses_the_nearest_owner_above if {
+	decide_at("jp/finance/q2c-cash-application", "approve", {"type": "user", "id": "FV-009"}, []).allow
+	not decide_at("jp/finance/q2c-cash-application", "approve", owner, []).allow
+}
+
+test_no_named_owner_anywhere_up_the_tree_denies if {
+	tenants := {"t-jp": object.remove(authz_test.tenant, ["owners"])}
+	d := approval.decision with input as {
+		"tenant_id": "t-jp", "action": "approve", "actor": owner, "now": authz_test.now,
+		"record": {"scope": "jp/finance/q2c-invoicing", "contributors": []},
+	}
+		with data.cortex.tenants as tenants
+		with data.system.bundles as authz_test.bundles
+	not d.allow
+	d.reason == "no named owner for this scope"
+}
+
+test_proposing_needs_no_named_owner if {
+	decide_at("jp/finance/q2c-cash-application", "propose", agent, []).allow
 }

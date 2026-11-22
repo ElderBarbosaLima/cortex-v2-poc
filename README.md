@@ -61,6 +61,14 @@ sensitivity ≤ the purpose's ceiling, who may propose). Every problem comes bac
 `422 invalid_proposal` and nothing is written. An accepted proposal is always `proposed`, never
 approved, and joins the one open review case for the same conflict (same targets + entities).
 
+The **review queue** (`/v1/cortex/review-cases`) is where a person decides. Each team scope has a
+named owner and backup in the seed. Only they may approve or reject, and only with `memory.approve`.
+Nobody who contributed to a proposal (asserted it or corrected the case it came from) may decide on
+it (OPA, separation of duties). An approval sets the final authority and enforcement and records
+`approved_by {approver_type, user_id, decision_id}`. A rejection leaves the proposal `deprecated`,
+never approved, shown as `outcome: rejected`. Every decision is also a `kind=decision` record and an
+append-only `review_decision` row. With OPA down, a decision is a 503 and nothing is written.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

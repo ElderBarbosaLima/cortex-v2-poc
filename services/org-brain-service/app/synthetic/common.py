@@ -120,6 +120,15 @@ CONSUMERS: tuple[JsonObj, ...] = (
 )
 
 
+# The named owner and backup who decide on proposals at a scope (doc 06: an
+# IBM owner plus a backup). The nearest owned node up the tree applies.
+OWNERS: tuple[JsonObj, ...] = (
+    {"node": "jp/finance/q2c-invoicing", "owner": "OWN-001", "backup": "OWN-002"},
+    {"node": "jp/finance/q2c-cash-application", "owner": "OWN-001", "backup": "OWN-002"},
+    {"node": "other", "owner": "X-001", "backup": None},
+)
+
+
 def path_up(node_key: str) -> list[str]:
     by_key = {n.key: n for n in NODES}
     path: list[str] = []
@@ -146,6 +155,7 @@ def tenant_document() -> JsonObj:
         ],
         "people": [{**p, "obj_id": stable_uuid("person", str(p["key"]))} for p in PEOPLE],
         "consumers": list(CONSUMERS),
+        "owners": list(OWNERS),
     }
 
 
