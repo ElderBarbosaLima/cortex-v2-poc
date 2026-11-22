@@ -332,6 +332,166 @@
         "title": "PackRecord",
         "type": "object"
       },
+      "ProposalAccepted": {
+        "properties": {
+          "grouped": {
+            "description": "True when the proposal joined an open case for the same conflict",
+            "title": "Grouped",
+            "type": "boolean"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "review_case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Case Id"
+          },
+          "status": {
+            "const": "proposed",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "status",
+          "review_case_id",
+          "grouped"
+        ],
+        "title": "ProposalAccepted",
+        "type": "object"
+      },
+      "ProposeRecordRequest": {
+        "properties": {
+          "authority": {
+            "default": 10,
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Authority",
+            "type": "integer"
+          },
+          "body": {
+            "additionalProperties": true,
+            "title": "Body",
+            "type": "object"
+          },
+          "derived_from": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Derived From",
+            "type": "array"
+          },
+          "domain": {
+            "description": "Domain pack name, e.g. custom_invoices",
+            "title": "Domain",
+            "type": "string"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "entities": {
+            "description": "Canonical keys, e.g. customer:CUST-0042",
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "fact",
+              "rule",
+              "decision",
+              "content"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "purpose": {
+            "description": "Purpose the proposal is made under (sensitivity ceiling)",
+            "title": "Purpose",
+            "type": "string"
+          },
+          "schema_version": {
+            "description": "<domain>.<kind>/1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "sensitivity": {
+            "$ref": "#/components/schemas/Sensitivity"
+          },
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          },
+          "valid_from": {
+            "description": "Business date from which it holds",
+            "format": "date",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          }
+        },
+        "required": [
+          "domain",
+          "kind",
+          "schema_version",
+          "body",
+          "scope",
+          "sensitivity",
+          "purpose",
+          "valid_from"
+        ],
+        "title": "ProposeRecordRequest",
+        "type": "object"
+      },
       "RecordPage": {
         "properties": {
           "items": {
@@ -555,6 +715,42 @@
           "sensitivity_class"
         ],
         "title": "RecordSummary",
+        "type": "object"
+      },
+      "Sensitivity": {
+        "properties": {
+          "class": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "restricted"
+            ],
+            "title": "Class",
+            "type": "string"
+          },
+          "personal_data": {
+            "default": false,
+            "title": "Personal Data",
+            "type": "boolean"
+          },
+          "retention_days": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Days"
+          }
+        },
+        "required": [
+          "class"
+        ],
+        "title": "Sensitivity",
         "type": "object"
       },
       "VerifyRequest": {
@@ -982,6 +1178,76 @@
           }
         },
         "summary": "List Records",
+        "tags": [
+          "cortex"
+        ]
+      },
+      "post": {
+        "description": "The admission gate: validate, authorise, then append as `proposed` and\nroute to the review queue (one open case per conflict). Never approved here.",
+        "operationId": "propose_record",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeRecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid proposal: every problem listed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Propose Record",
         "tags": [
           "cortex"
         ]

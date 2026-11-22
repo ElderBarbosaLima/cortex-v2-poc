@@ -70,7 +70,12 @@ export interface paths {
          */
         get: operations["list_records"];
         put?: never;
-        post?: never;
+        /**
+         * Propose Record
+         * @description The admission gate: validate, authorise, then append as `proposed` and
+         *     route to the review queue (one open case per conflict). Never approved here.
+         */
+        post: operations["propose_record"];
         delete?: never;
         options?: never;
         head?: never;
@@ -287,6 +292,87 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ProposalAccepted */
+        ProposalAccepted: {
+            /**
+             * Grouped
+             * @description True when the proposal joined an open case for the same conflict
+             */
+            grouped: boolean;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Review Case Id */
+            review_case_id: string | null;
+            /**
+             * Status
+             * @constant
+             */
+            status: "proposed";
+            /** Version */
+            version: number;
+        };
+        /** ProposeRecordRequest */
+        ProposeRecordRequest: {
+            /**
+             * Authority
+             * @default 10
+             */
+            authority: number;
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /** Derived From */
+            derived_from?: string[];
+            /**
+             * Domain
+             * @description Domain pack name, e.g. custom_invoices
+             */
+            domain: string;
+            /** Enforcement */
+            enforcement?: ("mandatory" | "prohibition" | "default") | null;
+            /**
+             * Entities
+             * @description Canonical keys, e.g. customer:CUST-0042
+             */
+            entities?: string[];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fact" | "rule" | "decision" | "content";
+            /**
+             * Purpose
+             * @description Purpose the proposal is made under (sensitivity ceiling)
+             */
+            purpose: string;
+            /**
+             * Schema Version
+             * @description <domain>.<kind>/1
+             */
+            schema_version: string;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            sensitivity: components["schemas"]["Sensitivity"];
+            /** Source */
+            source?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Valid From
+             * Format: date
+             * @description Business date from which it holds
+             */
+            valid_from: string;
+            /** Valid To */
+            valid_to?: string | null;
+        };
         /** RecordPage */
         RecordPage: {
             /** Items */
@@ -380,6 +466,21 @@ export interface components {
              * @description Version of the record (1, 2, …), not a database key
              */
             version: number;
+        };
+        /** Sensitivity */
+        Sensitivity: {
+            /**
+             * Class
+             * @enum {string}
+             */
+            class: "public" | "internal" | "confidential" | "restricted";
+            /**
+             * Personal Data
+             * @default false
+             */
+            personal_data: boolean;
+            /** Retention Days */
+            retention_days?: number | null;
         };
         /** VerifyRequest */
         VerifyRequest: {
@@ -637,6 +738,66 @@ export interface operations {
                 };
             };
             /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    propose_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeRecordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalAccepted"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid proposal: every problem listed */
             422: {
                 headers: {
                     [name: string]: unknown;

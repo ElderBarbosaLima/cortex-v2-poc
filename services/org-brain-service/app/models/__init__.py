@@ -10,6 +10,7 @@ from app.models.ledger import (
     SensitivityClass,
     Status,
 )
+from app.models.review import ReviewCase, ReviewCaseItem
 from app.models.tenant import Tenant
 
 enforce_append_only(MemoryRecord)
@@ -23,6 +24,8 @@ __all__ = [
     "MemoryRecord",
     "Outbox",
     "RecordKey",
+    "ReviewCase",
+    "ReviewCaseItem",
     "SensitivityClass",
     "Status",
     "Tenant",

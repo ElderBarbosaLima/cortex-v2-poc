@@ -54,6 +54,13 @@ Errors always look like `{"error": "<code>", "detail": …}`. The three operatio
 (`request_context_pack`, `verify_output`, `submit_correction`) are marked `x-mcp-tool`; until their
 issues land they answer `501 not_implemented`.
 
+Every write enters through the **admission gate**, `POST /v1/cortex/records` (`propose_record`):
+validation by the record's domain pack (schema version, canonical entity keys only, a CEL condition
+compiled at admission, fields and targets known to the pack), then OPA (read scope for the purpose,
+sensitivity ≤ the purpose's ceiling, who may propose). Every problem comes back at once in a
+`422 invalid_proposal` and nothing is written. An accepted proposal is always `proposed`, never
+approved, and joins the one open review case for the same conflict (same targets + entities).
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
