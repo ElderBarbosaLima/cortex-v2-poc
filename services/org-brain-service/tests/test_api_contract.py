@@ -123,29 +123,5 @@ def test_every_error_has_the_same_shape(
     assert "detail" in resp.json()
 
 
-@pytest.mark.parametrize(
-    ("path", "body"),
-    [
-        (
-            "/v1/cortex/corrections",
-            {
-                "pack_id": "6c0b3a5e-3f1d-5c8e-9a51-20261120c0de",
-                "domain": "widgets",
-                "case_id": "O-1",
-                "correction": {},
-                "idempotency_key": "abcdefgh",
-            },
-        ),
-    ],
-)
-def test_broad_operations_answer_501_until_implemented(
-    api: TestClient, path: str, body: dict[str, Any]
-) -> None:
-    resp = api.post(path, json=body, headers={"Authorization": f"Bearer {KEY}"})
-
-    assert resp.status_code == 501
-    assert resp.json()["error"] == "not_implemented"
-
-
 def test_spec_is_valid_json_with_the_cortex_title(spec: dict[str, Any]) -> None:
     assert json.loads(render(spec))["info"]["title"] == "Cortex API"

@@ -100,6 +100,20 @@ same case (checked by hash; Cortex keeps only the hash) and its output. The answ
 Every result is stored, append-only, linked to the pack. Cortex does not block the client's system
 itself; a `hold` is the client's signal to stop.
 
+When a reviewer corrects an output, the client sends it to **`POST /v1/cortex/corrections`**
+(`submit_correction`). The request carries the pack id, the case (checked by hash), the reviewer as
+`X-End-User-Id` and an idempotency key; a retry with the same key writes nothing. What happens:
+- The correction is always recorded as a `kind=decision` record.
+- The domain pack turns it into a rule draft.
+- The draft becomes a proposal only once the **D17 thresholds** are met: at least N distinct work cases
+  and M distinct correctors on the same thing, within D days. Set them with `RULE_SUGGESTION`
+  (`cases/correctors/days`, default `1/1/30`).
+- The proposal goes through the admission gate as `asserted_by: policy`, with authority ≤ 10 until a
+  person approves.
+- The correctors are listed as contributors, so none of them may approve the rule.
+
+Once the named owner approves it, the rule appears in the next applicable case's pack.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

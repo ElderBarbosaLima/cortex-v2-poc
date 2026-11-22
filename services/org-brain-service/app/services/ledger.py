@@ -27,6 +27,9 @@ from app.utils.ids import new_record_id
 # A model may never assert above "preference", at any confidence (governance v1
 # MODEL_ACTOR_CEILING). Only an approval by a person lifts a record above it.
 MODEL_AUTHORITY_CEILING = 10
+# Actors that are not a person: a model (an agent asserting alone) or a policy
+# (a rule suggested from corrections, D17). Both stay under the ceiling.
+MACHINE_ACTORS = frozenset({"model", "policy"})
 
 RECORD_APPENDED = "record.appended"
 
@@ -81,12 +84,12 @@ def _check_ceiling(
 ) -> None:
     approved_by_person = approved_by is not None and approved_by.get("approver_type") == "user"
     if (
-        asserted_by.get("type") == "model"
+        asserted_by.get("type") in MACHINE_ACTORS
         and authority > MODEL_AUTHORITY_CEILING
         and not approved_by_person
     ):
         raise ModelCeilingError(
-            f"a model actor cannot hold authority {authority}; the ceiling is "
+            f"a {asserted_by.get('type')} actor cannot hold authority {authority}; the ceiling is "
             f"{MODEL_AUTHORITY_CEILING} until a person approves"
         )
 

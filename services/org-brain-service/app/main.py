@@ -22,6 +22,7 @@ from app.routers.health import router as health_router
 from app.routers.review_cases import router as review_router
 from app.seed.tenants import ConsumerInfo, Seed, load_seed
 from app.services.policy_gate import PolicyGate
+from app.services.writeback import RuleSuggestionPolicy
 from app.utils.middleware import RequestIdMiddleware
 
 _logger = structlog.get_logger("org-brain.main")
@@ -35,6 +36,7 @@ class AppServices:
     consumer_keys: ConsumerKeyStore
     policy_gate: PolicyGate
     search: SearchProjection = field(default_factory=default_projection)
+    rule_suggestion: RuleSuggestionPolicy = field(default_factory=RuleSuggestionPolicy)
 
 
 def register_tenants(seed: Seed) -> None:
@@ -55,7 +57,12 @@ def build_services(cfg: OrgBrainConfig) -> AppServices:
     except AccessGateUnavailable as exc:
         # Not fatal: reads fail closed until OPA answers, then the gate reloads.
         _logger.error("startup.opa_unavailable", error=str(exc))
-    return AppServices(seed=seed, consumer_keys=keys, policy_gate=gate)
+    return AppServices(
+        seed=seed,
+        consumer_keys=keys,
+        policy_gate=gate,
+        rule_suggestion=RuleSuggestionPolicy.from_spec(cfg.rule_suggestion),
+    )
 
 
 def _install(app: FastAPI, services: AppServices) -> None:
@@ -64,6 +71,7 @@ def _install(app: FastAPI, services: AppServices) -> None:
     app.state.policy_gate = services.policy_gate
     app.state.seed = services.seed
     app.state.search = services.search
+    app.state.rule_suggestion = services.rule_suggestion
 
 
 def create_app(
