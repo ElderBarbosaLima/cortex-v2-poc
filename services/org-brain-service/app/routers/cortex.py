@@ -34,6 +34,7 @@ from app.schemas.cortex import (
 )
 from app.services import admission, ledger
 from app.services.policy_gate import PolicyGate, now_rfc3339
+from app.utils.business_dates import JST, business_start
 
 router = APIRouter(prefix="/v1/cortex", tags=["cortex"], responses=ERROR_RESPONSES)
 
@@ -148,11 +149,8 @@ def get_record(
     return RecordRead(**_summary(row).model_dump(), policy_revision=decision.policy_revision)
 
 
-JST = dt.timezone(dt.timedelta(hours=9))  # business dates are Japanese calendar dates
-
-
 def _business_start(day: dt.date | None) -> dt.datetime | None:
-    return None if day is None else dt.datetime(day.year, day.month, day.day, tzinfo=JST)
+    return None if day is None else business_start(day)
 
 
 @router.post(
