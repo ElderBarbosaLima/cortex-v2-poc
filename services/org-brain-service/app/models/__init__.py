@@ -11,13 +11,14 @@ from app.models.ledger import (
     Status,
 )
 from app.models.review import ReviewCase, ReviewCaseItem, ReviewDecision
-from app.models.served_pack import ServedPack, ServedPackItem
+from app.models.served_pack import ServedPack, ServedPackItem, Verification
 from app.models.tenant import Tenant
 
 enforce_append_only(MemoryRecord)
 enforce_append_only(ReviewDecision)
 enforce_append_only(ServedPack)
 enforce_append_only(ServedPackItem)
+enforce_append_only(Verification)
 
 __all__ = [
     "AssuranceLevel",
@@ -36,4 +37,5 @@ __all__ = [
     "ServedPackItem",
     "Status",
     "Tenant",
+    "Verification",
 ]

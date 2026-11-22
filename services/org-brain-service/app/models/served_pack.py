@@ -1,13 +1,14 @@
-"""Served context packs (migration 006). Append-only."""
+"""Served context packs (migration 006) and their verifications (007). Append-only."""
 
 from __future__ import annotations
 
 import datetime as dt
+from typing import Any
 
 from sqlalchemy import Date, DateTime, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, BigInt, Bytes, UuidCol
+from app.models.base import Base, BigInt, Bytes, JsonCol, UuidCol
 
 
 class ServedPack(Base):
@@ -47,3 +48,24 @@ class ServedPackItem(Base):
     body_sealed: Mapped[bytes] = mapped_column(Bytes, nullable=False)
     body_codec: Mapped[str] = mapped_column(String(32), nullable=False)
     key_ref: Mapped[str] = mapped_column(UuidCol, nullable=False)
+
+
+class Verification(Base):
+    """One release check of an output against a served pack (migration 007)."""
+
+    __tablename__ = "verification"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    verification_id: Mapped[str] = mapped_column(UuidCol, nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    pack_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    trace_id: Mapped[str] = mapped_column(Text, nullable=False)
+    consumer_id: Mapped[str] = mapped_column(Text, nullable=False)
+    end_user_id: Mapped[str | None] = mapped_column(UuidCol, nullable=True)
+    result: Mapped[str] = mapped_column(String(8), nullable=False)
+    reasons: Mapped[list[dict[str, Any]]] = mapped_column(JsonCol, nullable=False)
+    output_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_revision: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verified_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

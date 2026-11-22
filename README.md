@@ -89,6 +89,17 @@ An agent gets a **context pack** with `POST /v1/cortex/context-packs` (`request_
   `GET /v1/cortex/context-packs/{pack_id}` returns exactly what was served, without re-running
   anything. Another tenant's key gets a 404.
 
+Before posting, the agent calls **`POST /v1/cortex/verify`** (`verify_output`) with the pack id, the
+same case (checked by hash; Cortex keeps only the hash) and its output. The answer is `pass`, or
+`hold` with reasons. Every check reads the ledger, never the search index:
+- `rule_no_longer_approved`: a constraint in the pack has been retired since;
+- `new_mandatory_rule`: a constraint now applies that was not in the pack;
+- `constraint_unevaluable`: a constraint cannot be evaluated for the case;
+- `output_check_failed`: the domain pack found a problem in the output.
+
+Every result is stored, append-only, linked to the pack. Cortex does not block the client's system
+itself; a `hold` is the client's signal to stop.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
