@@ -2121,7 +2121,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Not approved: nothing to retire */
+            /** @description Not approved: nothing to retire; or a replica (`replica_read_only`) */
             409: {
                 headers: {
                     [name: string]: unknown;

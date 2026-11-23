@@ -5,6 +5,7 @@ from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
+from sqlalchemy import Engine
 from sqlalchemy.dialects.postgresql import insert
 
 from app.api.errors import install_error_handlers
@@ -42,10 +43,10 @@ class AppServices:
     evidence_bucket: str = "cortex-poc-evidence"
 
 
-def register_tenants(seed: Seed) -> None:
+def register_tenants(seed: Seed, engine: Engine | None = None) -> None:
     """The tenant registry the outbox drainer iterates (idempotent)."""
     rows = [{"tenant_id": t.tenant_id, "key": t.key} for t in seed.tenants]
-    with app_engine().begin() as conn:
+    with (engine or app_engine()).begin() as conn:
         conn.execute(insert(Tenant).values(rows).on_conflict_do_nothing())
 
 

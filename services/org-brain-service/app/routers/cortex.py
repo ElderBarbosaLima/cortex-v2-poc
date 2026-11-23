@@ -45,7 +45,7 @@ from app.schemas.cortex import (
     VerifyResult,
     WhoAmI,
 )
-from app.services import admission, evidence, ledger, review, writeback
+from app.services import admission, evidence, ledger, replication, review, writeback
 from app.services.access_gate import context_pack, verify
 from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
@@ -416,7 +416,10 @@ def import_records(
     operation_id="retire_record",
     responses={
         404: {"model": ApiError, "description": "No such record (or another tenant's)"},
-        409: {"model": ApiError, "description": "Not approved: nothing to retire"},
+        409: {
+            "model": ApiError,
+            "description": "Not approved: nothing to retire; or a replica (`replica_read_only`)",
+        },
     },
 )
 def retire_record(
@@ -432,6 +435,11 @@ def retire_record(
         current = ledger.latest(session, str(record_id))
     except ledger.RecordNotFoundError:
         raise CortexApiError(404, "not_found", "no such record") from None
+    if replication.is_replica(current):
+        home = current.asserted_by.get("id", "its home region")
+        raise CortexApiError(
+            409, "replica_read_only", f"a replicated Global record is retired in {home}"
+        )
     gate: PolicyGate = request.app.state.policy_gate
     permit = gate.approval(
         {
