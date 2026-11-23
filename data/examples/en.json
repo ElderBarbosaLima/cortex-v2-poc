@@ -57,8 +57,8 @@
       ],
       "case": {
         "case_id": "EX-INV-001",
-        "customer_id": "CUST-0300",
-        "customer_name": "Sample Logistics Ltd. (fictitious)",
+        "customer_id": "CUST-0121",
+        "customer_name": "Test Foods Co. (fictitious)",
         "channel": "coupa",
         "issue_date": "2026-12-04",
         "currency": "JPY",
@@ -93,7 +93,7 @@
             "after": "PO number: PO-55120"
           }
         ],
-        "note_ja": "Invoices to Sample Logistics through Coupa are sent back unless the remarks carry the PO number."
+        "note_ja": "Invoices to Test Foods through Coupa are sent back unless the remarks carry the PO number."
       },
       "proposal": {
         "by": "EN-R-002",

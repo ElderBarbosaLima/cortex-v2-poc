@@ -42,8 +42,8 @@
       ],
       "case": {
         "case_id": "EX-INV-001",
-        "customer_id": "CUST-0300",
-        "customer_name": "サンプル物流株式会社（架空）",
+        "customer_id": "CUST-0121",
+        "customer_name": "テスト食品株式会社",
         "channel": "coupa",
         "issue_date": "2026-12-04",
         "currency": "JPY",
@@ -78,7 +78,7 @@
             "after": "注文番号: PO-55120"
           }
         ],
-        "note_ja": "Coupa 経由のサンプル物流宛て請求書は、備考に注文番号がないと差し戻される。"
+        "note_ja": "Coupa 経由のテスト食品宛て請求書は、備考に注文番号がないと差し戻される。"
       },
       "proposal": {
         "by": "R-002",

@@ -2,12 +2,27 @@
   "cortex": {
     "home": {
       "title": "Cortex",
-      "intro": "Governed memory for the work your agents do. Review what they learn before it becomes a rule.",
+      "intro": "Governed memory for the work your agents do: the rules your teams approve, the cases they resolved, and the evidence behind every answer.",
       "connecting": "Connecting to Cortex…",
       "connected": "Connected as {consumer}",
       "unavailable": "Cortex is unavailable: {reason}",
       "retry": "Try again",
-      "openDesk": "Open the Decision Desk"
+      "openDesk": "Open the Decision Desk",
+      "cards": {
+        "desk": {
+          "title": "Decision Desk",
+          "body": "Review what Cortex learned from your specialists, with its evidence, and approve or reject it."
+        },
+        "rules": {
+          "title": "Approved rules, one copy",
+          "body": "Every rule has an owner, a version and an effective date. Your rule engine and your AI read the same copy."
+        },
+        "audit": {
+          "title": "Evidence for every answer",
+          "body": "Each answer cites the rules it used, with their version and approver, for your audit trail."
+        }
+      },
+      "signIn": "Sign in to start"
     },
     "desk": {
       "title": "Decision Desk",
@@ -16,7 +31,7 @@
       "problem": "Cortex said no ({code})",
       "toolbar": {
         "label": "Filters",
-        "person": "Acting as (dev)",
+        "person": "Act as",
         "scope": "Scope",
         "status": "Status",
         "refresh": "Refresh",
@@ -128,6 +143,66 @@
           "often_overridden": "Specialists corrected {count} cases where it applied (90 days)",
           "keeps_losing": "Lost to another rule in {count} packs (90 days)"
         }
+      },
+      "dev": {
+        "title": "Developer tools"
+      },
+      "evidence": {
+        "title": "Evidence",
+        "from": "From {case}, corrected by {person} on {date}",
+        "exception": "Exception: {exception}",
+        "result": {
+          "confirmed": "The specialist confirmed the match",
+          "corrected": "The specialist corrected the match"
+        },
+        "selected": "Invoices chosen: {list}",
+        "case": "Show the case {case}",
+        "items": "{count} item(s)"
+      },
+      "preview": {
+        "appliesTo": "Once approved, it applies to every case where",
+        "button": "Preview the effect",
+        "title": "What changes for {case}",
+        "before": "Today",
+        "after": "Once approved",
+        "proposed": "this proposal",
+        "notApplicable": "With these settings it would not apply to {case}.",
+        "unavailable": "No case was kept for this proposal, so there is nothing to preview.",
+        "role": {
+          "constraint": "Must",
+          "applied": "Applies",
+          "overridden": "Loses"
+        }
+      },
+      "enforcement": {
+        "mandatory": "mandatory",
+        "prohibition": "prohibition",
+        "default": "default"
+      }
+    },
+    "shell": {
+      "brand": "Cortex",
+      "nav": {
+        "label": "Main",
+        "home": "Home",
+        "desk": "Decision Desk"
+      },
+      "language": "Language",
+      "signOut": "Sign out",
+      "devMode": "Developer tools",
+      "footer": "Cortex proof of concept · arbitr · synthetic data only"
+    },
+    "login": {
+      "title": "Sign in",
+      "intro": "Choose your company and who you are.",
+      "company": "Company",
+      "person": "Who are you?",
+      "submit": "Sign in",
+      "note": "Proof-of-concept sign-in: there is no password. In production you sign in with your company's single sign-on.",
+      "unavailable": "The list of people could not be loaded.",
+      "roles": {
+        "reviewer": "Reviewer",
+        "final_validator": "Rule owner"
       }
     }
   }

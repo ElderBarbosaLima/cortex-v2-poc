@@ -135,8 +135,10 @@ _ANCESTOR_CONSTRAINTS = text(
     "WHERE kind = 'rule' AND status = 'approved' "
     "AND enforcement IN ('mandatory', 'prohibition') "
     "AND schema_version = :schema AND scope = ANY(CAST(:ancestors AS uuid[])) "
-    "AND (cardinality(entities) = 0 OR cardinality(CAST(:entities AS text[])) = 0 "
-    "     OR entities && CAST(:entities AS text[])) "
+    # A constraint counts when it covers the proposal's cases: a global one, or one
+    # about an entity the proposal names. A rule for all customers does not loosen
+    # one customer's constraint (issue 50: that was a false positive).
+    "AND (cardinality(entities) = 0 OR entities && CAST(:entities AS text[])) "
     "AND (valid_to IS NULL OR valid_to > now()) "
     "ORDER BY record_id"
 )

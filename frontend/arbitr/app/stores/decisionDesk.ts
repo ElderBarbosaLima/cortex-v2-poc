@@ -124,6 +124,13 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
         this.scopeId = this.teamScopes[0]?.id ?? ''
       }
     },
+    /** The signed-in person decides (issue 54): their set, their tenant, themselves. */
+    signedInAs(setKey: ExampleKey, personId: string) {
+      this.examples = setKey
+      setExamplesSet(setKey)
+      this.personId = personId
+      this.pickDefaults()
+    },
     /** Switch the example set: its tenant's key, people and scopes (issue 39). */
     async useExamples(key: ExampleKey) {
       this.examples = key
@@ -242,7 +249,7 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
           }
           await approveReviewCase(caseId, {
             record_id: pending.record_id,
-            authority: pending.authority,  // as proposed (issue 51)
+            authority: pending.authority, // as proposed (issue 51)
             enforcement: pending.kind === 'rule' ? (pending.enforcement ?? 'default') : null,
             reason: null
           }, this.personId)

@@ -124,8 +124,8 @@ function validity(proposal: CortexCaseProposal): string {
         data-test-id="cortex-decision-desk-loosens-text"
       >
         {{ conflict.text_ja
-          ? t('cortex.desk.detail.loosens', { enforcement: conflict.enforcement ?? '', text: conflict.text_ja, targets: conflict.targets.join(', ') })
-          : t('cortex.desk.detail.loosensErased', { enforcement: conflict.enforcement ?? '', targets: conflict.targets.join(', ') }) }}
+          ? t('cortex.desk.detail.loosens', { enforcement: conflict.enforcement ? t(`cortex.desk.enforcement.${conflict.enforcement}`) : '', text: conflict.text_ja, targets: conflict.targets.join(', ') })
+          : t('cortex.desk.detail.loosensErased', { enforcement: conflict.enforcement ? t(`cortex.desk.enforcement.${conflict.enforcement}`) : '', targets: conflict.targets.join(', ') }) }}
       </p>
       <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-body">
         <dt class="text-muted">
@@ -145,7 +145,7 @@ function validity(proposal: CortexCaseProposal): string {
         <dt class="text-muted">
           {{ t('cortex.desk.detail.proposed') }}
         </dt>
-        <dd>{{ proposal.enforcement ?? '—' }} · {{ t('cortex.desk.detail.authority', { authority: proposal.authority }) }}</dd>
+        <dd>{{ proposal.enforcement ? t(`cortex.desk.enforcement.${proposal.enforcement}`) : '—' }} · {{ t('cortex.desk.detail.authority', { authority: proposal.authority }) }}</dd>
         <dt class="text-muted">
           {{ t('cortex.desk.detail.validity') }}
         </dt>
@@ -163,6 +163,7 @@ function validity(proposal: CortexCaseProposal): string {
           >{{ line }}</span>
         </dd>
       </dl>
+      <CortexDecisionDeskEvidence :evidence="proposal.evidence ?? []" />
     </section>
 
     <section :aria-label="t('cortex.desk.detail.affected')">

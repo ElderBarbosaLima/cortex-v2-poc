@@ -32,7 +32,7 @@ async function renew() {
       {{ t('cortex.desk.alerts.intro', { days: EXPIRING_DAYS }) }}
     </p>
     <p
-      v-if="!desk.alerts.length"
+      v-if="!(desk.alerts ?? []).length"
       class="mt-2 text-body text-muted"
       data-test-id="cortex-decision-desk-expiring-empty-text"
     >
@@ -43,7 +43,7 @@ async function renew() {
       class="mt-2 flex flex-col gap-2"
     >
       <li
-        v-for="item in desk.alerts"
+        v-for="item in desk.alerts ?? []"
         :key="item.record_id"
         class="flex items-start gap-2 text-body"
         data-test-id="cortex-decision-desk-expiring-item-text"
@@ -72,7 +72,7 @@ async function renew() {
       </li>
     </ul>
     <div
-      v-if="desk.alerts.some(i => kinds(i).includes('expiring'))"
+      v-if="(desk.alerts ?? []).some(i => kinds(i).includes('expiring'))"
       class="mt-3 flex flex-wrap items-end gap-2"
     >
       <label

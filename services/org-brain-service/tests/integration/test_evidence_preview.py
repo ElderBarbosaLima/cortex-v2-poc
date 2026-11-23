@@ -4,6 +4,7 @@ and the case behind a proposal, and what approving it changes for that case."""
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import pytest
 
@@ -12,7 +13,7 @@ from tests.integration.test_owner_alerts import DESK, World, _call, _case, _pack
 pytestmark = pytest.mark.integration
 
 
-def _correct(w: World, code: str, order: str) -> dict[str, object]:
+def _correct(w: World, code: str, order: str) -> dict[str, Any]:
     pack = _pack(w, code, order)
     resp = _call(
         w,
@@ -37,7 +38,7 @@ def _correct(w: World, code: str, order: str) -> dict[str, object]:
     return resp.json()
 
 
-def test_the_owner_sees_the_correction_and_the_case(world: World) -> None:
+def test_the_owner_sees_the_correction_and_the_case(world: World) -> None:  # noqa: F811
     code = f"W-{uuid.uuid4().hex[:8]}"
     accepted = _correct(world, code, "O-EV-1")
 
@@ -58,7 +59,7 @@ def test_the_owner_sees_the_correction_and_the_case(world: World) -> None:
     assert evidence[0]["case"] == _case(code, "O-EV-1")
 
 
-def test_the_preview_shows_the_rule_joining_the_pack(world: World) -> None:
+def test_the_preview_shows_the_rule_joining_the_pack(world: World) -> None:  # noqa: F811
     code = f"W-{uuid.uuid4().hex[:8]}"
     existing = _rule(world, code, text_ja="既存の既定ラベル。")
     accepted = _correct(world, code, "O-EV-2")

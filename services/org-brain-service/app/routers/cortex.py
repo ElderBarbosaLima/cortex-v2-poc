@@ -863,7 +863,9 @@ def submit_correction(
             idempotency_key=body.idempotency_key,
             payload_hash=payload_hash,
             policy=_suggestion_policy(request, pack.name),
-            ancestors=read.readable_scopes,  # own scope too (issue 50)
+            ancestors=read.readable_scopes[
+                1:
+            ],  # the learning loop: scopes above (issue 50 keeps this)
         )
     except writeback.InvalidCorrectionError as exc:
         raise CortexApiError(422, "invalid_correction", str(exc)) from None

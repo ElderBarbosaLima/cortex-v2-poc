@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DecisionDesk from '~/pages/cortex/decision-desk.vue'
 import { useDecisionDeskStore } from '~/stores/decisionDesk'
+import { useCortexUserStore } from '~/stores/cortexUser'
 
 const OWNER = 'owner-uuid'
 const CORRECTOR = 'corrector-uuid'
@@ -63,6 +64,12 @@ const calls: Array<{ url: string, init?: RequestInit }> = []
 beforeEach(() => {
   localStorage.clear() // the remembered example set (issue 39)
   useDecisionDeskStore().$reset()
+  // Signed in as the owner, with the developer tools on (issue 54): tests switch person there.
+  const user = useCortexUserStore()
+  user.$reset()
+  user.loaded = true
+  user.devMode = true
+  user.user = { setKey: 'ja', personId: OWNER, personKey: 'OWN-001', label: 'ルール責任者', role: 'final_validator' }
   calls.length = 0
   routes = [
     [/^\/api\/dev\/seed$/, 200, seed],
@@ -297,6 +304,60 @@ describe('the Decision Desk', () => {
     const text = page.get('[data-test-id="cortex-decision-desk-bulk-result-text"]').text()
     expect(text).toContain('Approved 1 case(s).')
     expect(text).toContain('Not approved: 二件目 — only the named owner or backup of this customer can decide')
+  })
+
+  it('hides the developer tools unless they are switched on (issue 54)', async () => {
+    useCortexUserStore().devMode = false
+    const page = await openCase()
+
+    expect(page.find('[data-test-id="cortex-decision-desk-devtools-panel"]').exists()).toBe(false)
+    expect(page.find('[data-test-id="cortex-decision-desk-person-select"]').exists()).toBe(false)
+    expect(page.text()).not.toContain('X-End-User-Id')
+    const list = calls.filter(c => /review-cases\?/.test(c.url)).at(-1)!
+    expect((list.init?.headers as Record<string, string>)['x-end-user-id']).toBe(OWNER) // the signed-in person
+  })
+
+  it('shows the evidence and previews the effect of approving (issue 52)', async () => {
+    const withEvidence = detail({ allowed: true, reason: null })
+    ;(withEvidence.proposals[0] as Record<string, unknown>).evidence = [{
+      decision_record_id: 'dec-1', case_ref: 'INV-0007', decided_by: CORRECTOR, decided_at: '2026-12-04T06:00:00Z',
+      correction: { note_ja: 'Coupa では注文番号が必要。', changes: [{ target: 'invoice.remarks.po_number', before: null, after: '注文番号: PO-88231' }] },
+      case: { case_id: 'INV-0007', customer_id: 'CUST-0042', total: 990000 }
+    }]
+    routes[2] = [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, withEvidence]
+    routes.unshift([/\/review-cases\/case-uuid\/preview\?/, 200, {
+      record_id: 'rec-1', case_ref: 'INV-0007', available: true, applies: true,
+      before: [{ record_id: 'g-1', text: '登録番号を記載する。', enforcement: 'mandatory', role: 'constraint', overridden_by: null, proposed: false }],
+      after: [
+        { record_id: 'g-1', text: '登録番号を記載する。', enforcement: 'mandatory', role: 'constraint', overridden_by: null, proposed: false },
+        { record_id: 'rec-1', text: '注文番号を備考に入れる', enforcement: 'default', role: 'applied', overridden_by: null, proposed: true }
+      ]
+    }])
+    const page = await openCase()
+
+    const evidence = page.get('[data-test-id="cortex-decision-desk-evidence-panel"]').text()
+    expect(evidence).toContain('Coupa では注文番号が必要。')
+    expect(evidence).toContain('注文番号: PO-88231')
+    expect(evidence).toContain('corrected by 請求書レビュアー 1')
+    await page.get('[data-test-id="cortex-decision-desk-preview-button"]').trigger('click')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-preview-panel"]').exists()).toBe(true))
+
+    const call = calls.find(c => c.url.includes('/preview?'))!
+    expect(call.url).toContain('record_id=rec-1')
+    expect(call.url).toContain('authority=10')
+    const panel = page.get('[data-test-id="cortex-decision-desk-preview-panel"]').text()
+    expect(panel).toContain('What changes for INV-0007')
+    expect(panel).toContain('this proposal')
+  })
+
+  it('speaks Japanese when the interface is switched (issue 55)', async () => {
+    const page = await openCase()
+    await useNuxtApp().$i18n.setLocale('ja')
+    await flushPromises()
+
+    expect(page.get('[data-test-id="cortex-decision-desk-approve-button"]').text()).toBe('承認')
+    expect(page.text()).toContain('適用条件')
+    await useNuxtApp().$i18n.setLocale('en')
   })
 
   it('gives every control a cortex-decision-desk test id', async () => {

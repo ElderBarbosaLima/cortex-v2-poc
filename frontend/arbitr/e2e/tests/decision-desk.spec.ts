@@ -86,6 +86,11 @@ async function correct(caseId: string, correctionId: string, reviewer: string): 
 }
 
 async function openDesk(page: import('@playwright/test').Page, actingAs: string, caseId: string): Promise<void> {
+  // Signed in (issue 54) with the developer tools on, so the test can act as each person.
+  const user = { setKey: 'ja', personId: person(actingAs), personKey: actingAs, label: actingAs, role: 'final_validator' }
+  await page.addInitScript((saved) => {
+    localStorage.setItem('cortex.user', saved)
+  }, JSON.stringify({ user, devMode: true }))
   await page.goto('/cortex/decision-desk')
   await page.getByTestId('cortex-decision-desk-person-select').selectOption(person(actingAs))
   await page.getByTestId('cortex-decision-desk-scope-select').selectOption(SCOPE)

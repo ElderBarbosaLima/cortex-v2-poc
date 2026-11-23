@@ -12,7 +12,13 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      meta: [{ name: 'color-scheme', content: 'only light' }]
+      meta: [{ name: 'color-scheme', content: 'only light' }],
+      // The Arbitr icon, copied from www.arbitr.ai into public/.
+      link: [
+        { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+        { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' }
+      ]
     }
   },
 
@@ -75,7 +81,11 @@ export default defineNuxtConfig({
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
-    locales: [{ code: 'en', name: 'English', files: ['en/common.json', 'en/cortex.json'] }],
+    locales: [
+      { code: 'en', name: 'English', files: ['en/common.json', 'en/cortex.json'] },
+      // Issue 55: the Japanese interface (doc 06 marked English-only labels as a gap).
+      { code: 'ja', name: '日本語', files: ['ja/common.json', 'ja/cortex.json'] }
+    ],
     langDir: 'locales',
     detectBrowserLanguage: false
   },
