@@ -6,13 +6,15 @@
     "customers": 6,
     "cases": 11,
     "rules": 6,
-    "history": 10
+    "history": 10,
+    "replay": 30
   },
   "sha256": {
     "cases.jsonl": "b2399b6cc84fe850a8103bd11018001030b666d4722325de60e6ea400c399b06",
     "customers.json": "58c8aa65f2942746bb7c5bd8eb8295015f90955558d7a37a8e86cf4318d8b886",
     "expected.json": "c1754f21754ebf25d12d1856111cf1cba6f3fd2a5969bc6daa23f430b397d035",
     "history.jsonl": "9355df58b2c955f3cdbaf586a9a6c179dfad56dc88db954f1e0a0ba8d9080176",
+    "replay.jsonl": "f7f1d451ba56972b1b4483fb029936ccef33b045e78068b704ea75c7fe3e02cb",
     "rules.json": "ab17b85809571bd5cad6958a4136760e48999981ed88571253d898216332b19e"
   }
 }

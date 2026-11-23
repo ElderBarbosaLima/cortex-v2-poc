@@ -133,6 +133,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/metrics/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggestion Metrics
+         * @description Slide 26 (issue 49): of the rules Cortex suggested (asserted by a model or a policy), how many owners accepted, rejected, or still have to decide, in this scope.
+         */
+        get: operations["suggestion_metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/outcomes": {
         parameters: {
             query?: never;
@@ -1548,6 +1568,27 @@ export interface components {
             /** Retention Days */
             retention_days?: number | null;
         };
+        /**
+         * SuggestionMetrics
+         * @description Slide 26: suggested rules owners accept (target 70%).
+         */
+        SuggestionMetrics: {
+            /**
+             * Acceptance
+             * @description accepted / decided; null when none decided yet
+             */
+            acceptance: number | null;
+            /** Accepted */
+            accepted: number;
+            /** Pending */
+            pending: number;
+            /** Policy Revision */
+            policy_revision: string | null;
+            /** Rejected */
+            rejected: number;
+            /** Suggested */
+            suggested: number;
+        };
         /** SyncedRule */
         SyncedRule: {
             /** Approved By */
@@ -2051,6 +2092,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    suggestion_metrics: {
+        parameters: {
+            query: {
+                scope: string;
+                purpose: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionMetrics"];
                 };
             };
             /** @description Missing or unknown API key */

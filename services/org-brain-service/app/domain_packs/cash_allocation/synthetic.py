@@ -246,6 +246,73 @@ def _history(rng: Any) -> list[JsonObj]:
     return rows
 
 
+# Resolved payments to replay (issue 49): (customer, gap, candidates, what the
+# specialist found, the engine fields they applied, how many). December 2026.
+_REPLAY: tuple[tuple[str, int, int, str | None, dict[str, Any] | None, int], ...] = (
+    ("CUST-0105", 0, 1, None, None, 10),  # plain matches
+    ("CUST-0101", 660, 1, "bank_fee", {"expected_fee": 660, "treatment": "fee_expense"}, 5),
+    ("CUST-0101", 1100, 1, "tax_difference", None, 1),  # beyond a fee: the rule does not cover it
+    ("CUST-0102", 0, 3, "combined_payment", {"pick": "po_number"}, 3),
+    (
+        "CUST-0104",
+        440,
+        1,
+        "bank_fee",
+        {"treatment": "fee_expense"},
+        2,
+    ),  # the rule says hold: they differ
+    (
+        "CUST-0105",
+        330,
+        1,
+        "bank_fee",
+        {"expected_fee": 330, "treatment": "fee_expense"},
+        4,
+    ),  # mined (46)
+    ("CUST-0103", 2200000, 1, "partial_payment", {"action": "instalments", "instalments": 3}, 2),
+    ("CUST-0106", 440, 1, "bank_fee", {"treatment": "hold_for_review"}, 1),  # the group's rule (45)
+    ("CUST-0201", 660, 1, "bank_fee", {"expected_fee": 660}, 2),  # loaded from the sheet (47)
+)
+
+
+def _replay(rng: Any) -> list[JsonObj]:
+    rows: list[JsonObj] = []
+    n = 0
+    for customer, gap, candidates, exception, engine, times in _REPLAY:
+        for _ in range(times):
+            n += 1
+            day = dt.date(2026, 12, 1) + dt.timedelta(days=n % 25)
+            totals = [rng.randrange(50, 900) * 1100 for _ in range(candidates)]
+            if gap > 0 and candidates == 1:
+                totals = [max(totals[0], gap + 110000)]
+            case_id = f"RPL-{n:03d}"
+            rows.append(
+                {
+                    "case": {
+                        "case_id": case_id,
+                        "customer_id": customer,
+                        "payment": {
+                            "payment_id": case_id,
+                            "amount": sum(totals) - gap,
+                            "value_date": day.isoformat(),
+                            "currency": "JPY",
+                        },
+                        "candidate_invoices": [
+                            {
+                                "invoice_id": f"INV-R{n:03d}{i}",
+                                "total": t,
+                                "issue_date": (day - dt.timedelta(days=30)).isoformat(),
+                            }
+                            for i, t in enumerate(totals)
+                        ],
+                        "gap": gap,
+                    },
+                    "specialist": {"exception": exception, "engine": engine},
+                }
+            )
+    return rows
+
+
 def generate(out_dir: Path) -> dict[str, int]:
     rng = rng_for(WORKFLOW)
     directory = out_dir / WORKFLOW
@@ -285,11 +352,14 @@ def generate(out_dir: Path) -> dict[str, int]:
     write_json(directory / "expected.json", expected)
     history = _history(rng)
     write_jsonl(directory / "history.jsonl", history)
+    replay = _replay(rng)
+    write_jsonl(directory / "replay.jsonl", replay)
     counts = {
         "customers": len(CUSTOMERS),
         "cases": len(cases),
         "rules": len(RULES),
         "history": len(history),
+        "replay": len(replay),
     }
     write_manifest(directory, WORKFLOW, counts)
     return counts
