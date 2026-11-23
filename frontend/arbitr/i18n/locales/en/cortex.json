@@ -106,6 +106,13 @@
           "already_there": "Already there",
           "failed": "Failed"
         }
+      },
+      "bulk": {
+        "approve": "Approve selected ({count})",
+        "hint": "As proposed, one decision per case. Open a case to change its enforcement, authority or dates.",
+        "pick": "Select {title}",
+        "done": "Approved {count} case(s).",
+        "refused": "Not approved: {title} — {reason}"
       }
     }
   }

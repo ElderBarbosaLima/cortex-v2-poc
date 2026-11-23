@@ -38,6 +38,23 @@ onMounted(async () => {
       :description="desk.problem.message"
       data-test-id="cortex-decision-desk-problem-alert"
     />
+    <div
+      v-if="desk.bulkResult"
+      class="text-body"
+      role="status"
+      data-test-id="cortex-decision-desk-bulk-result-text"
+    >
+      <p class="text-success">
+        {{ t('cortex.desk.bulk.done', { count: desk.bulkResult.approved }) }}
+      </p>
+      <p
+        v-for="item in desk.bulkResult.refused"
+        :key="item.title"
+        class="text-error"
+      >
+        {{ t('cortex.desk.bulk.refused', { title: item.title, reason: item.reason }) }}
+      </p>
+    </div>
     <p
       v-if="desk.notice"
       class="text-body text-success"

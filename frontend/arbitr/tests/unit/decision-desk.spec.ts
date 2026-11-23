@@ -255,6 +255,31 @@ describe('the Decision Desk', () => {
       .toContain('Already there · import')
   })
 
+  it('approves picked cases one decision each, and says which were refused (issue 47)', async () => {
+    const second = { ...detail({ allowed: false, reason: 'only the named owner or backup of this customer can decide' }), case_id: 'case-2', title: '二件目' }
+    routes[1] = [/^\/api\/cortex\/review-cases\?/, 200, { items: [
+      { case_id: CASE, scope: SCOPE, title: '一件目', status: 'open', opened_at: '2026-12-04T06:00:00Z', proposal_count: 1, sensitivity_class: 'internal', named_owners: null },
+      { case_id: 'case-2', scope: SCOPE, title: '二件目', status: 'open', opened_at: '2026-12-04T06:00:00Z', proposal_count: 1, sensitivity_class: 'internal', named_owners: null }
+    ], next_cursor: null, policy_revision: null }]
+    routes.unshift(
+      [/^\/api\/cortex\/review-cases\/case-2\?/, 200, second],
+      [/\/approve$/, 200, { decision_id: 'd', case_id: CASE, decision: 'approve', records: [], policy_revision: null }]
+    )
+    const page = await mountSuspended(DecisionDesk)
+    await vi.waitFor(() => expect(page.findAll('[data-test-id="cortex-decision-desk-pick-checkbox"]').length).toBe(2))
+
+    for (const box of page.findAll('[data-test-id="cortex-decision-desk-pick-checkbox"]')) await box.setValue(true)
+    await page.get('[data-test-id="cortex-decision-desk-approve-selected-button"]').trigger('click')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-bulk-result-text"]').exists()).toBe(true))
+
+    const posts = calls.filter(c => c.url.endsWith('/approve'))
+    expect(posts.map(c => c.url)).toEqual([`/api/cortex/review-cases/${CASE}/approve`])  // the refused one is never sent
+    expect(JSON.parse(String(posts[0]!.init?.body))).toEqual({ record_id: 'rec-1', authority: 20, enforcement: 'default', reason: null })
+    const text = page.get('[data-test-id="cortex-decision-desk-bulk-result-text"]').text()
+    expect(text).toContain('Approved 1 case(s).')
+    expect(text).toContain('Not approved: 二件目 — only the named owner or backup of this customer can decide')
+  })
+
   it('gives every control a cortex-decision-desk test id', async () => {
     const page = await openCase()
     const controls = page.element.querySelectorAll('button, input, select, textarea, a, [role="button"]')

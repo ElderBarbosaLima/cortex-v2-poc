@@ -1,0 +1,26 @@
+{
+  "columns": {
+    "customer_id": "顧客番号",
+    "exception": "例外種別",
+    "expected_fee": "手数料",
+    "max_fee": "手数料上限",
+    "treatment": "処理",
+    "pick": "配分方法",
+    "rounding": "端数処理",
+    "tolerance": "許容差",
+    "action": "対応",
+    "instalments": "分割回数",
+    "guidance": "メモ",
+    "valid_from": "適用開始",
+    "valid_to": "適用終了"
+  },
+  "exceptions": {
+    "振込手数料": "bank_fee",
+    "一括入金": "combined_payment",
+    "端数差異": "tax_difference",
+    "二重入金": "duplicate_payment",
+    "分割入金": "partial_payment"
+  },
+  "authority": 20,
+  "enforcement": "default"
+}

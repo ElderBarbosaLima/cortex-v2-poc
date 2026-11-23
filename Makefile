@@ -100,6 +100,12 @@ migrate-hq: ## The regions prototype (ADR 0002): migrate the HQ region's ledger 
 replicate: migrate-hq ## Copy HQ's published Global records into this region's ledger (idempotent; ADR 0002, issue 32)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.replicate --from-db org_brain_hq --region hq
 
+load-rules: init-env ## Load customer rules from a spreadsheet (issue 47): SHEET= GUIDE= (default: the sample in data/examples/rule-sheet)
+	@set -a && . ./.env && set +a && $(COMPOSE) run --rm --no-deps -e CORTEX_E2E_AGENT_KEY org-brain-service \
+		pipenv run python -m app.cli.load_rules --sheet $(or $(SHEET),/data/examples/rule-sheet/rules.csv) \
+		--guide $(or $(GUIDE),/data/examples/rule-sheet/column-guide.json) \
+		--scope jp/finance/q2c-cash-application --by CS-101 --api http://aws-emulator:5008
+
 mine-patterns: ## Suggest rules from a history of resolved payments (issue 46): HISTORY= (default: the synthetic one)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.mine_patterns \
 		--tenant jp --domain cash_allocation --scope jp/finance/q2c-cash-application \
