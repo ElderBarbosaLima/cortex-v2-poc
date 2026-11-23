@@ -249,8 +249,24 @@ class DecisionView(BaseModel):
     decided_at: dt.datetime
 
 
+class DecisionPermission(BaseModel):
+    allowed: bool
+    reason: str | None = Field(description="OPA's reason, the same a decision would get")
+    policy_revision: str | None
+
+
+class CanDecide(BaseModel):
+    """What the caller (the end user, or the consumer alone) may do on this
+    case now: the approval policy asked ahead of time, so a UI can show a
+    disabled control with the reason. The decision itself is checked again."""
+
+    approve: DecisionPermission
+    reject: DecisionPermission
+
+
 class ReviewCaseDetail(ReviewCaseSummary):
     proposals: list[CaseProposal]
+    can_decide: CanDecide
     affected_cases: list[str] = Field(
         description="Work cases the proposals came from (source.case_ref / source.case_refs)"
     )

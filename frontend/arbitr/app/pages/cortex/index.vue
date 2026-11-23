@@ -21,27 +21,27 @@ onMounted(() => session.load())
       <p
         v-if="session.loading"
         class="text-body"
-        data-testid="cortex-home-status-text"
+        data-test-id="cortex-home-status-text"
       >
         {{ t('cortex.home.connecting') }}
       </p>
       <p
         v-else-if="session.whoami"
         class="text-body"
-        data-testid="cortex-home-status-text"
+        data-test-id="cortex-home-status-text"
       >
         {{ t('cortex.home.connected', { consumer: session.whoami.consumer_id }) }}
       </p>
       <div v-else>
         <p
           class="text-body text-error"
-          data-testid="cortex-home-status-text"
+          data-test-id="cortex-home-status-text"
         >
           {{ t('cortex.home.unavailable', { reason: session.error ?? '' }) }}
         </p>
         <UButton
           class="mt-4"
-          data-testid="cortex-home-retry-button"
+          data-test-id="cortex-home-retry-button"
           @click="session.load()"
         >
           {{ t('cortex.home.retry') }}

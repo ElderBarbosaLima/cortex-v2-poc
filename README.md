@@ -165,6 +165,18 @@ through the API: 40 packs, corrections, approval, retirement, verify.
 - **Typed API:** the Cortex API types come only from `libraries/cortex-contract/ts`.
 - **Checks:** `make lint`, `make typecheck` (vue-tsc) and `make test` (Vitest) include the frontend.
 
+The **Decision Desk** (<http://localhost:5001/cortex/decision-desk>) is where a named owner reviews
+what Cortex learned.
+- **What you see:** the rule text, its condition, entities, scope, the correction it came from, the
+  affected cases and each proposal's outcome.
+- **Deciding:** you approve with the final authority and enforcement, or reject with a reason. Each
+  case says ahead, from OPA, whether you may decide and why not, so a corrector sees approve disabled
+  with the policy's reason.
+- **Dev user selector:** it sends the person you act as in `X-End-User-Id`. In production that comes
+  from the session.
+- **E2E:** `make dev && make seed && make test-e2e-ui` runs Playwright in a container against the
+  running stack.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

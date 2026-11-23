@@ -347,3 +347,35 @@ def test_the_title_is_not_stored_in_clear(world: World) -> None:
             )
         ).scalars()
         assert "title" not in set(columns)
+
+
+def test_the_case_says_ahead_who_may_decide_and_why_not(world: World) -> None:
+    proposal = _propose(world, _code(), by="R-001")
+    case = proposal["review_case_id"]
+
+    def can(user: str | None) -> dict[str, Any]:
+        resp = _call(
+            world.api,
+            "GET",
+            f"/v1/cortex/review-cases/{case}",
+            key=DESK_KEY,
+            user=world.person(user) if user else None,
+            params={"purpose": "rule_review"},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["can_decide"]
+
+    corrector, owner, agent = can("R-001"), can("OWN-001"), can(None)
+    assert corrector["approve"]["allowed"] is False
+    assert corrector["approve"]["reason"] == (
+        "separation of duties: a contributor to this record cannot decide on it"
+    )
+    assert owner["approve"]["allowed"] is True and owner["reject"]["allowed"] is True
+    assert agent["approve"]["reason"] == "only a person can approve or reject"
+
+    _decide(world, case, "reject", user=world.person("OWN-001"), reason="不要")
+    assert can("OWN-001")["approve"] == {
+        "allowed": False,
+        "reason": "this case is already decided",
+        "policy_revision": None,
+    }

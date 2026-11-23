@@ -76,6 +76,23 @@
         "title": "ApproveRequest",
         "type": "object"
       },
+      "CanDecide": {
+        "description": "What the caller (the end user, or the consumer alone) may do on this\ncase now: the approval policy asked ahead of time, so a UI can show a\ndisabled control with the reason. The decision itself is checked again.",
+        "properties": {
+          "approve": {
+            "$ref": "#/components/schemas/DecisionPermission"
+          },
+          "reject": {
+            "$ref": "#/components/schemas/DecisionPermission"
+          }
+        },
+        "required": [
+          "approve",
+          "reject"
+        ],
+        "title": "CanDecide",
+        "type": "object"
+      },
       "CaseProposal": {
         "properties": {
           "approved_by": {
@@ -537,6 +554,44 @@
           "outcome"
         ],
         "title": "DecidedRecord",
+        "type": "object"
+      },
+      "DecisionPermission": {
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "OPA's reason, the same a decision would get",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "allowed",
+          "reason",
+          "policy_revision"
+        ],
+        "title": "DecisionPermission",
         "type": "object"
       },
       "DecisionResult": {
@@ -1395,6 +1450,9 @@
             "title": "Affected Cases",
             "type": "array"
           },
+          "can_decide": {
+            "$ref": "#/components/schemas/CanDecide"
+          },
           "case_id": {
             "format": "uuid",
             "title": "Case Id",
@@ -1493,6 +1551,7 @@
           "sensitivity_class",
           "named_owners",
           "proposals",
+          "can_decide",
           "affected_cases",
           "contributors",
           "decisions",

@@ -15,7 +15,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock erase-record erase-tenant \
-        test test-integration test-policies test-all opa-reload probe-emulator \
+        test test-integration test-e2e-ui test-policies test-all opa-reload probe-emulator \
         tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
 help: ## List the targets
@@ -124,6 +124,11 @@ test: build-tools ## Hermetic unit tests (no network): backend, then frontend Vi
 	$(DEV_TOOLS) pipenv run pytest -q $(ARGS)
 	$(FRONTEND) npm run test:run
 	$(FRONTEND) npm run check:bundle
+
+test-e2e-ui: ## Playwright (Decision Desk) against the running stack: run `make dev && make seed` first
+	@$(COMPOSE) ps --status running --services | grep -qx frontend || { echo "the stack is not up: run make dev && make seed"; exit 1; }
+	$(COMPOSE) --profile tools build e2e-ui
+	$(COMPOSE) --profile tools run --rm e2e-ui
 
 test-integration: ## Integration tests on an ephemeral stack (own project, no host ports, wiped after)
 	@$(TEST_COMPOSE) build --quiet

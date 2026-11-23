@@ -205,6 +205,9 @@ services:
     environment:
       NUXT_CORTEX_API_URL: http://aws-emulator:5008
       NUXT_CORTEX_API_KEY: ${CORTEX_DESK_API_KEY:?set it in .env (make init-env)}
+      # Dev-only: the Decision Desk's user selector reads the seed's people.
+      NUXT_DEV_SEED_FILE: /data/tenant.json
+      NUXT_DEV_POLL: "true"
       NUXT_TELEMETRY_DISABLED: "1"
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5001}:5001"
@@ -213,6 +216,7 @@ services:
       - ./frontend/arbitr/app:/workspace/frontend/arbitr/app:ro
       - ./frontend/arbitr/server:/workspace/frontend/arbitr/server:ro
       - ./frontend/arbitr/i18n:/workspace/frontend/arbitr/i18n:ro
+      - ./data/synthetic/tenant.json:/data/tenant.json:ro
     networks:
       - cortex
     depends_on:
@@ -348,6 +352,25 @@ services:
     environment:
       NUXT_TELEMETRY_DISABLED: "1"
     network_mode: none
+
+  # `make test-e2e-ui`: Playwright against the running dev stack (frontend +
+  # API), with the synthetic data mounted for its setup calls.
+  e2e-ui:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: frontend/arbitr/e2e/Dockerfile
+    image: cortex-poc/e2e-ui:dev
+    environment:
+      CORTEX_E2E_BASE_URL: http://frontend:5001
+      CORTEX_E2E_API_URL: http://aws-emulator:5008
+      CORTEX_E2E_AGENT_KEY: ${CORTEX_E2E_AGENT_KEY:?set it in .env (make init-env)}
+      CORTEX_E2E_DATA_DIR: /data
+    volumes:
+      - ./data/synthetic:/data:ro
+    networks:
+      - cortex
+    ipc: host
 
   # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
   pipenv-lock:

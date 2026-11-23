@@ -314,6 +314,16 @@ export interface components {
              */
             record_id?: string | null;
         };
+        /**
+         * CanDecide
+         * @description What the caller (the end user, or the consumer alone) may do on this
+         *     case now: the approval policy asked ahead of time, so a UI can show a
+         *     disabled control with the reason. The decision itself is checked again.
+         */
+        CanDecide: {
+            approve: components["schemas"]["DecisionPermission"];
+            reject: components["schemas"]["DecisionPermission"];
+        };
         /** CaseProposal */
         CaseProposal: {
             /** Approved By */
@@ -553,6 +563,18 @@ export interface components {
             status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
             /** Version */
             version: number;
+        };
+        /** DecisionPermission */
+        DecisionPermission: {
+            /** Allowed */
+            allowed: boolean;
+            /** Policy Revision */
+            policy_revision: string | null;
+            /**
+             * Reason
+             * @description OPA's reason, the same a decision would get
+             */
+            reason: string | null;
         };
         /** DecisionResult */
         DecisionResult: {
@@ -917,6 +939,7 @@ export interface components {
              * @description Work cases the proposals came from (source.case_ref / source.case_refs)
              */
             affected_cases: string[];
+            can_decide: components["schemas"]["CanDecide"];
             /**
              * Case Id
              * Format: uuid
