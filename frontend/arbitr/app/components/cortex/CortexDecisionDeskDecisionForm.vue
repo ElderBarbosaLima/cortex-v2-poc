@@ -10,7 +10,9 @@ const desk = useDecisionDeskStore()
 const first = computed(() => props.detail.proposals.find(p => p.outcome === 'pending'))
 const isRule = computed(() => first.value?.kind === 'rule')
 const enforcement = ref<'mandatory' | 'prohibition' | 'default'>(first.value?.enforcement ?? 'default')
-const authority = ref<number>(Math.max(first.value?.authority ?? 20, 20))
+// Opens with what was proposed (issue 51); the owner raises it deliberately.
+const proposedAuthority = first.value?.authority ?? 10
+const authority = ref<number>(proposedAuthority)
 const reason = ref('')
 // Validity (issue 33 in the API, issue 38 here): prefilled with what was proposed;
 // only a change is sent, so an approval never moves dates by accident.
@@ -87,6 +89,9 @@ function submitReject() {
           data-test-id="cortex-decision-desk-authority-input"
         >
       </label>
+      <p class="basis-full text-caption text-muted">
+        {{ t('cortex.desk.decide.authorityHint', { proposed: proposedAuthority }) }}
+      </p>
     </div>
     <div class="flex flex-wrap gap-4">
       <label

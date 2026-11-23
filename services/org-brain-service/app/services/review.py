@@ -169,6 +169,35 @@ def inherited_conflicts(session: Session, row: MemoryRecord) -> list[dict[str, A
     return found
 
 
+def evidence(session: Session, row: MemoryRecord) -> list[dict[str, Any]]:
+    """The decisions a proposal was derived from, with the correction and the
+    case (issue 52). Bodies are opened now; an erased one shows nothing."""
+    found: list[dict[str, Any]] = []
+    for decision_id in row.derived_from or []:
+        try:
+            decision = ledger.latest(session, str(decision_id))
+        except ledger.RecordNotFoundError:
+            continue
+        if decision.kind != "decision":
+            continue
+        body = body_or_none(session, decision) or {}
+        raw_case: Any = body.get("case")
+        raw_correction: Any = body.get("correction")
+        found.append(
+            {
+                "decision_record_id": decision.record_id,
+                "case_ref": body.get("case_ref") or (decision.source or {}).get("case_ref"),
+                "decided_by": (decision.asserted_by or {}).get("id"),
+                "decided_at": decision.recorded_at,
+                "correction": cast(dict[str, Any], raw_correction)
+                if isinstance(raw_correction, dict)
+                else None,
+                "case": cast(dict[str, Any], raw_case) if isinstance(raw_case, dict) else None,
+            }
+        )
+    return found
+
+
 def title(session: Session, row: MemoryRecord) -> str:
     """Read from the sealed body, never stored in clear (migration 005). An
     erased body has no title: a case with one stays listable."""

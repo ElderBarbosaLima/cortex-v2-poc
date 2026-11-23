@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
       label: s.label,
       note: s.note,
       tenantId: nodes.find(n => n.key === s.tenant)?.obj_id ?? '',
-      scopeId: nodes.find(n => n.key === s.scope)?.obj_id ?? ''
+      scopeId: nodes.find(n => n.key === s.workflows[0]?.scope)?.obj_id ?? ''
     }))
   }
 })

@@ -3,13 +3,15 @@ import { exampleKey, loadExampleSet, type CortexCall, type ExampleSet } from '..
 
 const body = { text_ja: 'Never issue an invoice without the registration number.', targets: ['invoice.registration_number'], condition: 'true' }
 const set: ExampleSet = {
-  key: 'en', label: 'English', tenant: 'en', scope: 'en/finance/q2c-invoicing', domain: 'custom_invoices',
-  purpose: 'invoice_drafting', note: '',
-  base_rules: [{ key: 'EN-G-NO-REGNO-OMIT', scope: 'en', enforcement: 'prohibition', authority: 30, by: 'EN-R-002', approver: 'EN-OWN-001', body }],
-  case: { case_id: 'EX-INV-001', customer_id: 'CUST-0300', channel: 'coupa' },
-  correction: { reviewer: 'EN-R-001', changes: [{ target: 'invoice.remarks.po_number' }], note_ja: 'PO number in the remarks.' },
-  proposal: { by: 'EN-R-002', enforcement: 'default', authority: 10, body },
-  import: { by: 'EN-R-001', source_system: 'legacy-rule-list', authority: 20, valid_to: '2027-01-31', body }
+  key: 'en', label: 'English', tenant: 'en', note: '',
+  workflows: [{
+    label: 'Invoices', scope: 'en/finance/q2c-invoicing', domain: 'custom_invoices', purpose: 'invoice_drafting',
+    base_rules: [{ key: 'EN-G-NO-REGNO-OMIT', scope: 'en', enforcement: 'prohibition', authority: 30, by: 'EN-R-002', approver: 'EN-OWN-001', body }],
+    case: { case_id: 'EX-INV-001', customer_id: 'CUST-0300', channel: 'coupa' },
+    correction: { reviewer: 'EN-R-001', changes: [{ target: 'invoice.remarks.po_number' }], note_ja: 'PO number in the remarks.' },
+    proposal: { by: 'EN-R-002', enforcement: 'default', authority: 10, body },
+    import: { by: 'EN-R-001', source_system: 'legacy-rule-list', authority: 20, valid_to: '2027-01-31', body }
+  }]
 }
 const ids = { node: (k: string) => `node:${k}`, person: (k: string) => `person:${k}` }
 
@@ -45,17 +47,17 @@ describe('example sets', () => {
     const steps = await loadExampleSet(set, ids, call)
 
     expect(steps.map(s => [s.step, s.outcome])).toEqual([
-      ['group rule EN-G-NO-REGNO-OMIT', 'created'],
-      ['correction', 'created'],
-      ['local rule that loosens a group rule', 'created'],
-      ['import', 'created']
+      ['Invoices · group rule EN-G-NO-REGNO-OMIT', 'created'],
+      ['Invoices · correction', 'created'],
+      ['Invoices · local rule that loosens a group rule', 'created'],
+      ['Invoices · import', 'created']
     ])
     const approve = calls.find(c => c.path.endsWith('/approve'))!
     expect(approve).toMatchObject({ as: 'desk', user: 'person:EN-OWN-001', body: { record_id: 'r1', authority: 30, enforcement: 'prohibition' } })
     expect(calls[0]).toMatchObject({ as: 'agent', user: 'person:EN-R-002' })
     expect(calls[0]!.body.items[0]).toMatchObject({ scope: 'node:en', enforcement: 'prohibition' })
     const correction = calls.find(c => c.path === '/corrections')!
-    expect(correction.body).toMatchObject({ pack_id: 'p1', idempotency_key: 'examples-en-correction-1' })
+    expect(correction.body).toMatchObject({ pack_id: 'p1', idempotency_key: 'examples-en-custom_invoices-0' })
     expect(calls.at(-1)!.body.items[0]).toMatchObject({ valid_to: '2027-01-31', scope: 'node:en/finance/q2c-invoicing' })
   })
 

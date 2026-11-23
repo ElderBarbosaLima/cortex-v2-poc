@@ -127,6 +127,20 @@
         "en",
         "org"
       ]
+    },
+    {
+      "key": "en/finance/q2c-cash-application",
+      "obj_id": "9152e09b-0927-50c2-838e-0dfa45a919ca",
+      "name": "Q2C Cash application team",
+      "parent": "en/finance",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "en/finance/q2c-cash-application",
+        "en/finance",
+        "en",
+        "org"
+      ]
     }
   ],
   "people": [
@@ -178,6 +192,20 @@
       "role": "final_validator",
       "node": "other",
       "obj_id": "aa29d668-d44d-5ed0-8db0-6c7e32f3749f"
+    },
+    {
+      "key": "GRP-001",
+      "label": "グループ経理 ルール管理",
+      "role": "final_validator",
+      "node": "jp",
+      "obj_id": "faac4d2e-fc00-58a0-9220-c65a086ed0db"
+    },
+    {
+      "key": "GRP-002",
+      "label": "グループ経理 ルール管理（代理）",
+      "role": "final_validator",
+      "node": "jp",
+      "obj_id": "0e639a41-9e34-5c35-9524-0911240b1962"
     },
     {
       "key": "CS-101",
@@ -279,6 +307,9 @@
       "purposes": {
         "invoice_drafting": {
           "sensitivity_ceiling": "confidential"
+        },
+        "cash_matching": {
+          "sensitivity_ceiling": "confidential"
         }
       }
     },
@@ -310,6 +341,11 @@
     }
   ],
   "owners": [
+    {
+      "node": "jp",
+      "owner": "GRP-001",
+      "backup": "GRP-002"
+    },
     {
       "node": "jp/finance/q2c-invoicing",
       "owner": "OWN-001",

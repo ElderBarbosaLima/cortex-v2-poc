@@ -37,5 +37,9 @@ def test_each_team_scope_has_a_named_owner_and_backup() -> None:
             "owner": seed.people["OWN-001"],
             "backup": seed.people["OWN-002"],
         }
-    assert named_owners(jp, seed.node_ids["jp/finance"]) is None  # nothing owned above a team
+    # The group (tenant root) has its own owners since issue 50, so jp/finance falls back to them.
+    assert named_owners(jp, seed.node_ids["jp/finance"]) == {
+        "owner": seed.people["GRP-001"],
+        "backup": seed.people["GRP-002"],
+    }
     assert seed.people["X-001"] not in json.dumps(jp.opa_data["owners"])  # other tenant's owner

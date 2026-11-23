@@ -2,120 +2,308 @@
   "key": "en",
   "label": "English",
   "tenant": "en",
-  "scope": "en/finance/q2c-invoicing",
-  "domain": "custom_invoices",
-  "purpose": "invoice_drafting",
   "note": "The English tenant starts empty: its group rules are proposed and approved through the review queue, like any other rule.",
-  "base_rules": [
+  "workflows": [
     {
-      "key": "EN-G-REGNO",
-      "scope": "en",
-      "enforcement": "mandatory",
-      "authority": 30,
-      "by": "EN-R-002",
-      "approver": "EN-OWN-001",
-      "body": {
-        "text_ja": "Always show the supplier's qualified invoice registration number (T + 13 digits).",
-        "targets": [
-          "invoice.registration_number"
+      "scope": "en/finance/q2c-invoicing",
+      "domain": "custom_invoices",
+      "purpose": "invoice_drafting",
+      "base_rules": [
+        {
+          "key": "EN-G-REGNO",
+          "scope": "en",
+          "enforcement": "mandatory",
+          "authority": 30,
+          "by": "EN-R-002",
+          "approver": "EN-OWN-001",
+          "body": {
+            "text_ja": "Always show the supplier's qualified invoice registration number (T + 13 digits).",
+            "targets": [
+              "invoice.registration_number"
+            ],
+            "condition": "true"
+          }
+        },
+        {
+          "key": "EN-G-NO-REGNO-OMIT",
+          "scope": "en",
+          "enforcement": "prohibition",
+          "authority": 30,
+          "by": "EN-R-002",
+          "approver": "EN-OWN-001",
+          "body": {
+            "text_ja": "Never issue an invoice without the registration number.",
+            "targets": [
+              "invoice.registration_number"
+            ],
+            "condition": "true"
+          }
+        },
+        {
+          "key": "EN-G-TAX",
+          "scope": "en",
+          "enforcement": "mandatory",
+          "authority": 30,
+          "by": "EN-R-002",
+          "approver": "EN-OWN-001",
+          "body": {
+            "text_ja": "Show consumption tax per rate (10% and 8%), rounded down once per rate.",
+            "targets": [
+              "invoice.tax_breakdown"
+            ],
+            "condition": "true"
+          }
+        }
+      ],
+      "case": {
+        "case_id": "EX-INV-001",
+        "customer_id": "CUST-0300",
+        "customer_name": "Sample Logistics Ltd. (fictitious)",
+        "channel": "coupa",
+        "issue_date": "2026-12-04",
+        "currency": "JPY",
+        "lines": [
+          {
+            "desc": "Warehouse management, December",
+            "amount_excl_tax": 480000,
+            "tax_rate": 10
+          },
+          {
+            "desc": "Drinks (reduced rate)",
+            "amount_excl_tax": 20000,
+            "tax_rate": 8
+          }
         ],
-        "condition": "true"
-      }
-    },
-    {
-      "key": "EN-G-NO-REGNO-OMIT",
-      "scope": "en",
-      "enforcement": "prohibition",
-      "authority": 30,
-      "by": "EN-R-002",
-      "approver": "EN-OWN-001",
-      "body": {
-        "text_ja": "Never issue an invoice without the registration number.",
-        "targets": [
-          "invoice.registration_number"
-        ],
-        "condition": "true"
-      }
-    },
-    {
-      "key": "EN-G-TAX",
-      "scope": "en",
-      "enforcement": "mandatory",
-      "authority": 30,
-      "by": "EN-R-002",
-      "approver": "EN-OWN-001",
-      "body": {
-        "text_ja": "Show consumption tax per rate (10% and 8%), rounded down once per rate.",
-        "targets": [
-          "invoice.tax_breakdown"
-        ],
-        "condition": "true"
-      }
-    }
-  ],
-  "case": {
-    "case_id": "EX-INV-001",
-    "customer_id": "CUST-0300",
-    "customer_name": "Sample Logistics Ltd. (fictitious)",
-    "channel": "coupa",
-    "issue_date": "2026-12-04",
-    "currency": "JPY",
-    "lines": [
-      {
-        "desc": "Warehouse management, December",
-        "amount_excl_tax": 480000,
-        "tax_rate": 10
+        "tax_by_rate": {
+          "10": 48000,
+          "8": 1600
+        },
+        "tax_total": 49600,
+        "total": 549600,
+        "po_number": null,
+        "attachments": []
       },
-      {
-        "desc": "Drinks (reduced rate)",
-        "amount_excl_tax": 20000,
-        "tax_rate": 8
-      }
-    ],
-    "tax_by_rate": {
-      "10": 48000,
-      "8": 1600
+      "correction": {
+        "reviewer": "EN-R-001",
+        "changes": [
+          {
+            "target": "invoice.remarks.po_number",
+            "action": "set",
+            "before": null,
+            "after": "PO number: PO-55120"
+          }
+        ],
+        "note_ja": "Invoices to Sample Logistics through Coupa are sent back unless the remarks carry the PO number."
+      },
+      "proposal": {
+        "by": "EN-R-002",
+        "enforcement": "default",
+        "authority": 10,
+        "body": {
+          "text_ja": "Invoices under 5,000 yen may leave out the registration number.",
+          "targets": [
+            "invoice.registration_number"
+          ],
+          "condition": "invoice.total < 5000"
+        }
+      },
+      "import": {
+        "by": "EN-R-001",
+        "source_system": "legacy-rule-list",
+        "authority": 20,
+        "valid_to": "2027-01-31",
+        "body": {
+          "text_ja": "Attach the acceptance certificate to every invoice sent through Coupa (all customers).",
+          "targets": [
+            "invoice.attachments.kenshusho"
+          ],
+          "condition": "invoice.channel == \"coupa\""
+        }
+      },
+      "label": "Invoices",
+      "repeat": 1
     },
-    "tax_total": 49600,
-    "total": 549600,
-    "po_number": null,
-    "attachments": []
-  },
-  "correction": {
-    "reviewer": "EN-R-001",
-    "changes": [
-      {
-        "target": "invoice.remarks.po_number",
-        "action": "set",
-        "before": null,
-        "after": "PO number: PO-55120"
+    {
+      "label": "Cash application",
+      "scope": "en/finance/q2c-cash-application",
+      "domain": "cash_allocation",
+      "purpose": "cash_matching",
+      "base_rules": [
+        {
+          "key": "AL-G-DUPLICATE-HOLD",
+          "scope": "en",
+          "enforcement": "mandatory",
+          "authority": 30,
+          "by": "EN-R-002",
+          "approver": "EN-OWN-001",
+          "body": {
+            "text_ja": "Never clear a duplicate payment automatically: hold it, and the specialist decides whether to refund it or apply it to the next invoice.",
+            "targets": [
+              "allocation.duplicate_payment"
+            ],
+            "condition": "payment.candidates_total > 0 && payment.amount >= 2 * payment.candidates_total",
+            "exception": "duplicate_payment",
+            "engine": {
+              "action": "hold"
+            }
+          }
+        }
+      ],
+      "cases": [
+        {
+          "case_id": "EX-PAY-00",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-00",
+            "amount": 549670,
+            "value_date": "2026-12-01",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-00",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-01",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-01",
+            "amount": 549670,
+            "value_date": "2026-12-02",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-01",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-02",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-02",
+            "amount": 549670,
+            "value_date": "2026-12-03",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-02",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-03",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-03",
+            "amount": 549670,
+            "value_date": "2026-12-04",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-03",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-04",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-04",
+            "amount": 549670,
+            "value_date": "2026-12-05",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-04",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-05",
+          "customer_id": "CUST-E105",
+          "payment": {
+            "payment_id": "EX-PAY-05",
+            "amount": 549670,
+            "value_date": "2026-12-06",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-05",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        }
+      ],
+      "outcome": {
+        "reviewer": "EN-R-001",
+        "result": "corrected",
+        "exception": "bank_fee",
+        "note_ja": "Paid ¥330 short: the bank transfer fee."
+      },
+      "proposal": {
+        "by": "EN-R-002",
+        "enforcement": "default",
+        "authority": 10,
+        "body": {
+          "text_ja": "Refund duplicate payments from CUST-E105 at once.",
+          "targets": [
+            "allocation.duplicate_payment"
+          ],
+          "condition": "payment.customer_id == \"CUST-E105\" && payment.candidates_total > 0 && payment.amount >= 2 * payment.candidates_total",
+          "exception": "duplicate_payment",
+          "engine": {
+            "action": "refund"
+          }
+        },
+        "entities": [
+          "customer:CUST-E105"
+        ]
+      },
+      "import": {
+        "by": "EN-R-001",
+        "source_system": "customer-rules-sheet",
+        "authority": 20,
+        "valid_to": "2027-01-31",
+        "entities": [
+          "customer:CUST-E102"
+        ],
+        "body": {
+          "text_ja": "Pay several invoices in one transfer: pick them by the PO numbers in the remittance.",
+          "targets": [
+            "allocation.combined_payment"
+          ],
+          "condition": "payment.customer_id == \"CUST-E102\" && payment.candidate_count > 1",
+          "exception": "combined_payment",
+          "engine": {
+            "pick": "po_number"
+          }
+        }
       }
-    ],
-    "note_ja": "Invoices to Sample Logistics through Coupa are sent back unless the remarks carry the PO number."
-  },
-  "proposal": {
-    "by": "EN-R-002",
-    "enforcement": "default",
-    "authority": 10,
-    "body": {
-      "text_ja": "Invoices under 5,000 yen may leave out the registration number.",
-      "targets": [
-        "invoice.registration_number"
-      ],
-      "condition": "invoice.total < 5000"
     }
-  },
-  "import": {
-    "by": "EN-R-001",
-    "source_system": "legacy-rule-list",
-    "authority": 20,
-    "valid_to": "2027-01-31",
-    "body": {
-      "text_ja": "Attach the acceptance certificate to every invoice sent through Coupa (all customers).",
-      "targets": [
-        "invoice.attachments.kenshusho"
-      ],
-      "condition": "invoice.channel == \"coupa\""
-    }
-  }
+  ]
 }

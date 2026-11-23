@@ -310,7 +310,7 @@ def _propose(
     asserted_by = asserted_by_override or _asserted_by(caller)
     # Scopes only tighten (issue 31): a machine may not loosen an inherited
     # constraint; a person may propose it, and the owner sees the warning.
-    loosens = admission.inherited_conflicts(session, proposal, read.readable_scopes[1:])
+    loosens = admission.inherited_conflicts(session, proposal, read.readable_scopes)
     if loosens and asserted_by["type"] != "user":
         raise CortexApiError(422, "invalid_proposal", admission.problems_payload(loosens))
     if loosens:
@@ -863,7 +863,7 @@ def submit_correction(
             idempotency_key=body.idempotency_key,
             payload_hash=payload_hash,
             policy=_suggestion_policy(request, pack.name),
-            ancestors=read.readable_scopes[1:],
+            ancestors=read.readable_scopes,  # own scope too (issue 50)
         )
     except writeback.InvalidCorrectionError as exc:
         raise CortexApiError(422, "invalid_correction", str(exc)) from None

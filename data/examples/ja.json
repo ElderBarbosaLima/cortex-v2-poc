@@ -2,74 +2,293 @@
   "key": "ja",
   "label": "日本語 (Japanese)",
   "tenant": "jp",
-  "scope": "jp/finance/q2c-invoicing",
-  "domain": "custom_invoices",
-  "purpose": "invoice_drafting",
-  "note": "The Japanese tenant's own rules come from `make seed`; this set adds only the work to review.",
-  "base_rules": [],
-  "case": {
-    "case_id": "EX-INV-001",
-    "customer_id": "CUST-0300",
-    "customer_name": "サンプル物流株式会社（架空）",
-    "channel": "coupa",
-    "issue_date": "2026-12-04",
-    "currency": "JPY",
-    "lines": [
-      {
-        "desc": "倉庫管理サービス 12月分",
-        "amount_excl_tax": 480000,
-        "tax_rate": 10
+  "note": "The Japanese tenant's group rules come with this set (or from make seed); then the work to review.",
+  "workflows": [
+    {
+      "scope": "jp/finance/q2c-invoicing",
+      "domain": "custom_invoices",
+      "purpose": "invoice_drafting",
+      "base_rules": [
+        {
+          "key": "CI-G-QIS-REGNO",
+          "scope": "jp",
+          "enforcement": "mandatory",
+          "authority": 30,
+          "by": "GRP-002",
+          "approver": "GRP-001",
+          "body": {
+            "text_ja": "適格請求書発行事業者の登録番号（T＋13桁）を必ず記載する。",
+            "targets": [
+              "invoice.registration_number"
+            ],
+            "condition": "invoice.issue_date >= date(\"2023-10-01\")"
+          }
+        },
+        {
+          "key": "CI-G-NO-REGNO-OMIT",
+          "scope": "jp",
+          "enforcement": "prohibition",
+          "authority": 30,
+          "by": "GRP-002",
+          "approver": "GRP-001",
+          "body": {
+            "text_ja": "登録番号を記載しない請求書は発行しない。",
+            "targets": [
+              "invoice.registration_number"
+            ],
+            "condition": "true"
+          }
+        }
+      ],
+      "case": {
+        "case_id": "EX-INV-001",
+        "customer_id": "CUST-0300",
+        "customer_name": "サンプル物流株式会社（架空）",
+        "channel": "coupa",
+        "issue_date": "2026-12-04",
+        "currency": "JPY",
+        "lines": [
+          {
+            "desc": "倉庫管理サービス 12月分",
+            "amount_excl_tax": 480000,
+            "tax_rate": 10
+          },
+          {
+            "desc": "飲料（軽減税率対象）",
+            "amount_excl_tax": 20000,
+            "tax_rate": 8
+          }
+        ],
+        "tax_by_rate": {
+          "10": 48000,
+          "8": 1600
+        },
+        "tax_total": 49600,
+        "total": 549600,
+        "po_number": null,
+        "attachments": []
       },
-      {
-        "desc": "飲料（軽減税率対象）",
-        "amount_excl_tax": 20000,
-        "tax_rate": 8
-      }
-    ],
-    "tax_by_rate": {
-      "10": 48000,
-      "8": 1600
+      "correction": {
+        "reviewer": "R-001",
+        "changes": [
+          {
+            "target": "invoice.remarks.po_number",
+            "action": "set",
+            "before": null,
+            "after": "注文番号: PO-55120"
+          }
+        ],
+        "note_ja": "Coupa 経由のサンプル物流宛て請求書は、備考に注文番号がないと差し戻される。"
+      },
+      "proposal": {
+        "by": "R-002",
+        "enforcement": "default",
+        "authority": 10,
+        "body": {
+          "text_ja": "5千円未満の請求書では登録番号を省略してよい。",
+          "targets": [
+            "invoice.registration_number"
+          ],
+          "condition": "invoice.total < 5000"
+        }
+      },
+      "import": {
+        "by": "R-001",
+        "source_system": "legacy-rule-list",
+        "authority": 20,
+        "valid_to": "2027-01-31",
+        "body": {
+          "text_ja": "Coupa 経由の請求書には検収書を添付する（全顧客）。",
+          "targets": [
+            "invoice.attachments.kenshusho"
+          ],
+          "condition": "invoice.channel == \"coupa\""
+        }
+      },
+      "label": "請求書",
+      "repeat": 1
     },
-    "tax_total": 49600,
-    "total": 549600,
-    "po_number": null,
-    "attachments": []
-  },
-  "correction": {
-    "reviewer": "R-001",
-    "changes": [
-      {
-        "target": "invoice.remarks.po_number",
-        "action": "set",
-        "before": null,
-        "after": "注文番号: PO-55120"
+    {
+      "label": "入金消込",
+      "scope": "jp/finance/q2c-cash-application",
+      "domain": "cash_allocation",
+      "purpose": "cash_matching",
+      "base_rules": [
+        {
+          "key": "AL-G-DUPLICATE-HOLD",
+          "scope": "jp/finance",
+          "enforcement": "mandatory",
+          "authority": 30,
+          "by": "GRP-002",
+          "approver": "GRP-001",
+          "body": {
+            "text_ja": "同じ請求書への二重入金は自動で消し込まず、保留して担当者が返金か次回請求への充当を決める。",
+            "targets": [
+              "allocation.duplicate_payment"
+            ],
+            "condition": "payment.candidates_total > 0 && payment.amount >= 2 * payment.candidates_total",
+            "exception": "duplicate_payment",
+            "engine": {
+              "action": "hold"
+            }
+          }
+        }
+      ],
+      "cases": [
+        {
+          "case_id": "EX-PAY-00",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-00",
+            "amount": 549670,
+            "value_date": "2026-12-01",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-00",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-01",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-01",
+            "amount": 549670,
+            "value_date": "2026-12-02",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-01",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-02",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-02",
+            "amount": 549670,
+            "value_date": "2026-12-03",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-02",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-03",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-03",
+            "amount": 549670,
+            "value_date": "2026-12-04",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-03",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-04",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-04",
+            "amount": 549670,
+            "value_date": "2026-12-05",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-04",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        },
+        {
+          "case_id": "EX-PAY-05",
+          "customer_id": "CUST-0105",
+          "payment": {
+            "payment_id": "EX-PAY-05",
+            "amount": 549670,
+            "value_date": "2026-12-06",
+            "currency": "JPY"
+          },
+          "candidate_invoices": [
+            {
+              "invoice_id": "INV-EX-PAY-05",
+              "total": 550000,
+              "issue_date": "2026-11-01"
+            }
+          ],
+          "gap": 330
+        }
+      ],
+      "outcome": {
+        "reviewer": "R-101",
+        "result": "corrected",
+        "exception": "bank_fee",
+        "note_ja": "振込手数料 330 円を差し引いた入金。"
+      },
+      "proposal": {
+        "by": "R-102",
+        "enforcement": "default",
+        "authority": 10,
+        "body": {
+          "text_ja": "CUST-0105 の二重入金はすぐに返金する。",
+          "targets": [
+            "allocation.duplicate_payment"
+          ],
+          "condition": "payment.customer_id == \"CUST-0105\" && payment.candidates_total > 0 && payment.amount >= 2 * payment.candidates_total",
+          "exception": "duplicate_payment",
+          "engine": {
+            "action": "refund"
+          }
+        },
+        "entities": [
+          "customer:CUST-0105"
+        ]
+      },
+      "import": {
+        "by": "R-101",
+        "source_system": "customer-rules-sheet",
+        "authority": 20,
+        "valid_to": "2027-01-31",
+        "entities": [
+          "customer:CUST-0102"
+        ],
+        "body": {
+          "text_ja": "複数請求をまとめて支払う。送金明細の PO で配分。",
+          "targets": [
+            "allocation.combined_payment"
+          ],
+          "condition": "payment.customer_id == \"CUST-0102\" && payment.candidate_count > 1",
+          "exception": "combined_payment",
+          "engine": {
+            "pick": "po_number"
+          }
+        }
       }
-    ],
-    "note_ja": "Coupa 経由のサンプル物流宛て請求書は、備考に注文番号がないと差し戻される。"
-  },
-  "proposal": {
-    "by": "R-002",
-    "enforcement": "default",
-    "authority": 10,
-    "body": {
-      "text_ja": "5千円未満の請求書では登録番号を省略してよい。",
-      "targets": [
-        "invoice.registration_number"
-      ],
-      "condition": "invoice.total < 5000"
     }
-  },
-  "import": {
-    "by": "R-001",
-    "source_system": "legacy-rule-list",
-    "authority": 20,
-    "valid_to": "2027-01-31",
-    "body": {
-      "text_ja": "Coupa 経由の請求書には検収書を添付する（全顧客）。",
-      "targets": [
-        "invoice.attachments.kenshusho"
-      ],
-      "condition": "invoice.channel == \"coupa\""
-    }
-  }
+  ]
 }

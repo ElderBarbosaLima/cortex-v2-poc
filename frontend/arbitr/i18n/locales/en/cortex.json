@@ -84,7 +84,8 @@
         "reasonNeeded": "Write a reason to reject.",
         "validFrom": "Valid from (JST)",
         "validTo": "Valid until (JST, empty = no end)",
-        "validityHint": "Dates are business dates in Japan. Change them only if this rule should apply for a different period."
+        "validityHint": "Dates are business dates in Japan. Change them only if this rule should apply for a different period.",
+        "authorityHint": "Proposed at {proposed}. Machines and imports propose at 10 at most; approved rules usually carry 20 (team) to 30 (group). Higher wins between defaults."
       },
       "notice": {
         "approved": "Approved. The rule now applies to the next matching case.",

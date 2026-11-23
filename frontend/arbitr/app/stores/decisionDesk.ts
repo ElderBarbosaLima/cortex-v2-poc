@@ -242,7 +242,7 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
           }
           await approveReviewCase(caseId, {
             record_id: pending.record_id,
-            authority: Math.max(pending.authority, 20),
+            authority: pending.authority,  // as proposed (issue 51)
             enforcement: pending.kind === 'rule' ? (pending.enforcement ?? 'default') : null,
             reason: null
           }, this.personId)

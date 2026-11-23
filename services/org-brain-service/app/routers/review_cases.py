@@ -17,9 +17,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
+from app.domain_packs.base import get_pack
 from app.identity import AuthedCaller, caller_session, require_scope
 from app.routers.cortex import authorise
 from app.schemas.cortex import (
+    ApprovalPreview,
     ApproveRequest,
     CanDecide,
     CaseProposal,
@@ -28,13 +30,15 @@ from app.schemas.cortex import (
     DecisionResult,
     DecisionView,
     NamedOwners,
+    PreviewRule,
     RejectRequest,
     ReviewCaseDetail,
     ReviewCasePage,
     ReviewCaseSummary,
 )
 from app.seed.tenants import Seed, named_owners
-from app.services import ledger, review
+from app.services import ledger, preview, review
+from app.services.access_gate import context_pack
 from app.services.admission import SENSITIVITY_RANK
 from app.services.policy_gate import PolicyGate, now_rfc3339
 from app.utils.business_dates import business_start
@@ -170,6 +174,7 @@ def get_review_case(
                 "body_erased": body is None,
                 "outcome": review.outcome(row.status, row.record_id in approved),
                 "inherited_conflicts": review.inherited_conflicts(session, row),
+                "evidence": review.evidence(session, row),
             }
         )
         for row in oc.items
@@ -326,3 +331,64 @@ def reject_review_case(
     except review.CaseDecidedError as exc:
         raise CortexApiError(409, "case_decided", str(exc)) from None
     return _result(session, decided, oc.case.case_id)
+
+
+@router.get(
+    "/{case_id}/preview",
+    response_model=ApprovalPreview,
+    operation_id="preview_approval",
+    responses=_CASE_ERRORS,
+)
+def preview_approval(
+    case_id: uuid.UUID,
+    request: Request,
+    record_id: uuid.UUID = Query(),
+    purpose: str = Query(min_length=1),
+    enforcement: str | None = Query(default=None, pattern="^(mandatory|prohibition|default)$"),
+    authority: int | None = Query(default=None, ge=0, le=40),
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> ApprovalPreview:
+    """What approving this proposal would change for the case it came from
+    (issue 52): that case's pack now, and with the rule approved at the given
+    enforcement and authority. Nothing is written."""
+    oc = _load(session, case_id)
+    authorise(request, caller, purpose=purpose, scope=oc.case.scope)
+    row = next((r for r in oc.items if r.record_id == str(record_id)), None)
+    if row is None:
+        raise CortexApiError(404, "not_found", "no such proposal in this case")
+    origin = next((e for e in review.evidence(session, row) if e["case"]), None)
+    if origin is None:
+        return ApprovalPreview(record_id=record_id, case_ref=None, available=False, applies=False)
+    decision = ledger.latest(session, origin["decision_record_id"])
+    stored = context_pack.load(session, str((decision.source or {}).get("pack_id")))
+    read = authorise(request, caller, purpose=purpose, scope=stored.pack.scope)
+    result = preview.preview(
+        session,
+        pack=get_pack(stored.pack.domain),
+        case=origin["case"],
+        readable_scopes=read.readable_scopes,
+        as_of=stored.pack.as_of,
+        proposal=row,
+        enforcement=enforcement,
+        authority=authority if authority is not None else row.authority,
+    )
+    return ApprovalPreview(
+        record_id=record_id,
+        case_ref=origin["case_ref"],
+        available=True,
+        applies=result.applies,
+        before=[_preview_rule(r) for r in result.before],
+        after=[_preview_rule(r) for r in result.after],
+    )
+
+
+def _preview_rule(r: preview.PreviewRule) -> PreviewRule:
+    return PreviewRule(
+        record_id=uuid.UUID(r.record_id),
+        text=r.text,
+        enforcement=r.enforcement,
+        role=r.role,  # type: ignore[arg-type]
+        overridden_by=uuid.UUID(r.overridden_by) if r.overridden_by else None,
+        proposed=r.proposed,
+    )

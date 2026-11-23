@@ -190,7 +190,7 @@ describe('the Decision Desk', () => {
     await flushPromises()
 
     const post = calls.find(c => c.url.endsWith('/approve'))!
-    expect(JSON.parse(String(post.init?.body))).toEqual({ authority: 20, enforcement: 'default', reason: null, valid_to: '2027-06-30' })
+    expect(JSON.parse(String(post.init?.body))).toEqual({ authority: 10, enforcement: 'default', reason: null, valid_to: '2027-06-30' })
   })
 
   it('clears the last notice when you act as someone else', async () => {
@@ -293,7 +293,7 @@ describe('the Decision Desk', () => {
 
     const posts = calls.filter(c => c.url.endsWith('/approve'))
     expect(posts.map(c => c.url)).toEqual([`/api/cortex/review-cases/${CASE}/approve`]) // the refused one is never sent
-    expect(JSON.parse(String(posts[0]!.init?.body))).toEqual({ record_id: 'rec-1', authority: 20, enforcement: 'default', reason: null })
+    expect(JSON.parse(String(posts[0]!.init?.body))).toEqual({ record_id: 'rec-1', authority: 10, enforcement: 'default', reason: null })
     const text = page.get('[data-test-id="cortex-decision-desk-bulk-result-text"]').text()
     expect(text).toContain('Approved 1 case(s).')
     expect(text).toContain('Not approved: 二件目 — only the named owner or backup of this customer can decide')
