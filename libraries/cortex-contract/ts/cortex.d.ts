@@ -152,6 +152,7 @@ export interface paths {
          * Propose Record
          * @description The admission gate: validate, authorise, then append as `proposed` and
          *     route to the review queue (one open case per conflict). Never approved here.
+         *     The same rule already waiting for a decision is returned, not queued twice.
          */
         post: operations["propose_record"];
         delete?: never;
@@ -885,9 +886,10 @@ export interface components {
             review_case_id?: string | null;
             /**
              * Status
+             * @description duplicate: already approved as is; pending: the same item already waits for a decision (its review case is given)
              * @enum {string}
              */
-            status: "proposed" | "duplicate" | "rejected";
+            status: "proposed" | "duplicate" | "pending" | "rejected";
             /**
              * Supersedes
              * @description The approved record this item would replace once approved
@@ -995,6 +997,12 @@ export interface components {
         };
         /** ProposalAccepted */
         ProposalAccepted: {
+            /**
+             * Already Pending
+             * @description The same rule, with the same validity, already waits for a decision: nothing new was written, and this is that proposal (issue 39)
+             * @default false
+             */
+            already_pending: boolean;
             /**
              * Grouped
              * @description True when the proposal joined an open case for the same conflict

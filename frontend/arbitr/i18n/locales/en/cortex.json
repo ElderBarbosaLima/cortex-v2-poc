@@ -96,6 +96,16 @@
         "empty": "Nothing expires in the next {days} days.",
         "until": "until {date}",
         "expired": "expired {date}"
+      },
+      "examples": {
+        "label": "Examples",
+        "load": "Load example cases",
+        "report": "What loading the examples did",
+        "outcome": {
+          "created": "Created",
+          "already_there": "Already there",
+          "failed": "Failed"
+        }
       }
     }
   }

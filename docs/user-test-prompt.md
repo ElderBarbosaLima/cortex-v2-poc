@@ -9,7 +9,13 @@ only. Read the dev consumer keys from .env and never print them; never touch LIT
 
 Setup
 1. `make stop && make dev && make seed` (fresh stack). Confirm http://127.0.0.1:5008/health.
-2. Through the API, create pending work, the way an agent and reviewers would:
+2. Test in BOTH languages: in the Decision Desk, the Examples selector switches between
+   日本語 (tenant jp) and English (tenant en, Fictitious Group UK). For each, press
+   "Load example cases" and read the report: the first load says Created for every step, a
+   second load says Already there for every step. Then run steps 3–9 with that set's people
+   (ja: R-001, R-002, OWN-001, OWN-002; en: EN-R-001, EN-R-002, EN-OWN-001, EN-OWN-002); every
+   text a person reads in the English set must be English, including the learned rule.
+   Optionally, also create work through the API, the way an agent and reviewers would:
    - custom_invoices: request a context pack for the case of correction C-001
      (data/synthetic/custom_invoices), then submit C-001 as its reviewer (R-001) → a review case;
    - a person (R-002) proposes a local `default` rule that loosens the global prohibition

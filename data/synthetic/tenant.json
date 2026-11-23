@@ -88,6 +88,45 @@
         "other",
         "org"
       ]
+    },
+    {
+      "key": "en",
+      "obj_id": "86bcd72e-e065-5bc5-b286-153b84829ab2",
+      "name": "Fictitious Group UK (example)",
+      "parent": "org",
+      "type": "tenant",
+      "is_barrier": false,
+      "path_up": [
+        "en",
+        "org"
+      ]
+    },
+    {
+      "key": "en/finance",
+      "obj_id": "8b9a9aeb-b797-517d-b58c-e97e8d6e0c5d",
+      "name": "Finance",
+      "parent": "en",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "en/finance",
+        "en",
+        "org"
+      ]
+    },
+    {
+      "key": "en/finance/q2c-invoicing",
+      "obj_id": "3358cade-6f60-51a1-b193-3be0555ad93f",
+      "name": "Q2C Invoicing team",
+      "parent": "en/finance",
+      "type": "team",
+      "is_barrier": false,
+      "path_up": [
+        "en/finance/q2c-invoicing",
+        "en/finance",
+        "en",
+        "org"
+      ]
     }
   ],
   "people": [
@@ -139,6 +178,34 @@
       "role": "final_validator",
       "node": "other",
       "obj_id": "aa29d668-d44d-5ed0-8db0-6c7e32f3749f"
+    },
+    {
+      "key": "EN-R-001",
+      "label": "Invoice reviewer 1",
+      "role": "reviewer",
+      "node": "en",
+      "obj_id": "39e0a5cd-1b5a-5280-8395-f278a8e328e3"
+    },
+    {
+      "key": "EN-R-002",
+      "label": "Invoice reviewer 2",
+      "role": "reviewer",
+      "node": "en",
+      "obj_id": "9e6dc696-2862-5fe3-af96-834aeabedf34"
+    },
+    {
+      "key": "EN-OWN-001",
+      "label": "Rule owner",
+      "role": "final_validator",
+      "node": "en",
+      "obj_id": "78138b8e-3b06-5db3-9c7d-5b16356e1a3f"
+    },
+    {
+      "key": "EN-OWN-002",
+      "label": "Rule owner (backup)",
+      "role": "final_validator",
+      "node": "en",
+      "obj_id": "3c1cb0ed-ef3a-5f2b-b416-6ffadc7f5ed0"
     }
   ],
   "consumers": [
@@ -187,6 +254,32 @@
       }
     },
     {
+      "key": "examples-agent-en",
+      "tenant": "en",
+      "scopes": [
+        "cortex:read",
+        "cortex:write"
+      ],
+      "purposes": {
+        "invoice_drafting": {
+          "sensitivity_ceiling": "confidential"
+        }
+      }
+    },
+    {
+      "key": "decision-desk-en",
+      "tenant": "en",
+      "scopes": [
+        "cortex:read",
+        "cortex:write"
+      ],
+      "purposes": {
+        "rule_review": {
+          "sensitivity_ceiling": "confidential"
+        }
+      }
+    },
+    {
       "key": "other-agent",
       "tenant": "other",
       "scopes": [
@@ -215,6 +308,11 @@
       "node": "other",
       "owner": "X-001",
       "backup": null
+    },
+    {
+      "node": "en",
+      "owner": "EN-OWN-001",
+      "backup": "EN-OWN-002"
     }
   ]
 }

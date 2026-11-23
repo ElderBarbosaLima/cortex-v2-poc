@@ -212,6 +212,11 @@ class ProposalAccepted(BaseModel):
         default_factory=list[dict[str, str]],
         description="Admitted, but the owner is told: e.g. loosens_inherited_constraint",
     )
+    already_pending: bool = Field(
+        default=False,
+        description="The same rule, with the same validity, already waits for a decision: "
+        "nothing new was written, and this is that proposal (issue 39)",
+    )
 
 
 # ── Review queue (issue 18) ─────────────────────────────────────────────────
@@ -410,7 +415,10 @@ class ImportRequest(BaseModel):
 
 class ImportItemResult(BaseModel):
     index: int
-    status: Literal["proposed", "duplicate", "rejected"]
+    status: Literal["proposed", "duplicate", "pending", "rejected"] = Field(
+        description="duplicate: already approved as is; pending: the same item already waits "
+        "for a decision (its review case is given)"
+    )
     record_id: uuid.UUID | None = None
     review_case_id: uuid.UUID | None = None
     expired: bool = Field(

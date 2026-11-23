@@ -13,9 +13,14 @@ const TEST_ID = /^cortex-decision-desk-[a-z0-9]+(?:-[a-z0-9]+)*-(button|select|i
 const seed = {
   people: [
     { key: 'R-001', label: '請求書レビュアー 1', role: 'reviewer', id: CORRECTOR, tenantId: 't' },
-    { key: 'OWN-001', label: 'ルール責任者', role: 'final_validator', id: OWNER, tenantId: 't' }
+    { key: 'OWN-001', label: 'ルール責任者', role: 'final_validator', id: OWNER, tenantId: 't' },
+    { key: 'X-001', label: '別テナント担当', role: 'final_validator', id: 'x-uuid', tenantId: 't-other' },
+    { key: 'EN-OWN-001', label: 'Rule owner', role: 'final_validator', id: 'en-owner-uuid', tenantId: 't-en' }
   ],
-  scopes: [{ key: 'jp/finance/q2c-invoicing', name: 'Q2C 請求書チーム', id: SCOPE, type: 'team', tenantId: 't' }]
+  scopes: [
+    { key: 'jp/finance/q2c-invoicing', name: 'Q2C 請求書チーム', id: SCOPE, type: 'team', tenantId: 't' },
+    { key: 'en/finance/q2c-invoicing', name: 'Q2C Invoicing team', id: 'en-scope-uuid', type: 'team', tenantId: 't-en' }
+  ]
 }
 
 function imported(approve: { allowed: boolean, reason: string | null }) {
@@ -56,6 +61,7 @@ let routes: Array<[RegExp, number, unknown]> = []
 const calls: Array<{ url: string, init?: RequestInit }> = []
 
 beforeEach(() => {
+  localStorage.clear() // the remembered example set (issue 39)
   useDecisionDeskStore().$reset()
   calls.length = 0
   routes = [
@@ -204,6 +210,49 @@ describe('the Decision Desk', () => {
     expect(page.get('[data-test-id="cortex-decision-desk-expiring-item-text"]').text())
       .toContain('備考に注文番号を記載する（全顧客）。')
     expect(page.get('[data-test-id="cortex-decision-desk-expiring-item-text"]').text()).toContain('until 2027-03-31')
+  })
+
+  it('switches to the English examples: their people, scope and Desk key (issue 39)', async () => {
+    routes.unshift([/^\/api\/dev\/examples$/, 200, { sets: [
+      { key: 'ja', label: '日本語 (Japanese)', note: 'ja note', tenantId: 't', scopeId: SCOPE },
+      { key: 'en', label: 'English', note: 'The English tenant starts empty.', tenantId: 't-en', scopeId: 'en-scope-uuid' }
+    ] }])
+    const page = await mountSuspended(DecisionDesk)
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-examples-select"]').exists()).toBe(true))
+    expect(page.get('[data-test-id="cortex-decision-desk-person-select"]').text()).not.toContain('EN-OWN-001')
+
+    await page.get('[data-test-id="cortex-decision-desk-examples-select"]').setValue('en')
+    await flushPromises()
+
+    expect(page.get('[data-test-id="cortex-decision-desk-person-select"]').text()).toContain('EN-OWN-001')
+    expect(page.get('[data-test-id="cortex-decision-desk-person-select"]').text()).not.toContain('ルール責任者')
+    expect(page.get('[data-test-id="cortex-decision-desk-examples-note-text"]').text()).toBe('The English tenant starts empty.')
+    const list = calls.filter(c => /review-cases\?/.test(c.url)).at(-1)!
+    expect(list.url).toContain('scope=en-scope-uuid')
+    expect((list.init?.headers as Record<string, string>)['x-cortex-examples']).toBe('en')
+    expect((list.init?.headers as Record<string, string>)['x-end-user-id']).toBe('en-owner-uuid')
+  })
+
+  it('loads the example cases and shows what it did', async () => {
+    routes.unshift(
+      [/^\/api\/dev\/examples$/, 200, { sets: [{ key: 'ja', label: '日本語 (Japanese)', note: '', tenantId: 't', scopeId: SCOPE }] }],
+      [/^\/api\/dev\/examples\/load$/, 200, { set: 'ja', steps: [
+        { step: 'correction', outcome: 'created', detail: 'a learned rule to decide' },
+        { step: 'import', outcome: 'already_there', detail: 'valid until 2027-01-31' }
+      ] }]
+    )
+    const page = await mountSuspended(DecisionDesk)
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-load-examples-button"]').exists()).toBe(true))
+
+    await page.get('[data-test-id="cortex-decision-desk-load-examples-button"]').trigger('click')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-examples-report-text"]').exists()).toBe(true))
+
+    const post = calls.find(c => c.url === '/api/dev/examples/load')!
+    expect(JSON.parse(String(post.init?.body))).toEqual({ set: 'ja' })
+    expect(page.get('[data-test-id="cortex-decision-desk-examples-report-text"]').text())
+      .toContain('Created · correction · a learned rule to decide')
+    expect(page.get('[data-test-id="cortex-decision-desk-examples-report-text"]').text())
+      .toContain('Already there · import')
   })
 
   it('gives every control a cortex-decision-desk test id', async () => {

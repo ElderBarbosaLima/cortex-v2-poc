@@ -83,7 +83,7 @@ resource "aws_secretsmanager_secret" "consumer_api_keys" {
 resource "aws_secretsmanager_secret_version" "consumer_api_keys" {
   secret_id = aws_secretsmanager_secret.consumer_api_keys.id
   secret_string = jsonencode({
-    for consumer, key in var.consumer_api_keys : consumer => { sha256 = sha256(key) }
+    for consumer, key in merge(var.consumer_api_keys, var.example_api_keys) : consumer => { sha256 = sha256(key) }
   })
 }
 

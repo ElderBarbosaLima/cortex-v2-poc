@@ -32,9 +32,16 @@ export default defineNuxtConfig({
     // into any output, server or browser (checked by `npm run check:bundle`).
     cortexApiUrl: '',
     cortexApiKey: '',
+    // Example sets (issue 39): the English set's Desk key, and the agent key each
+    // set's "Load example cases" acts with. Runtime only, like cortexApiKey.
+    cortexApiKeyEn: '',
+    cortexExamplesAgentKeyJa: '',
+    cortexExamplesAgentKeyEn: '',
     // Dev-only: the seed file behind the Decision Desk's user selector
     // (NUXT_DEV_SEED_FILE). Empty: /api/dev/seed answers 404.
-    devSeedFile: ''
+    devSeedFile: '',
+    // Dev-only: data/examples (NUXT_DEV_EXAMPLES_DIR). Empty: /api/dev/examples answers 404.
+    devExamplesDir: ''
   },
 
   // The generated contract (libraries/cortex-contract, D15): the only source of

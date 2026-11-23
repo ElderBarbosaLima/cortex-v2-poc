@@ -5,6 +5,16 @@ import { z } from 'zod'
 
 export const CORTEX_API_BASE = '/api/cortex'
 
+/**
+ * The example set the Desk is showing (issue 39): sent as X-Cortex-Examples, so
+ * the dev proxy uses that set's tenant key. Never an identity: the proxy maps
+ * only the known values to keys it holds, and never forwards the header.
+ */
+let examplesSet: 'ja' | 'en' = 'ja'
+export function setExamplesSet(key: 'ja' | 'en') {
+  examplesSet = key
+}
+
 const ProblemItem = z.object({ code: z.string().optional(), detail: z.string().optional(), msg: z.string().optional() })
 const ErrorBody = z.looseObject({
   error: z.string(),
@@ -57,6 +67,7 @@ export async function cortexRequest<T>(method: 'GET' | 'POST', path: string, opt
   const headers: Record<string, string> = { accept: 'application/json' }
   if (options.body !== undefined) headers['content-type'] = 'application/json'
   if (options.endUser) headers['x-end-user-id'] = options.endUser
+  headers['x-cortex-examples'] = examplesSet
   const response = await fetch(cortexUrl(path, options.query), {
     method,
     headers,

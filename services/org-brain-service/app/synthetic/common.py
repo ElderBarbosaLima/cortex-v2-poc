@@ -83,6 +83,11 @@ NODES: tuple[NodeSpec, ...] = (
     NodeSpec("jp/finance/q2c-cash-application", "Q2C 入金消込チーム", "jp/finance", "team"),
     NodeSpec("other", "テスト別テナント", "org", "tenant"),
     NodeSpec("other/finance", "テスト別テナント経理", "other", "team"),
+    # The English example set (issue 39): the same invoicing story, in English, in a
+    # tenant of its own, so switching examples never mixes the two.
+    NodeSpec("en", "Fictitious Group UK (example)", "org", "tenant"),
+    NodeSpec("en/finance", "Finance", "en", "team"),
+    NodeSpec("en/finance/q2c-invoicing", "Q2C Invoicing team", "en/finance", "team"),
 )
 
 # People are role labels only: no names, nothing personal.
@@ -99,6 +104,11 @@ PEOPLE: tuple[JsonObj, ...] = (
         "node": "jp/finance",
     },
     {"key": "X-001", "label": "別テナント担当", "role": "final_validator", "node": "other"},
+    # English example set: at the tenant root, so its group-wide rules can be proposed and decided.
+    {"key": "EN-R-001", "label": "Invoice reviewer 1", "role": "reviewer", "node": "en"},
+    {"key": "EN-R-002", "label": "Invoice reviewer 2", "role": "reviewer", "node": "en"},
+    {"key": "EN-OWN-001", "label": "Rule owner", "role": "final_validator", "node": "en"},
+    {"key": "EN-OWN-002", "label": "Rule owner (backup)", "role": "final_validator", "node": "en"},
 )
 
 CONSUMERS: tuple[JsonObj, ...] = (
@@ -128,6 +138,19 @@ CONSUMERS: tuple[JsonObj, ...] = (
         "purposes": {"payment_reconciliation": {"sensitivity_ceiling": "confidential"}},
     },
     {
+        # English example set (issue 39): the agent the "Load example cases" button acts as.
+        "key": "examples-agent-en",
+        "tenant": "en",
+        "scopes": ["cortex:read", "cortex:write"],
+        "purposes": {"invoice_drafting": {"sensitivity_ceiling": "confidential"}},
+    },
+    {
+        "key": "decision-desk-en",
+        "tenant": "en",
+        "scopes": ["cortex:read", "cortex:write"],
+        "purposes": {"rule_review": {"sensitivity_ceiling": "confidential"}},
+    },
+    {
         # The second tenant's agent: proves one tenant's key never reads another's data.
         "key": "other-agent",
         "tenant": "other",
@@ -143,6 +166,7 @@ OWNERS: tuple[JsonObj, ...] = (
     {"node": "jp/finance/q2c-invoicing", "owner": "OWN-001", "backup": "OWN-002"},
     {"node": "jp/finance/q2c-cash-application", "owner": "OWN-001", "backup": "OWN-002"},
     {"node": "other", "owner": "X-001", "backup": None},
+    {"node": "en", "owner": "EN-OWN-001", "backup": "EN-OWN-002"},
 )
 
 

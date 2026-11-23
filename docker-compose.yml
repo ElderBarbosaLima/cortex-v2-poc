@@ -212,6 +212,12 @@ services:
     environment:
       NUXT_CORTEX_API_URL: http://aws-emulator:5008
       NUXT_CORTEX_API_KEY: ${CORTEX_DESK_API_KEY:?set it in .env (make init-env)}
+      # Example sets (issue 39): the Desk key per set, and the agent key the
+      # "Load example cases" button acts with. Server-side only, never in the bundle.
+      NUXT_CORTEX_API_KEY_EN: ${CORTEX_DESK_API_KEY_EN:-}
+      NUXT_CORTEX_EXAMPLES_AGENT_KEY_JA: ${CORTEX_E2E_AGENT_KEY:-}
+      NUXT_CORTEX_EXAMPLES_AGENT_KEY_EN: ${CORTEX_EXAMPLES_AGENT_KEY_EN:-}
+      NUXT_DEV_EXAMPLES_DIR: /examples
       # Dev-only: the Decision Desk's user selector reads the seed's people.
       NUXT_DEV_SEED_FILE: /data/tenant.json
       NUXT_DEV_POLL: "true"
@@ -219,6 +225,7 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5001}:5001"
     volumes:
+      - ./data/examples:/examples:ro
       # Hot reload of the app's own sources; dependencies stay in the image.
       - ./frontend/arbitr/app:/workspace/frontend/arbitr/app:ro
       - ./frontend/arbitr/server:/workspace/frontend/arbitr/server:ro
@@ -320,6 +327,7 @@ services:
       TF_DATA_DIR: /state/.terraform
       TF_PLUGIN_CACHE_DIR: /plugins
       TF_VAR_consumer_api_keys: ${CORTEX_DEV_API_KEYS:?set it in .env (make init-env)}
+      TF_VAR_example_api_keys: ${CORTEX_EXAMPLE_API_KEYS:-{}}
       # Optional: with no key the secret stays empty and AI stays off.
       TF_VAR_litellm_api_key: ${LITELLM_API_KEY:-}
     volumes:

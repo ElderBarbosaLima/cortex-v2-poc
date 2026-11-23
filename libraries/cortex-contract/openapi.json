@@ -1209,9 +1209,11 @@
             "title": "Review Case Id"
           },
           "status": {
+            "description": "duplicate: already approved as is; pending: the same item already waits for a decision (its review case is given)",
             "enum": [
               "proposed",
               "duplicate",
+              "pending",
               "rejected"
             ],
             "title": "Status",
@@ -1485,6 +1487,12 @@
       },
       "ProposalAccepted": {
         "properties": {
+          "already_pending": {
+            "default": false,
+            "description": "The same rule, with the same validity, already waits for a decision: nothing new was written, and this is that proposal (issue 39)",
+            "title": "Already Pending",
+            "type": "boolean"
+          },
           "grouped": {
             "description": "True when the proposal joined an open case for the same conflict",
             "title": "Grouped",
@@ -3071,7 +3079,7 @@
         ]
       },
       "post": {
-        "description": "The admission gate: validate, authorise, then append as `proposed` and\nroute to the review queue (one open case per conflict). Never approved here.",
+        "description": "The admission gate: validate, authorise, then append as `proposed` and\nroute to the review queue (one open case per conflict). Never approved here.\nThe same rule already waiting for a decision is returned, not queued twice.",
         "operationId": "propose_record",
         "requestBody": {
           "content": {
