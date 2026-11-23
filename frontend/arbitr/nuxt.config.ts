@@ -31,7 +31,10 @@ export default defineNuxtConfig({
     // NUXT_CORTEX_API_KEY, so a key in the build environment is never baked
     // into any output, server or browser (checked by `npm run check:bundle`).
     cortexApiUrl: '',
-    cortexApiKey: ''
+    cortexApiKey: '',
+    // Dev-only: the seed file behind the Decision Desk's user selector
+    // (NUXT_DEV_SEED_FILE). Empty: /api/dev/seed answers 404.
+    devSeedFile: ''
   },
 
   // The generated contract (libraries/cortex-contract, D15): the only source of
@@ -43,6 +46,14 @@ export default defineNuxtConfig({
   devServer: { host: '0.0.0.0', port: 5001 },
 
   compatibilityDate: '2025-01-15',
+
+  // Bind mounts from the host (Colima, Docker Desktop) deliver no file events
+  // into the container, so the dev container polls (NUXT_DEV_POLL=true).
+  vite: {
+    server: {
+      watch: { usePolling: process.env.NUXT_DEV_POLL === 'true', interval: 300 }
+    }
+  },
   telemetry: false,
 
   eslint: {

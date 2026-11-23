@@ -20,8 +20,10 @@ from app.identity import AuthedCaller, caller_session, require_scope
 from app.routers.cortex import authorise
 from app.schemas.cortex import (
     ApproveRequest,
+    CanDecide,
     CaseProposal,
     DecidedRecord,
+    DecisionPermission,
     DecisionResult,
     DecisionView,
     NamedOwners,
@@ -176,6 +178,7 @@ def get_review_case(
         sensitivity_class=oc.sensitivity_class,  # type: ignore[arg-type]
         named_owners=_owners(request, caller, oc.case.scope),
         proposals=proposals,
+        can_decide=_can_decide(request, caller, oc),
         affected_cases=_affected(oc),
         contributors=[uuid.UUID(c) for c in oc.contributors],
         decisions=[
@@ -186,14 +189,14 @@ def get_review_case(
     )
 
 
-def _permit(request: Request, caller: AuthedCaller, action: str, oc: review.OpenCase) -> Any:
+def _ask(request: Request, caller: AuthedCaller, action: str, oc: review.OpenCase) -> Any:
     actor = (
         {"type": "user", "id": caller.end_user_id}
         if caller.end_user_id
         else {"type": "consumer", "id": caller.consumer_id}
     )
     gate: PolicyGate = request.app.state.policy_gate
-    permit = gate.approval(
+    return gate.approval(
         {
             "tenant_id": caller.tenant_id,
             "action": action,
@@ -202,6 +205,24 @@ def _permit(request: Request, caller: AuthedCaller, action: str, oc: review.Open
             "now": now_rfc3339(),
         }
     )
+
+
+def _can_decide(request: Request, caller: AuthedCaller, oc: review.OpenCase) -> CanDecide:
+    def one(action: str) -> DecisionPermission:
+        if oc.case.status != "open" or not oc.pending:
+            return DecisionPermission(
+                allowed=False, reason="this case is already decided", policy_revision=None
+            )
+        d = _ask(request, caller, action, oc)
+        return DecisionPermission(
+            allowed=d.allow, reason=d.reason, policy_revision=d.policy_revision
+        )
+
+    return CanDecide(approve=one("approve"), reject=one("reject"))
+
+
+def _permit(request: Request, caller: AuthedCaller, action: str, oc: review.OpenCase) -> Any:
+    permit = _ask(request, caller, action, oc)
     if not permit.allow:
         raise CortexApiError(
             403, "access_denied", permit.reason, policy_revision=permit.policy_revision

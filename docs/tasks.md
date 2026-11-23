@@ -440,6 +440,24 @@ make dev && make e2e && make test-all && make lint && make typecheck
 ```
 **Dependências.** 24, 26, 28. **Tamanho.** ~350 linhas.
 
+## 30. LLM via LiteLLM (`LITELLM_BASE_URL=https://devs-ai.straker.ai`)
+**Contexto.** Pedido do usuário em 2026-11-22. O LiteLLM expõe uma API compatível com OpenAI (`/v1/chat/completions`, `/v1/embeddings`). Hoje a PoC não usa LLM: a sugestão de regra é determinística (`DomainPack.correction_to_rule`, issue 22, "Não inclui: sugestão por LLM") e a busca usa vetores de teste fixos (`vector(8)`, migração 002). A regra 4 continua valendo: **nenhuma regra mandatória ou proibição vem de um LLM**; o LLM só propõe, a admissão valida (CEL compilado, entidades canônicas) e uma pessoa aprova.
+**Inclui.**
+- `app/clients/llm.py`: um `LlmClient` (Protocol) e a implementação `LiteLlmClient` (httpx, TLS verificado, timeout, retries com backoff, fail-closed: sem chave ou sem resposta → a funcionalidade fica desligada, nunca inventa saída). Config: `LITELLM_BASE_URL` (padrão `https://devs-ai.straker.ai`, no `.env.example` porque não é segredo), `LITELLM_CHAT_MODEL`, `LITELLM_EMBEDDING_MODEL`.
+- **Chave:** `LITELLM_API_KEY` só no `.env` local (git-ignored, nunca no `.env.example`, no código nem na imagem). O `make provision` (Terraform) grava a chave no Secrets Manager do emulador (`cortex-poc/litellm-api-key`), como já é feito com os hashes das chaves de consumidor; o serviço lê de lá na inicialização. Política IAM `secretsmanager:GetSecretValue` só nesse segredo. A chave nunca aparece em log, erro ou resposta (teste).
+- Usos, atrás de flags desligadas por padrão (decidir na abertura da issue, ver perguntas):
+  - (a) **Sugestão de regra por LLM** no writeback: o pack de domínio monta o prompt a partir da correção; o LLM devolve um rascunho (texto, `targets`, condição CEL); o rascunho passa pela admissão (17) como `asserted_by.type=model`, authority ≤ 10, e vai para a fila de revisão. Condição inválida → `invalid_condition`, nada é proposto.
+  - (b) **Embeddings na projeção de busca**: `SearchProjection` passa a gravar o embedding do texto do registro (migração: dimensão do `vector` do modelo escolhido); a busca continua só propondo candidatos, revalidados no ledger (20).
+- Testes: `make test` continua hermético (um `FakeLlmClient`); integração contra um servidor fake local no compose de teste; um alvo opcional `make test-llm` que chama o LiteLLM real com dados **sintéticos** e só roda com `LITELLM_API_KEY` presente.
+**Não inclui.** LLM no caminho de aplicabilidade/resolução (19) ou no verify (21); aprovação automática; envio de dados reais.
+**Critérios de aceite.**
+1. Sem `LITELLM_API_KEY`, tudo roda como hoje e `make test-all` passa; com a chave, `make test-llm` faz uma chamada real e mostra o modelo usado.
+2. Um rascunho do LLM com CEL inválido nunca vira proposta; um válido vira proposta `proposed`, authority ≤ 10, `asserted_by.type=model`, nunca aprovado sozinho.
+3. A chave não aparece em nenhum log, imagem, bundle ou resposta (teste que procura um canário, como o `check:bundle` da issue 27).
+**Perguntas em aberto.** Quais modelos (chat e embedding) o LiteLLM da Straker expõe? Uso (a), (b) ou os dois? Os dados sintéticos podem sair para `devs-ai.straker.ai` (o brief pede telemetria desligada e dados só sintéticos)?
+**Validação.** `make provision && make test-all && make test-llm`
+**Dependências.** 22 (writeback), 20 (busca revalidada). **Tamanho.** ~300 linhas.
+
 ---
 
 ## Fora do plano (pelo brief)

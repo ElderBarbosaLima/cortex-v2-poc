@@ -7,6 +7,70 @@
       "connected": "Connected as {consumer}",
       "unavailable": "Cortex is unavailable: {reason}",
       "retry": "Try again"
+    },
+    "desk": {
+      "title": "Decision Desk",
+      "intro": "Read what Cortex learned, with its evidence, and approve or reject it. Only the named owner or backup of a scope can decide.",
+      "pick": "Pick a case to review it.",
+      "problem": "Cortex said no ({code})",
+      "toolbar": {
+        "label": "Filters",
+        "person": "Acting as (dev)",
+        "scope": "Scope",
+        "status": "Status",
+        "refresh": "Refresh",
+        "devNote": "Dev only: the person you act as is sent as X-End-User-Id. In production it comes from your session."
+      },
+      "status": {
+        "open": "Open",
+        "decided": "Decided"
+      },
+      "list": {
+        "label": "Review cases",
+        "empty": "No cases here.",
+        "meta": "{count} proposal(s) · {scope}"
+      },
+      "detail": {
+        "meta": "{scope} · {status}",
+        "owners": "Owner: {owner} · backup: {backup}",
+        "proposal": "Proposal",
+        "condition": "Applies when",
+        "targets": "Targets",
+        "entities": "Entities",
+        "proposed": "Proposed as",
+        "authority": "authority {authority}",
+        "source": "Came from",
+        "sourceText": "{asserted} suggestion from cases {cases}, corrected by {correctors}",
+        "affected": "Affected cases",
+        "decisions": "Decisions"
+      },
+      "outcome": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "retired": "Retired",
+        "superseded": "Superseded"
+      },
+      "decision": {
+        "approve": "Approved",
+        "reject": "Rejected"
+      },
+      "decide": {
+        "label": "Decide on this case",
+        "title": "Your decision",
+        "enforcement": "Final enforcement",
+        "authority": "Final authority (0–40)",
+        "reason": "Reason (needed to reject)",
+        "approve": "Approve",
+        "reject": "Reject",
+        "approveDenied": "You cannot approve: {reason}",
+        "rejectDenied": "You cannot reject: {reason}",
+        "reasonNeeded": "Write a reason to reject."
+      },
+      "notice": {
+        "approved": "Approved. The rule now applies to the next matching case.",
+        "rejected": "Rejected."
+      }
     }
   }
 }

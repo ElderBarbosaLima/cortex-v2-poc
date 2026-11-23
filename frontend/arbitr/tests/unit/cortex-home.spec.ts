@@ -13,7 +13,7 @@ describe('the Cortex home page', () => {
     }), { status: 200 })))
 
     const page = await mountSuspended(CortexHome)
-    await vi.waitFor(() => expect(page.get('[data-testid="cortex-home-status-text"]').text())
+    await vi.waitFor(() => expect(page.get('[data-test-id="cortex-home-status-text"]').text())
       .toBe('Connected as decision-desk'))
   })
 
@@ -23,7 +23,7 @@ describe('the Cortex home page', () => {
     }), { status: 503 })))
 
     const page = await mountSuspended(CortexHome)
-    await vi.waitFor(() => expect(page.find('[data-testid="cortex-home-retry-button"]').exists()).toBe(true))
-    expect(page.get('[data-testid="cortex-home-status-text"]').text()).toContain('policy engine unavailable')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-home-retry-button"]').exists()).toBe(true))
+    expect(page.get('[data-test-id="cortex-home-status-text"]').text()).toContain('policy engine unavailable')
   })
 })
