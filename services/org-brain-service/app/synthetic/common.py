@@ -109,6 +109,8 @@ CONSUMERS: tuple[JsonObj, ...] = (
         "purposes": {
             "invoice_drafting": {"sensitivity_ceiling": "confidential"},
             "cash_matching": {"sensitivity_ceiling": "confidential"},
+            # Until D3 is decided, the release check on Phase 1 packs runs as this agent (issue 35).
+            "payment_reconciliation": {"sensitivity_ceiling": "confidential"},
         },
     },
     {

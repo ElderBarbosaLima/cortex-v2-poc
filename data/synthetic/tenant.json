@@ -155,6 +155,9 @@
         },
         "cash_matching": {
           "sensitivity_ceiling": "confidential"
+        },
+        "payment_reconciliation": {
+          "sensitivity_ceiling": "confidential"
         }
       }
     },

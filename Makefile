@@ -126,7 +126,7 @@ test: build-tools ## Hermetic unit tests (no network): backend, then frontend Vi
 	$(FRONTEND) npm run check:bundle
 
 E2E = $(COMPOSE) run --rm --no-deps -T \
-	-e CORTEX_E2E_AGENT_KEY -e CORTEX_DESK_API_KEY \
+	-e CORTEX_E2E_AGENT_KEY -e CORTEX_E2E_IBM_KEY -e CORTEX_DESK_API_KEY \
 	-v ./tests/e2e:/e2e:ro -v ./.e2e:/state org-brain-service pipenv run python /e2e/run.py
 
 e2e: init-env ## End to end on a FRESH running stack (make dev), both workflows, public API; reindex and erasure in between

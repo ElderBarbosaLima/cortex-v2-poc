@@ -2,8 +2,9 @@
 
 Proof of concept of the Cortex v2 core (governed organisational memory, arbitr), stage 1 of the
 Memory Architecture Rev. B: *an approved reviewer correction improves the next applicable case,
-stays out of unrelated work and remains attributable.* Pilot slice: IBM Japan AskQ2C (custom
-invoices and cash application), with synthetic Japanese data only.
+stays out of unrelated work and remains attributable.* Pilot slice: IBM Japan, Phase 1 = a small
+subset of **Payment Reconciliation** (Lee, 2026-11-22; not AskQ2C), proved on the `cash_application`
+pack, with `custom_invoices` as the second pack (D18). Synthetic Japanese data only.
 
 - What to build: [`docs/architecture/`](docs/architecture/) (Rev. B, Rev. C, pilot scope, high-level proposal).
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
@@ -336,6 +337,7 @@ only in `infra/terraform/` and behind the AWS SDK (configured by environment var
 | Machine proposals stay in the ledger as `proposed`; the database refuses a `model` or `policy` record born approved, or approved by anyone but a person | Nake: model rules never skip review. Rev. B keeps `proposed` in the envelope, so rejections stay auditable | issue 34 |
 | A model's rule draft is proposed as `model`, never approved, with a fallback to the pack's draft | rule 4: machines propose, people approve; the golden path stays deterministic | issue 30 |
 | `search_doc.embedding` is a plain `vector` (no fixed dimension) | real embeddings (1536) and the fixed test vectors (8) coexist; search compares the same dimension only | issue 30 |
+| Phase 1 = the `cash_application` pack, IBM calls as `ibm-pr-agent` (pack-only, purpose `payment_reconciliation`); reviewers stay OWN-001/OWN-002 | the subset, the real consumer and the reviewers come from the December workshop (Lee, Erika). `askq2c-agent` remains the PoC's full-loop agent; the architecture docs keep IBM's original naming | issue 35 |
 | Owners retire through `POST /records/{id}/retire` | scenario 4 through the public API | issue 29 |
 | Erasure is an admin CLI, not a route | no admin identity model in the PoC | issue 24 |
 | The Decision Desk is English only; Japanese data is shown as it came | UI in Japanese is out of scope | P7 |
