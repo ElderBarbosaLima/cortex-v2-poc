@@ -72,7 +72,9 @@ class FakeWidgetPack:
     def search_text(self, case: Mapping[str, Any]) -> str:
         return f"ウィジェット {case.get('widget_code', '')} {case.get('colour', '')}"
 
-    def check_output(self, output: Mapping[str, Any], rules: Sequence[RuleBody]) -> list[str]:
+    def check_output(
+        self, output: Mapping[str, Any], rules: Sequence[RuleBody], case: Mapping[str, Any]
+    ) -> list[str]:
         problems: list[str] = []
         for rule in rules:
             label = getattr(rule, "label", None)

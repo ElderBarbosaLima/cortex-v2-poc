@@ -78,6 +78,17 @@ def test_the_cash_application_golden_set_passes_in_full(
             build_cases=build_cases,
             extra_check=check_resolution_and_route,
         ).run()
+        case = run.cases["PAY-0117"]
+        pack_id = run.packs["PAY-0117"]
+        auto = {**ideal_output(case), "mode": "auto"}
+        held_reply = run._call(  # pyright: ignore[reportPrivateUsage]
+            "POST", "/v1/cortex/verify", {"pack_id": pack_id, "case": case, "output": auto}
+        )
+        passed_reply = run._call(  # pyright: ignore[reportPrivateUsage]
+            "POST",
+            "/v1/cortex/verify",
+            {"pack_id": pack_id, "case": case, "output": ideal_output(case)},
+        )
     finally:
         app_engine().dispose()
 
@@ -85,3 +96,8 @@ def test_the_cash_application_golden_set_passes_in_full(
         print(f"\nseed: {[(x.pack, x.added, x.present) for x in loaded]}\n{run.summary()}")
     assert run.mismatches == []
     assert run.checked["packs"] == 40 and run.checked["corrections"] == 3
+    # The ambiguous payer: verify refuses an auto-match the rules alone allow.
+    held = held_reply.json()
+    assert held["result"] == "hold", held
+    assert held["reasons"][0]["detail"].startswith("route: this match goes to review (ambiguous")
+    assert passed_reply.json()["result"] == "pass"

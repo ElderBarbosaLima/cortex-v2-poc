@@ -12,7 +12,7 @@ index can neither hide a retired rule nor invent one:
    in the pack is `new_mandatory_rule`; one that cannot be evaluated is
    `constraint_unevaluable`;
 3. the domain pack checks the output against the rules it must satisfy
-   (`DomainPack.check_output`, optional) → `output_check_failed`.
+   and the case (`DomainPack.check_output`, optional) → `output_check_failed`.
 The result is stored, append-only, linked to the pack. Cortex never blocks
 the client's system itself (D3); a `hold` is the client's signal to stop.
 """
@@ -100,7 +100,7 @@ def _new_constraints(
 
 
 def _output_problems(
-    stored: StoredPack, *, pack: DomainPack, output: Mapping[str, Any]
+    stored: StoredPack, *, pack: DomainPack, output: Mapping[str, Any], case: Mapping[str, Any]
 ) -> list[Hold]:
     rules: list[RuleBody] = []
     for item, body in stored.items:
@@ -109,7 +109,7 @@ def _output_problems(
                 rules.append(pack.rule_body_schema.model_validate(body))
             except ValidationError:
                 continue  # a body the pack cannot read was already a constraint check above
-    return [Hold("output_check_failed", detail=p) for p in pack.check_output(output, rules)]
+    return [Hold("output_check_failed", detail=p) for p in pack.check_output(output, rules, case)]
 
 
 def verify(
@@ -130,7 +130,7 @@ def verify(
     holds = [
         *_still_approved(session, stored),
         *_new_constraints(session, stored, pack=pack, facts=facts, access=access),
-        *_output_problems(stored, pack=pack, output=output),
+        *_output_problems(stored, pack=pack, output=output, case=case),
     ]
     row = Verification(
         verification_id=new_record_id(),

@@ -133,9 +133,8 @@ def test_garnishment_always_blocks_an_automatic_match() -> None:
         assert "CA-G-GARNISH" in EXPECTED[pid]["expected_rules"]
         assert route(CASES[pid], [garnish]) == "review"
         auto = {**ideal_output(CASES[pid]), "mode": "auto"}
-        assert PACK.check_output(auto, [garnish]) == [
-            "match.mode: this payment must be reviewed by a person, not auto-matched"
-        ]
+        problems = PACK.check_output(auto, [garnish], CASES[pid])
+        assert "match.mode: this payment must be reviewed by a person, not auto-matched" in problems
 
 
 @pytest.mark.parametrize(
@@ -173,3 +172,41 @@ def test_no_rule_is_learned_for_a_payer_not_confidently_known() -> None:
 
     with pytest.raises(ValueError, match="high confidence"):
         PACK.correction_to_rule(correction, case=CASES["PAY-0117"])
+
+
+def _diff(pid: str) -> int:
+    return int(CASES[pid]["invoice"]["total"]) - int(CASES[pid]["payment"]["amount"])
+
+
+# Review because of the payer or of an unexplained difference: nothing a rule
+# in the pack says, only the case shows it.
+CASE_ONLY_REVIEWS = sorted(
+    p
+    for p, e in EXPECTED.items()
+    if e["route"] == "review" and (e["resolution"]["band"] != "high" or _diff(p) != 0)
+)
+
+
+@pytest.mark.parametrize("pid", CASE_ONLY_REVIEWS)
+def test_an_auto_match_the_case_forbids_is_refused(pid: str) -> None:
+    case = CASES[pid]
+    evidence = PACK.rule_body_schema.model_validate(
+        {"text_ja": "根拠", "targets": ["match.evidence"], "condition": "true"}
+    )
+    auto = {**ideal_output(case), "mode": "auto"}
+
+    assert any(p.startswith("route:") for p in PACK.check_output(auto, [evidence], case))
+
+
+def test_the_ambiguous_payer_cannot_be_auto_matched_even_with_only_the_evidence_rule() -> None:
+    case = CASES["PAY-0117"]
+    evidence = PACK.rule_body_schema.model_validate(
+        {"text_ja": "根拠", "targets": ["match.evidence"], "condition": "true"}
+    )
+    auto = {**ideal_output(case), "mode": "auto"}
+
+    assert PACK.check_output(auto, [evidence], case) == [
+        "route: this match goes to review (ambiguous payer resolution or an unexplained "
+        "difference), not auto"
+    ]
+    assert PACK.check_output(ideal_output(case), [evidence], case) == []

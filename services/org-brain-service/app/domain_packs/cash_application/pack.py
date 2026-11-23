@@ -11,7 +11,9 @@ with: `{"payment": {...}, "invoice": {...}}`.
   account's garnishment flag) and `invoice` (total, issue date); int JPY;
 - the bank transfer fee (振込手数料) a customer deducts is at most ¥880, the
   limit a learned fee rule uses;
-- `check_output` checks the proposed match against the rules: a review rule
+- `check_output` checks the proposed match against the rules and the case: an
+  auto-match is refused whenever `route` says review (an ambiguous, low or
+  unknown payer, or a difference no rule explains); a review rule
   (target `match.mode`, e.g. 差押 garnishment) forbids an automatic match, a
   prohibition on write-offs forbids writing the difference off, the evidence
   must name the payment and the invoice.
@@ -179,9 +181,18 @@ class CashApplicationPack:
         payment = case["payment"]
         return f"入金 消込 {payment.get('bank', '')} {payment.get('payer_name_raw', '')}"
 
-    def check_output(self, output: Mapping[str, Any], rules: Sequence[RuleBody]) -> list[str]:
+    def check_output(
+        self, output: Mapping[str, Any], rules: Sequence[RuleBody], case: Mapping[str, Any]
+    ) -> list[str]:
         targets = {t for rule in rules for t in rule.targets}
         problems: list[str] = []
+        if output.get("mode") == "auto" and route(case, rules) == "review":
+            # Rules alone cannot see this: a payer not resolved with confidence,
+            # or a difference no rule explains, is never auto-matched.
+            problems.append(
+                f"route: this match goes to review ({resolution(case).band} payer resolution"
+                f" or an unexplained difference), not auto"
+            )
         if "match.mode" in targets and output.get("mode") != "review":
             problems.append(
                 "match.mode: this payment must be reviewed by a person, not auto-matched"
