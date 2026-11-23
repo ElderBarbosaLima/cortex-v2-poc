@@ -135,6 +135,18 @@ that open the bodies are destroyed instead. Every record has its own data key.
 Each erasure is logged with a report (ids and counts, never text), and `make reindex` afterwards
 does not bring anything back.
 
+**Domain packs** live in `services/org-brain-service/app/domain_packs/<name>/`, and the service finds
+them by discovery: the core never names one (D18). The first real pack is `custom_invoices`. It
+provides:
+- entities `customer:<id>`, resolved by customer id and never by name, and `channel:<name>`;
+- the CEL variable `invoice` and the governed targets (registration number, tax breakdown, remarks,
+  attachments);
+- how a correction becomes a rule draft, and an output check for verify.
+
+`make seed` loads each pack's `rules.json` into the ledger (idempotent). The golden set for
+`custom_invoices` (`tests/integration/test_golden_custom_invoices.py`) replays the whole timeline
+through the API: 40 packs, corrections, approval, retirement, verify.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
