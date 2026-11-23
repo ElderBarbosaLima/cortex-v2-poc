@@ -211,6 +211,8 @@ def approve(
     enforcement: str | None,
     reason: str | None,
     policy_revision: str | None,
+    valid_from: dt.datetime | None = None,
+    valid_to: dt.datetime | None = None,
 ) -> Decided:
     _require_open(oc)
     pending = {r.record_id: r for r in oc.pending}
@@ -243,8 +245,17 @@ def approve(
             approved_by={"approver_type": "user", "user_id": user_id, "decision_id": decision_id},
             authority=authority,
             enforcement=enforcement,
+            valid_from=valid_from,
+            valid_to=valid_to,
         )
     ]
+    if chosen.supersedes:
+        # The approved record replaces the old one (issue 33): packs that relied
+        # on it are held by verify, the next pack carries the new record.
+        old = ledger.latest(session, chosen.supersedes)
+        if old.status not in (Status.APPROVED.value, Status.STALE.value):
+            raise InvalidDecisionError(f"{chosen.supersedes} is {old.status}: nothing to supersede")
+        versions.append(ledger.transition(session, record_id=old.record_id, to=Status.SUPERSEDED))
     versions += [
         ledger.transition(session, record_id=r.record_id, to=Status.SUPERSEDED)
         for r in oc.pending

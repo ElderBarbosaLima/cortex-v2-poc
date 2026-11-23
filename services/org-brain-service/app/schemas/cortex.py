@@ -186,6 +186,10 @@ class ProposeRecordRequest(BaseModel):
     valid_to: dt.date | None = None
     source: dict[str, Any] = Field(default_factory=dict[str, Any])
     derived_from: list[uuid.UUID] = Field(default_factory=list[uuid.UUID])
+    supersedes: uuid.UUID | None = Field(
+        default=None,
+        description="An approved record this one replaces once a named owner approves it",
+    )
 
 
 class ProposalAccepted(BaseModel):
@@ -242,6 +246,7 @@ class CaseProposal(RecordSummary):
     entities: list[str]
     source: dict[str, Any] = Field(description="Evidence: where the proposal came from")
     derived_from: list[uuid.UUID]
+    supersedes: uuid.UUID | None = None
     valid_from: dt.datetime
     valid_to: dt.datetime | None
 
@@ -298,6 +303,12 @@ class ApproveRequest(BaseModel):
         default=None, description="Final enforcement (rules only); default the proposed one"
     )
     reason: str | None = Field(default=None, max_length=2000)
+    valid_from: dt.date | None = Field(
+        default=None, description="Final business date from which it holds (default: as proposed)"
+    )
+    valid_to: dt.date | None = Field(
+        default=None, description="Business date it stops holding (exclusive); null: no end"
+    )
 
 
 class RejectRequest(BaseModel):
@@ -346,4 +357,20 @@ class RetireResult(BaseModel):
     version: int
     status: Literal["deprecated"]
     outcome: Literal["retired"]
+    policy_revision: str | None
+
+
+# ── Expiry (issue 33) ──────────────────────────────────────────────────────
+
+
+class ExpiringRecord(RecordSummary):
+    valid_to: dt.datetime
+    expired: bool = Field(
+        description="valid_to has passed: packs for later dates no longer carry it"
+    )
+
+
+class ExpiringPage(BaseModel):
+    items: list[ExpiringRecord]
+    within_days: int
     policy_revision: str | None

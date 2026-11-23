@@ -183,18 +183,28 @@ def transition(
     approved_by: dict[str, Any] | None = None,
     authority: int | None = None,
     enforcement: str | None = None,
+    valid_from: dt.datetime | None = None,
+    valid_to: dt.datetime | None = None,
 ) -> MemoryRecord:
     """Append the next version of `record_id` with status `to`.
 
-    Approval may set the final authority and enforcement (the approver decides,
-    docs/discovery.md P5); every other field is carried over unchanged."""
+    Approval may set the final authority, enforcement and validity (the
+    approver decides, docs/discovery.md P5; issue 33); every other field is
+    carried over unchanged."""
     current = latest(session, record_id)
     if to not in _TRANSITIONS[Status(current.status)]:
         raise IllegalTransitionError(f"cannot move a record from {current.status} to {to}")
     if to is Status.APPROVED and approved_by is None:
         raise IllegalTransitionError("approving needs approved_by")
-    if to is not Status.APPROVED and (authority is not None or enforcement is not None):
-        raise IllegalTransitionError("only an approval may change authority or enforcement")
+    changes = (authority, enforcement, valid_from, valid_to)
+    if to is not Status.APPROVED and any(c is not None for c in changes):
+        raise IllegalTransitionError(
+            "only an approval may change authority, enforcement or validity"
+        )
+    new_from = current.valid_from if valid_from is None else valid_from
+    new_to = current.valid_to if valid_to is None else valid_to
+    if new_to is not None and new_to <= new_from:
+        raise IllegalTransitionError("valid_to must be after valid_from")
     new_authority = current.authority if authority is None else authority
     new_approved_by = approved_by if to is Status.APPROVED else current.approved_by
     _check_ceiling(current.asserted_by, new_authority, new_approved_by)
@@ -211,9 +221,13 @@ def transition(
                 "approved_by",
                 "authority",
                 "enforcement",
+                "valid_from",
+                "valid_to",
             )
         },
         version=current.version + 1,
+        valid_from=new_from,
+        valid_to=new_to,
         status=to.value,
         approved_by=new_approved_by,
         authority=new_authority,

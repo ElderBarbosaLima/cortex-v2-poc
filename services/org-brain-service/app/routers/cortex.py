@@ -27,6 +27,8 @@ from app.schemas.cortex import (
     CorrectionAccepted,
     CorrectionRequest,
     EvidenceExportView,
+    ExpiringPage,
+    ExpiringRecord,
     HoldReason,
     ProposalAccepted,
     ProposeRecordRequest,
@@ -134,6 +136,43 @@ def list_records(
     )
 
 
+@router.get("/records/expiring", response_model=ExpiringPage, operation_id="list_expiring_records")
+def list_expiring_records(
+    request: Request,
+    scope: uuid.UUID = Query(description="Scope node to read at; resolves upward"),
+    purpose: str = Query(min_length=1),
+    within_days: int = Query(default=30, ge=0, le=3650),
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> ExpiringPage:
+    """Basic expiry (issue 33): approved records whose validity ends within
+    `within_days`, or has already ended, soonest first. Expiry itself is the
+    record's `valid_to`, applied by business date when packs are built and
+    verified; this list is for the owners to act before it happens."""
+    decision = authorise(request, caller, purpose=purpose, scope=str(scope))
+    allowed = [
+        c
+        for c, rank in SENSITIVITY_RANK.items()
+        if rank <= SENSITIVITY_RANK.get(decision.sensitivity_ceiling or "", -1)
+    ]
+    rows = session.execute(
+        text(
+            "SELECT record_id::text AS record_id, version, kind, status, scope::text AS scope, "
+            "enforcement, authority, sensitivity_class, valid_to, valid_to <= now() AS expired "
+            "FROM memory_record_current WHERE status = 'approved' AND valid_to IS NOT NULL "
+            "AND valid_to <= now() + make_interval(days => :days) "
+            "AND scope = ANY(CAST(:scopes AS uuid[])) "
+            "AND sensitivity_class = ANY(CAST(:allowed AS text[])) ORDER BY valid_to, record_id"
+        ),
+        {"days": within_days, "scopes": decision.readable_scopes, "allowed": allowed},
+    ).all()
+    return ExpiringPage(
+        items=[ExpiringRecord.model_validate(r, from_attributes=True) for r in rows],
+        within_days=within_days,
+        policy_revision=decision.policy_revision,
+    )
+
+
 @router.get("/records/{record_id}", response_model=RecordRead, operation_id="get_record")
 def get_record(
     record_id: uuid.UUID,
@@ -193,8 +232,10 @@ def propose_record(
         valid_to=_business_start(body.valid_to),
         source=body.source,
         derived_from=tuple(str(d) for d in body.derived_from),
+        supersedes=str(body.supersedes) if body.supersedes else None,
     )
     _, problems = admission.validate_proposal(proposal)
+    problems += admission.supersede_problems(session, proposal)
     if problems:
         raise CortexApiError(422, "invalid_proposal", admission.problems_payload(problems))
 

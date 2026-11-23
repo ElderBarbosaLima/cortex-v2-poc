@@ -63,6 +63,7 @@ class Proposal:
     valid_to: dt.datetime | None = None
     source: dict[str, Any] = field(default_factory=dict[str, Any])
     derived_from: tuple[str, ...] = ()
+    supersedes: str | None = None  # an approved record this one replaces once approved
 
 
 def _rule_problems(pack: DomainPack, proposal: Proposal) -> list[Problem]:
@@ -216,6 +217,7 @@ def admit(
     row = ledger.append_new(
         session,
         tenant_id=tenant_id,
+        supersedes=proposal.supersedes,
         draft=ledger.RecordDraft(
             kind=proposal.kind,
             schema_version=proposal.schema_version,
@@ -237,6 +239,22 @@ def admit(
         return Admitted(row, None, False)
     case_id, grouped = _join_or_open_case(session, tenant_id, proposal, row.record_id)
     return Admitted(row, case_id, grouped)
+
+
+def supersede_problems(session: Session, proposal: Proposal) -> list[Problem]:
+    """What a proposal may replace (issue 33): an approved (or stale) record of
+    the same domain and kind, visible in this tenant."""
+    if proposal.supersedes is None:
+        return []
+    try:
+        old = ledger.latest(session, proposal.supersedes)
+    except ledger.RecordNotFoundError:
+        return [Problem("unknown_superseded", f"no record {proposal.supersedes}")]
+    if old.status not in ("approved", "stale"):
+        return [Problem("not_supersedable", f"{proposal.supersedes} is {old.status}")]
+    if old.kind != proposal.kind.value or old.schema_version != proposal.schema_version:
+        return [Problem("supersede_mismatch", "a record replaces one of its own domain and kind")]
+    return []
 
 
 def problems_payload(problems: Sequence[Problem]) -> list[dict[str, str]]:
