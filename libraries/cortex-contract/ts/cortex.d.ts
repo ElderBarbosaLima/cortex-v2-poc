@@ -538,6 +538,11 @@ export interface components {
             review_case_id: string | null;
             /** @description Null on a replay */
             rule_suggestion: components["schemas"]["RuleSuggestion"] | null;
+            /**
+             * Suggested By
+             * @description Who drafted the proposed rule: the domain pack (policy) or a model through LiteLLM; null when nothing was proposed
+             */
+            suggested_by?: ("policy" | "model") | null;
         };
         /** CorrectionRequest */
         CorrectionRequest: {

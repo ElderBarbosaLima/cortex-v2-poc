@@ -454,7 +454,7 @@ make dev && make e2e && make test-all && make lint && make typecheck
 1. Sem `LITELLM_API_KEY`, tudo roda como hoje e `make test-all` passa; com a chave, `make test-llm` faz uma chamada real e mostra o modelo usado.
 2. Um rascunho do LLM com CEL inválido nunca vira proposta; um válido vira proposta `proposed`, authority ≤ 10, `asserted_by.type=model`, nunca aprovado sozinho.
 3. A chave não aparece em nenhum log, imagem, bundle ou resposta (teste que procura um canário, como o `check:bundle` da issue 27).
-**Perguntas em aberto.** Quais modelos (chat e embedding) o LiteLLM da Straker expõe? Uso (a), (b) ou os dois? Os dados sintéticos podem sair para `devs-ai.straker.ai` (o brief pede telemetria desligada e dados só sintéticos)?
+**Respostas (usuário, 2026-11-22).** O LiteLLM é a porta de **toda** IA da PoC: os usos (a) e (b). Chat: `anthropic/claude-sonnet-5-5` (listado em `/v1/models`, que expõe 49 modelos); embedding: `azure/text-embedding-ada-002` (1536 dimensões), também listado. Os dados sintéticos podem ser enviados: `devs-ai.straker.ai` é ambiente de UAT.
 **Validação.** `make provision && make test-all && make test-llm`
 **Dependências.** 22 (writeback), 20 (busca revalidada). **Tamanho.** ~300 linhas.
 

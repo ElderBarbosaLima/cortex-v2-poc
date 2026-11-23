@@ -86,3 +86,19 @@ resource "aws_secretsmanager_secret_version" "consumer_api_keys" {
     for consumer, key in var.consumer_api_keys : consumer => { sha256 = sha256(key) }
   })
 }
+
+# ── LiteLLM API key (every model call goes through LiteLLM, issue 30) ───────
+# The secret always exists; it holds a value only when LITELLM_API_KEY is set
+# in the git-ignored .env. With no value, org-brain keeps every AI use off.
+
+resource "aws_secretsmanager_secret" "litellm_api_key" {
+  name                    = "${var.name_prefix}/litellm-api-key"
+  description             = "LiteLLM API key for org-brain (chat and embeddings)."
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "litellm_api_key" {
+  count         = var.litellm_api_key == "" ? 0 : 1
+  secret_id     = aws_secretsmanager_secret.litellm_api_key.id
+  secret_string = var.litellm_api_key
+}

@@ -18,9 +18,15 @@ from sqlalchemy.orm import Session
 
 from app.models import MemoryRecord
 from app.projections.base import Candidate, SearchQuery
+from app.projections.embeddings import embed as _embed
 from app.services import ledger
 from app.services.body_codec import BodyUnreadableError
 
+# A meaning-only match (no shared words) must be this close to be a candidate.
+# Measured on text-embedding-ada-002 through LiteLLM (make test-llm): related
+# Japanese sentences ~0.90, unrelated ones ~0.84. Candidates are still
+# revalidated against the ledger before any pack.
+MIN_CLOSENESS = 0.88
 _UPSERT = text(
     """
     INSERT INTO search_doc (tenant_id, record_id, version, kind, status, scope, entities,
@@ -45,7 +51,9 @@ _SEARCH = text(
                bigm_similarity(d.search_text, :q) AS sim,
                ts_rank(d.tsv, plainto_tsquery('simple', :q)) AS rank,
                d.tsv @@ plainto_tsquery('simple', :q) AS fts,
-               COALESCE(1 - (d.embedding <=> CAST(:vector AS vector)), 0) AS closeness
+               CASE WHEN d.embedding IS NOT NULL AND CAST(:vector AS vector) IS NOT NULL
+                         AND vector_dims(d.embedding) = vector_dims(CAST(:vector AS vector))
+                    THEN 1 - (d.embedding <=> CAST(:vector AS vector)) ELSE 0 END AS closeness
         FROM search_doc d
         WHERE d.status = ANY(CAST(:statuses AS text[]))
           AND (cardinality(CAST(:kinds AS text[])) = 0 OR d.kind = ANY(CAST(:kinds AS text[])))
@@ -55,7 +63,7 @@ _SEARCH = text(
                    AND (d.valid_to IS NULL OR CAST(:t AS timestamptz) < d.valid_to)))
     )
     SELECT record_id, version, hits + sim + rank + closeness AS score FROM parts
-    WHERE hits > 0 OR fts OR sim >= 0.3
+    WHERE hits > 0 OR fts OR sim >= 0.3 OR closeness >= :min_closeness
     ORDER BY score DESC, record_id
     LIMIT :limit
     """
@@ -104,8 +112,8 @@ class PostgresSearchProjection:
                 "entities": list(row.entities),
                 "valid_from": row.valid_from,
                 "valid_to": row.valid_to,
-                "search_text": _search_text(body, list(row.entities)),
-                "embedding": _vector_literal(body.get("test_vector")),
+                "search_text": (search_text := _search_text(body, list(row.entities))),
+                "embedding": _vector_literal(body.get("test_vector") or _embed(search_text)),
             },
         )
 
@@ -141,6 +149,7 @@ class PostgresSearchProjection:
                 "kinds": list(f.kinds),
                 "scopes": list(f.scopes),
                 "t": f.business_time,
+                "min_closeness": MIN_CLOSENESS,
                 "limit": query.limit,
             },
         ).all()

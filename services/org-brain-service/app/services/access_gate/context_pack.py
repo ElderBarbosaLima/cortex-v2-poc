@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 from app.domain_packs.base import DomainPack
 from app.models import MemoryRecord, ServedPack, ServedPackItem, Status
 from app.projections.base import SearchFilters, SearchProjection, SearchQuery
+from app.projections.embeddings import query_vector
 from app.schemas.cortex import ContextPack, PackRecord
 from app.services import ledger
 from app.services.access_gate.applicability import CaseFacts, applicable_rules
@@ -164,6 +165,7 @@ def _knowledge(
         session,
         SearchQuery(
             text=text,
+            vector=query_vector(text),
             limit=SEARCH_LIMIT,
             filters=SearchFilters(
                 kinds=KNOWLEDGE_KINDS, scopes=access.readable_scopes, business_time=at

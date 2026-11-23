@@ -143,6 +143,9 @@ services:
       <<: [*org-brain-db-env, *aws-client-env]
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
+      # Embeddings are computed when a record is projected (issue 30).
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-https://devs-ai.straker.ai}
+      LLM_EMBEDDINGS: ${LLM_EMBEDDINGS:-false}
     command: ["pipenv", "run", "python", "-m", "app.workers.projector"]
     # Opens sealed bodies (KMS data keys), so it is an AWS client too.
     network_mode: service:aws-emulator
@@ -173,6 +176,10 @@ services:
       SEED_DIR: /data/synthetic
       # D17 rule suggestion: min distinct cases / min distinct correctors / window days.
       RULE_SUGGESTION: ${RULE_SUGGESTION:-1/1/30}
+      # AI through LiteLLM (issue 30): off unless switched on AND a key is provisioned.
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-https://devs-ai.straker.ai}
+      LLM_RULE_SUGGESTION: ${LLM_RULE_SUGGESTION:-false}
+      LLM_EMBEDDINGS: ${LLM_EMBEDDINGS:-false}
     # An AWS client: it reaches the emulator on 127.0.0.1 (the certificate's
     # only names), reading the emulator's CA and rotating keys read-only.
     network_mode: service:aws-emulator
@@ -247,6 +254,20 @@ services:
       # Read-only: tests compare the committed synthetic data with a fresh run.
       - ./data:/data:ro
 
+  # `make test-llm`: the opt-in tests against the real LiteLLM (issue 30). The
+  # only test container with network access; synthetic data only (UAT).
+  org-brain-llm-check:
+    profiles: ["tools"]
+    image: cortex-poc/org-brain-service:dev-tools
+    environment:
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-https://devs-ai.straker.ai}
+      SEED_DIR: /data/synthetic
+    volumes:
+      - ./services/org-brain-service:/app
+      - ./libraries:/libraries
+      - ./data:/data:ro
+
   # `make gen-data`: writes data/synthetic/ (deterministic, no network).
   synthetic:
     profiles: ["tools"]
@@ -299,6 +320,8 @@ services:
       TF_DATA_DIR: /state/.terraform
       TF_PLUGIN_CACHE_DIR: /plugins
       TF_VAR_consumer_api_keys: ${CORTEX_DEV_API_KEYS:?set it in .env (make init-env)}
+      # Optional: with no key the secret stays empty and AI stays off.
+      TF_VAR_litellm_api_key: ${LITELLM_API_KEY:-}
     volumes:
       - aws-emulator-home:/home/emulator/.aws/emulator:ro
       - ./infra:/workspace/infra

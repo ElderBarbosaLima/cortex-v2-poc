@@ -35,7 +35,9 @@ class Candidate:
 @dataclass(frozen=True)
 class SearchQuery:
     text: str
-    vector: tuple[float, ...] | None = None  # fixed test vectors only (no embeddings in the PoC)
+    vector: tuple[float, ...] | None = (
+        None  # LiteLLM embedding of the query, or a fixed test vector
+    )
     limit: int = 20
     filters: SearchFilters = field(default_factory=SearchFilters)
 

@@ -10,7 +10,7 @@ invoices and cash application), with synthetic Japanese data only.
   Each issue's PR description, with its acceptance output: [`docs/prs/`](docs/prs/).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 0–29 of the plan are done. Issue 30 (LLM via LiteLLM) is planned, not built.
+> Status: issues 0–30 of the plan are done.
 
 ## Quick start
 
@@ -156,6 +156,25 @@ own key. The object key is deterministic, the retention is Object Lock per objec
 
 Each erasure is logged with a report of ids and counts, never text.
 
+**AI goes through LiteLLM, and only through it** (issue 30, `app/clients/llm.py`). Two uses, each
+with its own switch in `.env`, and both off when no key is provisioned:
+- **Rule suggestion** (`LLM_RULE_SUGGESTION=true`): once the D17 thresholds are met, the chat model
+  (`anthropic/claude-sonnet-5-5`) drafts the rule from the correction, the case, the pack's baseline
+  draft and the pack's vocabulary (CEL variables and fields, targets, entity fields). The draft goes
+  through the admission gate like any other, as `asserted_by: model`, with authority ≤ 10. A person
+  still approves it. A draft the gate refuses, or no answer, falls back to the pack's own draft, and
+  the reasons come back in `proposal_problems` (`llm_…`). `suggested_by` says which one was used.
+- **Embeddings** (`LLM_EMBEDDINGS=true`): the projector embeds each record
+  (`azure/text-embedding-ada-002`, 1536 dimensions) and the context pack embeds its query, so
+  knowledge that shares no word with the case can be a candidate. Every candidate is still revalidated
+  against the ledger, and rules never come from search. After switching embeddings on, run
+  `make reindex`.
+
+No model sits on the applicability, resolution or verify path. The key is `LITELLM_API_KEY` in your
+git-ignored `.env`. `make provision` stores it in Secrets Manager (`cortex-poc/litellm-api-key`), and
+the service and projector read it from there. `make test-llm` calls the real LiteLLM; `make test`
+never does.
+
 **Authorisation is OPA's** (`policies/`, D22), and every call fails closed: OPA down means
 `503 access_gate_unavailable`, never data.
 
@@ -237,6 +256,7 @@ agent needs are marked `x-mcp-tool`: `request_context_pack`, `verify_output` and
 | `make test-policies` | `opa test` on `policies/` |
 | `make test-all` | `test` + `test-integration` + `test-policies`: the definition of "tests pass" |
 | `make e2e` | the demo above, both workflows, public API, on a fresh running stack |
+| `make test-llm` | the real LiteLLM, opt-in (needs `LITELLM_API_KEY`): a Sonnet 5.5 rule draft the gate accepts, 1536-dimension embeddings with meaning |
 | `make test-e2e-ui` | Playwright (Decision Desk) in a container against the running stack (after `make seed`) |
 | `make lint` / `make format` | Ruff, migrate-check, `opa check --strict` + Regal, `terraform fmt -check`, ESLint + the v2 style guard / Ruff and Terraform format |
 | `make typecheck` | Pyright (strict on `app/`) and vue-tsc |
@@ -282,7 +302,7 @@ only in `infra/terraform/` and behind the AWS SDK (configured by environment var
 | Provisioning | Terraform IBM Cloud module | Terraform AWS provider in a container |
 | Authorisation | OPA (same) | OPA 1.22.4 container |
 | Identity | OIDC (D1) | a static API key per consumer, plus `X-End-User-Id` |
-| Models / embeddings | watsonx.ai via a gateway | none: deterministic (issue 30 plans LiteLLM) |
+| Models / embeddings | watsonx.ai via a gateway | LiteLLM (`devs-ai.straker.ai`, UAT): Sonnet 5.5 for rule drafts, ada-002 for embeddings, both opt-in |
 
 ## Emulator limits
 
@@ -312,6 +332,8 @@ only in `infra/terraform/` and behind the AWS SDK (configured by environment var
 | Learned rules have no lower validity bound | a correction teaches a requirement that already existed | your decision, issue 25 |
 | A reissue is judged as of its reissue date | rules in force when it is issued, CEL on the old invoice date | your decision, issue 25 |
 | `check_output` receives the case | verify let an auto-match of an ambiguous payer pass | your decision, issue 26 |
+| A model's rule draft is proposed as `model`, never approved, with a fallback to the pack's draft | rule 4: machines propose, people approve; the golden path stays deterministic | issue 30 |
+| `search_doc.embedding` is a plain `vector` (no fixed dimension) | real embeddings (1536) and the fixed test vectors (8) coexist; search compares the same dimension only | issue 30 |
 | Owners retire through `POST /records/{id}/retire` | scenario 4 through the public API | issue 29 |
 | Erasure is an admin CLI, not a route | no admin identity model in the PoC | issue 24 |
 | The Decision Desk is English only; Japanese data is shown as it came | UI in Japanese is out of scope | P7 |
@@ -353,5 +375,6 @@ docs/                         architecture, discovery, tasks, ADRs, PR descripti
 
 Nothing secret is committed. `.env` is git-ignored, and only `.env.example` is versioned.
 `make init-env` adds keys that a new issue introduces, without touching yours. Keys never reach the
-browser bundle, images or logs. A future `LITELLM_API_KEY` (issue 30) belongs in `.env` too, and the
-service will read it from Secrets Manager, never from code.
+browser bundle, images or logs. `LITELLM_API_KEY` belongs in `.env` too. `make provision` stores it in
+Secrets Manager, and the service reads it from there, never from code or the environment. The Terraform
+state that carries it lives on a volume that `make stop` deletes.

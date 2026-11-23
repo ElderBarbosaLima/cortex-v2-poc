@@ -14,9 +14,10 @@ filterwarnings = [
     "ignore:Using `httpx` with `starlette.testclient` is deprecated",
 ]
 pythonpath = ["."]
-addopts = "--durations=10 -m 'not integration'"
+addopts = "--durations=10 -m 'not integration and not llm'"
 markers = [
     "integration: needs the ephemeral test stack (make test-integration); deselected by default",
+    "llm: calls the real LiteLLM (make test-llm, needs LITELLM_API_KEY); deselected by default",
 ]
 
 [tool.ruff]

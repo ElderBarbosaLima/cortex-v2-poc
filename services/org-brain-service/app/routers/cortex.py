@@ -637,6 +637,7 @@ def _accepted(
         proposed_record_id=uuid.UUID(row.proposed_record_id) if row.proposed_record_id else None,
         review_case_id=uuid.UUID(row.review_case_id) if row.review_case_id else None,
         replayed=outcome.replayed,
+        suggested_by=outcome.suggested_by,  # type: ignore[arg-type]
         rule_suggestion=suggestion,
         proposal_problems=admission.problems_payload(outcome.problems),
     )

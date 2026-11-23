@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from sqlalchemy.dialects.postgresql import insert
 
 from app.api.errors import install_error_handlers
+from app.clients.llm import configure as configure_llm
 from app.clients.opa import AccessGateUnavailable, OpaClient
 from app.config import OrgBrainConfig
 from app.db import app_engine
@@ -50,6 +51,7 @@ def register_tenants(seed: Seed) -> None:
 
 def build_services(cfg: OrgBrainConfig) -> AppServices:
     discover_packs()  # every domain pack under app/domain_packs, found, never named (D18)
+    configure_llm(cfg)  # AI through LiteLLM, only the uses switched on (issue 30)
     seed = load_seed(Path(cfg.seed_dir))
     gate = PolicyGate(OpaClient(cfg.opa_url, timeout_s=cfg.opa_timeout_s), seed)
     keys = ConsumerKeyStore.from_secrets_manager(cfg.consumer_keys_secret)
