@@ -94,6 +94,12 @@ seed: ## Register the seed's tenants and (re)load their scope tree and grants in
 reindex: ## Delete and rebuild every tenant's search projection from the ledger (stack must be up)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.reindex
 
+migrate-hq: ## The regions prototype (ADR 0002): migrate the HQ region's ledger (database org_brain_hq)
+	$(COMPOSE) run --rm -e POSTGRES_DB=org_brain_hq org-brain-migrate
+
+replicate: migrate-hq ## Copy HQ's published Global records into this region's ledger (idempotent; ADR 0002, issue 32)
+	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.replicate --from-db org_brain_hq --region hq
+
 erase-record: ## Crypto-shred a record and its descendants: TENANT= RECORD= BY= REASON=
 	$(COMPOSE) exec org-brain-service pipenv run python -m app.cli.erase record \
 		--tenant "$(TENANT)" --record "$(RECORD)" --by "$(BY)" --reason "$(REASON)"

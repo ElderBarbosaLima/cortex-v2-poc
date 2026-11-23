@@ -120,6 +120,7 @@ def append_new(
     supersedes: str | None = None,
     codec: BodyCodec | None = None,
     record_id: str | None = None,
+    key_ref: str | None = None,
 ) -> MemoryRecord:
     """Version 1 of a new record. `record_id` is minted here unless the caller
     needs to know it first (a decision record is named by its own decision id)."""
@@ -130,7 +131,7 @@ def append_new(
     _check_ceiling(draft.asserted_by, draft.authority, approved_by)
     codec = codec or default_codec()
     record_id = record_id or new_record_id()
-    key_ref = _record_key_ref(record_id)
+    key_ref = key_ref or _record_key_ref(record_id)  # a replica brings its own (issue 32)
     row = MemoryRecord(
         record_id=record_id,
         version=1,

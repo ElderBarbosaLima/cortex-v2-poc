@@ -338,6 +338,7 @@ only in `infra/terraform/` and behind the AWS SDK (configured by environment var
 | A model's rule draft is proposed as `model`, never approved, with a fallback to the pack's draft | rule 4: machines propose, people approve; the golden path stays deterministic | issue 30 |
 | `search_doc.embedding` is a plain `vector` (no fixed dimension) | real embeddings (1536) and the fixed test vectors (8) coexist; search compares the same dimension only | issue 30 |
 | Phase 1 = the `cash_application` pack, IBM calls as `ibm-pr-agent` (pack-only, purpose `payment_reconciliation`); reviewers stay OWN-001/OWN-002 | the subset, the real consumer and the reviewers come from the December workshop (Lee, Erika). `askq2c-agent` remains the PoC's full-loop agent; the architecture docs keep IBM's original naming | issue 35 |
+| Regions: a deployment per region; approved, non-personal records in the published Global scope (the tenant root) are replicated, read-only, with a stable `record_id` (`make replicate`) | Nake's question; APPI. A proposal until WS6, Legal and IBM decide. The prototype uses two databases in one Postgres | [ADR 0002](docs/adr/0002-regions.md), issue 32 |
 | Owners retire through `POST /records/{id}/retire` | scenario 4 through the public API | issue 29 |
 | Erasure is an admin CLI, not a route | no admin identity model in the PoC | issue 24 |
 | The Decision Desk is English only; Japanese data is shown as it came | UI in Japanese is out of scope | P7 |

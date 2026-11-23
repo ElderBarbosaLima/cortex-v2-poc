@@ -3325,7 +3325,7 @@
                 }
               }
             },
-            "description": "Not approved: nothing to retire"
+            "description": "Not approved: nothing to retire; or a replica (`replica_read_only`)"
           },
           "422": {
             "content": {

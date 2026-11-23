@@ -24,6 +24,13 @@ def app_engine() -> Engine:
     return create_engine(OrgBrainConfig().app_database_url, pool_pre_ping=True)
 
 
+@functools.cache
+def region_engine(database: str) -> Engine:
+    """The app role on another region's ledger (the regions prototype, issue 32:
+    one Postgres, one database per region)."""
+    return create_engine(OrgBrainConfig(postgres_db=database).app_database_url, pool_pre_ping=True)
+
+
 @contextmanager
 def tenant_session(tenant_id: str, engine: Engine | None = None) -> Generator[Session]:
     """One transaction bound to one tenant. Commits on success, rolls back on error.
