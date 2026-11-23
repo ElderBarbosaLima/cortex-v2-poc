@@ -807,6 +807,13 @@ export interface components {
             status: "proposed";
             /** Version */
             version: number;
+            /**
+             * Warnings
+             * @description Admitted, but the owner is told: e.g. loosens_inherited_constraint
+             */
+            warnings?: {
+                [key: string]: string;
+            }[];
         };
         /** ProposeRecordRequest */
         ProposeRecordRequest: {

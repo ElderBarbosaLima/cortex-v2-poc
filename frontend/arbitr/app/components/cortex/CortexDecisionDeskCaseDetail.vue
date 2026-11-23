@@ -73,6 +73,14 @@ const owners = computed(() => props.detail.named_owners)
           {{ t(`cortex.desk.outcome.${proposal.outcome}`) }}
         </UBadge>
       </div>
+      <p
+        v-for="warning in list(proposal.source.inherited_conflicts).length ? (proposal.source.inherited_conflicts as Array<Record<string, string>>) : []"
+        :key="warning.detail"
+        class="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-body text-warning"
+        data-test-id="cortex-decision-desk-loosens-text"
+      >
+        {{ t('cortex.desk.detail.loosens', { detail: warning.detail }) }}
+      </p>
       <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-body">
         <dt class="text-muted">
           {{ t('cortex.desk.detail.condition') }}

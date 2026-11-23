@@ -43,7 +43,8 @@
         "sourceText": "{asserted} suggestion from cases {cases}, corrected by {correctors}",
         "affected": "Affected cases",
         "decisions": "Decisions",
-        "erased": "This proposal was erased: its text can no longer be read."
+        "erased": "This proposal was erased: its text can no longer be read.",
+        "loosens": "This rule would loosen an inherited constraint, which keeps winning when packs are built: {detail}"
       },
       "outcome": {
         "pending": "Pending",

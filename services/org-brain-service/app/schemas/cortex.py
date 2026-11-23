@@ -196,6 +196,10 @@ class ProposalAccepted(BaseModel):
     grouped: bool = Field(
         description="True when the proposal joined an open case for the same conflict"
     )
+    warnings: list[dict[str, str]] = Field(
+        default_factory=list[dict[str, str]],
+        description="Admitted, but the owner is told: e.g. loosens_inherited_constraint",
+    )
 
 
 # ── Review queue (issue 18) ─────────────────────────────────────────────────

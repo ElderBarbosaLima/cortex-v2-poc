@@ -7,6 +7,7 @@ operations an agent needs are marked `x-mcp-tool`.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import uuid
 from typing import Any
@@ -234,6 +235,16 @@ def propose_record(
         if caller.end_user_id
         else {"type": "model", "id": caller.consumer_id}
     )
+    # Scopes only tighten (issue 31): a machine may not loosen an inherited
+    # constraint; a person may propose it, and the owner sees the warning.
+    loosens = admission.inherited_conflicts(session, proposal, read.readable_scopes[1:])
+    if loosens and asserted_by["type"] != "user":
+        raise CortexApiError(422, "invalid_proposal", admission.problems_payload(loosens))
+    if loosens:
+        proposal = dataclasses.replace(
+            proposal,
+            source={**proposal.source, "inherited_conflicts": admission.problems_payload(loosens)},
+        )
     try:
         admitted = admission.admit(
             session, tenant_id=caller.tenant_id, proposal=proposal, asserted_by=asserted_by
@@ -248,6 +259,7 @@ def propose_record(
         status="proposed",
         review_case_id=uuid.UUID(admitted.review_case_id) if admitted.review_case_id else None,
         grouped=admitted.grouped,
+        warnings=admission.problems_payload(loosens),
     )
 
 
@@ -579,7 +591,7 @@ def submit_correction(
         raise CortexApiError(422, "domain_mismatch", f"the pack is {stored.pack.domain!r}")
     if writeback.request_hash(body.case) != stored.pack.case_hash:
         raise CortexApiError(422, "case_mismatch", "this is not the case the pack was served for")
-    authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
+    read = authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
     gate: PolicyGate = request.app.state.policy_gate
     permit = gate.approval(
         {
@@ -609,6 +621,7 @@ def submit_correction(
             idempotency_key=body.idempotency_key,
             payload_hash=payload_hash,
             policy=request.app.state.rule_suggestion,
+            ancestors=read.readable_scopes[1:],
         )
     except writeback.InvalidCorrectionError as exc:
         raise CortexApiError(422, "invalid_correction", str(exc)) from None
