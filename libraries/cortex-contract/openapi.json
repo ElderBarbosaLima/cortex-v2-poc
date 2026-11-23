@@ -120,9 +120,22 @@
             "type": "integer"
           },
           "body": {
-            "additionalProperties": true,
-            "title": "Body",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null once the record was erased",
+            "title": "Body"
+          },
+          "body_erased": {
+            "default": false,
+            "title": "Body Erased",
+            "type": "boolean"
           },
           "body_hash": {
             "title": "Body Hash",
@@ -1440,6 +1453,71 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "RetireRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RetireRequest",
+        "type": "object"
+      },
+      "RetireResult": {
+        "properties": {
+          "decision_id": {
+            "description": "The kind=decision record of the retirement",
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "outcome": {
+            "const": "retired",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "deprecated",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "decision_id",
+          "record_id",
+          "version",
+          "status",
+          "outcome",
+          "policy_revision"
+        ],
+        "title": "RetireResult",
+        "type": "object"
+      },
       "ReviewCaseDetail": {
         "properties": {
           "affected_cases": {
@@ -2616,6 +2694,110 @@
           }
         },
         "summary": "Get Record",
+        "tags": [
+          "cortex"
+        ]
+      }
+    },
+    "/v1/cortex/records/{record_id}/retire": {
+      "post": {
+        "description": "The named owner (or backup) withdraws an approved record, with a reason.\nPacks that relied on it are held by verify from then on.",
+        "operationId": "retire_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetireResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such record (or another tenant's)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not approved: nothing to retire"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Retire Record",
         "tags": [
           "cortex"
         ]

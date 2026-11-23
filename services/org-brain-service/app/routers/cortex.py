@@ -32,12 +32,14 @@ from app.schemas.cortex import (
     RecordPage,
     RecordRead,
     RecordSummary,
+    RetireRequest,
+    RetireResult,
     RuleSuggestion,
     VerifyRequest,
     VerifyResult,
     WhoAmI,
 )
-from app.services import admission, evidence, ledger, writeback
+from app.services import admission, evidence, ledger, review, writeback
 from app.services.access_gate import context_pack, verify
 from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
@@ -246,6 +248,67 @@ def propose_record(
         status="proposed",
         review_case_id=uuid.UUID(admitted.review_case_id) if admitted.review_case_id else None,
         grouped=admitted.grouped,
+    )
+
+
+@router.post(
+    "/records/{record_id}/retire",
+    response_model=RetireResult,
+    operation_id="retire_record",
+    responses={
+        404: {"model": ApiError, "description": "No such record (or another tenant's)"},
+        409: {"model": ApiError, "description": "Not approved: nothing to retire"},
+    },
+)
+def retire_record(
+    record_id: uuid.UUID,
+    body: RetireRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
+) -> RetireResult:
+    """The named owner (or backup) withdraws an approved record, with a reason.
+    Packs that relied on it are held by verify from then on."""
+    try:
+        current = ledger.latest(session, str(record_id))
+    except ledger.RecordNotFoundError:
+        raise CortexApiError(404, "not_found", "no such record") from None
+    gate: PolicyGate = request.app.state.policy_gate
+    permit = gate.approval(
+        {
+            "tenant_id": caller.tenant_id,
+            "action": "retire",
+            "actor": (
+                {"type": "user", "id": caller.end_user_id}
+                if caller.end_user_id
+                else {"type": "consumer", "id": caller.consumer_id}
+            ),
+            "record": {"scope": current.scope, "contributors": []},
+            "now": now_rfc3339(),
+        }
+    )
+    if not permit.allow:
+        raise CortexApiError(
+            403, "access_denied", permit.reason, policy_revision=permit.policy_revision
+        )
+    try:
+        retired = review.retire(
+            session,
+            tenant_id=caller.tenant_id,
+            record_id=str(record_id),
+            user_id=str(caller.end_user_id),
+            reason=body.reason,
+            policy_revision=permit.policy_revision,
+        )
+    except review.NotRetirableError as exc:
+        raise CortexApiError(409, "not_retirable", str(exc)) from None
+    return RetireResult(
+        decision_id=uuid.UUID(retired.decision_id),
+        record_id=record_id,
+        version=retired.version.version,
+        status="deprecated",
+        outcome="retired",
+        policy_revision=permit.policy_revision,
     )
 
 

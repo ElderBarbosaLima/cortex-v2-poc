@@ -158,6 +158,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/records/{record_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire Record
+         * @description The named owner (or backup) withdraws an approved record, with a reason.
+         *     Packs that relied on it are held by verify from then on.
+         */
+        post: operations["retire_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/review-cases": {
         parameters: {
             query?: never;
@@ -339,10 +360,18 @@ export interface components {
              * @description Authority ladder rung (0–40), not a key
              */
             authority: number;
-            /** Body */
+            /**
+             * Body
+             * @description Null once the record was erased
+             */
             body: {
                 [key: string]: unknown;
-            };
+            } | null;
+            /**
+             * Body Erased
+             * @default false
+             */
+            body_erased: boolean;
             /** Body Hash */
             body_hash: string;
             /** Derived From */
@@ -931,6 +960,39 @@ export interface components {
         RejectRequest: {
             /** Reason */
             reason: string;
+        };
+        /** RetireRequest */
+        RetireRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** RetireResult */
+        RetireResult: {
+            /**
+             * Decision Id
+             * Format: uuid
+             * @description The kind=decision record of the retirement
+             */
+            decision_id: string;
+            /**
+             * Outcome
+             * @constant
+             */
+            outcome: "retired";
+            /** Policy Revision */
+            policy_revision: string | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "deprecated";
+            /** Version */
+            version: number;
         };
         /** ReviewCaseDetail */
         ReviewCaseDetail: {
@@ -1664,6 +1726,86 @@ export interface operations {
             };
             /** @description Insufficient scope, or denied by policy */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    retire_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetireRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetireResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such record (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not approved: nothing to retire */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

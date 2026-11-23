@@ -53,7 +53,16 @@ const owners = computed(() => props.detail.named_owners)
       :aria-label="t('cortex.desk.detail.proposal')"
     >
       <div class="flex items-center justify-between gap-2">
-        <p class="text-body text-highlighted">
+        <p
+          v-if="proposal.body_erased"
+          class="text-body text-muted"
+        >
+          {{ t('cortex.desk.detail.erased') }}
+        </p>
+        <p
+          v-else
+          class="text-body text-highlighted"
+        >
           {{ text(proposal.body, 'text_ja') }}
         </p>
         <UBadge

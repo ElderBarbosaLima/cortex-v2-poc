@@ -42,7 +42,8 @@
         "source": "Came from",
         "sourceText": "{asserted} suggestion from cases {cases}, corrected by {correctors}",
         "affected": "Affected cases",
-        "decisions": "Decisions"
+        "decisions": "Decisions",
+        "erased": "This proposal was erased: its text can no longer be read."
       },
       "outcome": {
         "pending": "Pending",

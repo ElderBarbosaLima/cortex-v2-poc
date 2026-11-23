@@ -2,12 +2,13 @@
 # title: Propose, approve and reject decisions
 # description: |
 #   Who may write into the review queue and who may decide on it.
-#   Input: {tenant_id, action: propose | approve | reject,
+#   Input: {tenant_id, action: propose | approve | reject | retire,
 #   actor: {type: user | consumer, id}, record: {scope, contributors: [id]},
 #   now (RFC 3339)}. `contributors` are the people whose corrections or
 #   assertions produced the record.
 #   - propose needs memory.write at the record's scope;
-#   - approve and reject need memory.approve there, by a person (machines
+#   - approve, reject and retire (withdraw an approved record) need
+#     memory.approve there, by a person (machines
 #     propose, people approve: Rev. B rule 6), and the person may not be a
 #     contributor (separation of duties, D17: "the corrector can't approve"),
 #     and must be the named owner or backup of the nearest owned node at or
@@ -18,13 +19,18 @@ import data.cortex.policy.rbac
 
 _tenant := data.cortex.tenants[input.tenant_id]
 
-_permission := {"propose": "memory.write", "approve": "memory.approve", "reject": "memory.approve"}[input.action]
+_permission := {
+	"propose": "memory.write",
+	"approve": "memory.approve",
+	"reject": "memory.approve",
+	"retire": "memory.approve",
+}[input.action]
 
 default _rbac := null
 
 _rbac := rbac.decide(_tenant, input.actor, _permission, input.record.scope, input.now)
 
-_deciding if input.action in {"approve", "reject"}
+_deciding if input.action in {"approve", "reject", "retire"}
 
 # Owned nodes from the record's scope up to the root, nearest first.
 _owned := [n |
