@@ -477,3 +477,45 @@ class RuleSyncPage(BaseModel):
     )
     has_more: bool
     policy_revision: str | None
+
+
+# ── Owner alerts and renewal (issue 48) ──────────────────────────────────────
+
+
+class RuleAlertItem(BaseModel):
+    kind: Literal["review_due", "expiring", "often_overridden", "keeps_losing"]
+    detail: str
+    count: int | None = None
+
+
+class RuleAlert(BaseModel):
+    record_id: uuid.UUID
+    version: int
+    title: str | None = Field(description="The rule text, read from the sealed body")
+    scope: uuid.UUID
+    entities: list[str]
+    valid_to: dt.datetime | None
+    alerts: list[RuleAlertItem]
+
+
+class RuleAlertPage(BaseModel):
+    items: list[RuleAlert]
+    policy_revision: str | None
+
+
+class RenewRequest(BaseModel):
+    record_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    valid_to: dt.date = Field(description="The new end date (business date, JST)")
+    purpose: str = Field(min_length=1)
+
+
+class RenewItemResult(BaseModel):
+    record_id: uuid.UUID
+    status: Literal["proposed", "pending", "rejected"]
+    proposed_record_id: uuid.UUID | None = None
+    review_case_id: uuid.UUID | None = None
+    problems: list[dict[str, str]] = Field(default_factory=list[dict[str, str]])
+
+
+class RenewResult(BaseModel):
+    items: list[RenewItemResult]

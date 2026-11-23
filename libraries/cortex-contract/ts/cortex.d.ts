@@ -332,6 +332,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/rules/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rule Alerts
+         * @description For owners (issue 48, slide 18): approved rules that need a look. review_due: not reviewed for a year; expiring: valid_to within `within_days`; often_overridden: specialists corrected cases where it applied, 3+ times in 90 days; keeps_losing: served but overridden by another rule, 3+ times in 90 days.
+         */
+        get: operations["list_rule_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/rules/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew Rules
+         * @description April (issue 48): propose a new version of each rule with a new end date. Each goes through the review queue as a supersede; nothing changes until its owner approves.
+         */
+        post: operations["renew_rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/rules/sync": {
         parameters: {
             query?: never;
@@ -1241,6 +1281,45 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** RenewItemResult */
+        RenewItemResult: {
+            /** Problems */
+            problems?: {
+                [key: string]: string;
+            }[];
+            /** Proposed Record Id */
+            proposed_record_id?: string | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Review Case Id */
+            review_case_id?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "pending" | "rejected";
+        };
+        /** RenewRequest */
+        RenewRequest: {
+            /** Purpose */
+            purpose: string;
+            /** Record Ids */
+            record_ids: string[];
+            /**
+             * Valid To
+             * Format: date
+             * @description The new end date (business date, JST)
+             */
+            valid_to: string;
+        };
+        /** RenewResult */
+        RenewResult: {
+            /** Items */
+            items: components["schemas"]["RenewItemResult"][];
+        };
         /** RetireRequest */
         RetireRequest: {
             /** Reason */
@@ -1373,6 +1452,51 @@ export interface components {
              * @description From the first proposal's sealed body; never stored in clear
              */
             title: string;
+        };
+        /** RuleAlert */
+        RuleAlert: {
+            /** Alerts */
+            alerts: components["schemas"]["RuleAlertItem"][];
+            /** Entities */
+            entities: string[];
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Title
+             * @description The rule text, read from the sealed body
+             */
+            title: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /** Version */
+            version: number;
+        };
+        /** RuleAlertItem */
+        RuleAlertItem: {
+            /** Count */
+            count?: number | null;
+            /** Detail */
+            detail: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "review_due" | "expiring" | "often_overridden" | "keeps_losing";
+        };
+        /** RuleAlertPage */
+        RuleAlertPage: {
+            /** Items */
+            items: components["schemas"]["RuleAlert"][];
+            /** Policy Revision */
+            policy_revision: string | null;
         };
         /**
          * RuleSuggestion
@@ -2635,6 +2759,126 @@ export interface operations {
             };
             /** @description The case is already decided */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list_rule_alerts: {
+        parameters: {
+            query: {
+                scope: string;
+                purpose: string;
+                within_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleAlertPage"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    renew_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenewResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

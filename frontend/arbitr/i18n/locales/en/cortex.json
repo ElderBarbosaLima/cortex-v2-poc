@@ -113,6 +113,20 @@
         "pick": "Select {title}",
         "done": "Approved {count} case(s).",
         "refused": "Not approved: {title} — {reason}"
+      },
+      "alerts": {
+        "title": "Needs your attention",
+        "intro": "Approved rules in this scope to look at: ending within {days} days, due a review, often overridden, or losing to other rules.",
+        "empty": "Nothing needs your attention.",
+        "pick": "Select {title} to renew",
+        "renewTo": "New end date (JST)",
+        "renew": "Renew selected ({count})",
+        "renewed": "{proposed} renewal(s) sent to the review queue; {refused} refused.",
+        "kind": {
+          "review_due": "Due a review",
+          "often_overridden": "Specialists corrected {count} cases where it applied (90 days)",
+          "keeps_losing": "Lost to another rule in {count} packs (90 days)"
+        }
       }
     }
   }

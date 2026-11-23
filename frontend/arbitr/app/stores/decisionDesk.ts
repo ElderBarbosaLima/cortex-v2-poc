@@ -3,11 +3,12 @@ import { CortexApiError, errorMessage, setExamplesSet } from '~/utils/api/client
 import {
   approveReviewCase,
   getReviewCase,
-  listExpiringRecords,
+  listRuleAlerts,
+  renewRules,
   listReviewCases,
   rejectReviewCase,
   type CortexApproveRequest,
-  type CortexExpiringPage,
+  type CortexRuleAlertPage,
   type CortexReviewCaseDetail,
   type CortexReviewCaseSummary
 } from '~/utils/api/cortex'
@@ -58,7 +59,9 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
     deciding: false,
     problem: null as DeskProblem | null,
     notice: null as string | null,
-    expiring: [] as CortexExpiringPage['items'],
+    alerts: [] as CortexRuleAlertPage['items'],
+    renewing: false,
+    renewResult: null as { proposed: number, refused: number } | null,
     examples: 'ja' as ExampleKey,
     exampleSets: [] as ExampleSetInfo[],
     loadingExamples: false,
@@ -131,7 +134,8 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
       this.resetView()
       this.exampleReport = null
       this.cases = []
-      this.expiring = []
+      this.alerts = []
+      this.renewResult = null
       this.pickDefaults()
       await this.loadCases()
     },
@@ -177,10 +181,28 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
     },
     async loadExpiring() {
       try {
-        const page = await listExpiringRecords({ scope: this.scopeId, within_days: EXPIRING_DAYS }, this.personId || undefined)
-        this.expiring = page.items
+        const page = await listRuleAlerts({ scope: this.scopeId, within_days: EXPIRING_DAYS }, this.personId || undefined)
+        this.alerts = page.items
       } catch {
-        this.expiring = [] // the case list shows the problem; this panel stays quiet
+        this.alerts = [] // the case list shows the problem; this panel stays quiet
+      }
+    },
+    /** April (issue 48): propose new end dates through the queue; owners approve as usual. */
+    async renew(recordIds: string[], validTo: string) {
+      if (!recordIds.length || !validTo) return
+      this.renewing = true
+      this.problem = null
+      try {
+        const result = await renewRules({ record_ids: recordIds, valid_to: validTo, purpose: 'rule_review' }, this.personId)
+        this.renewResult = {
+          proposed: result.items.filter(i => i.status !== 'rejected').length,
+          refused: result.items.filter(i => i.status === 'rejected').length
+        }
+        await this.loadCases()
+      } catch (error) {
+        this.problem = problem(error)
+      } finally {
+        this.renewing = false
       }
     },
     /** A new person, scope or status: what was said about the last one no longer applies. */
