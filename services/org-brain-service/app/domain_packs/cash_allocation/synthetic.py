@@ -34,7 +34,15 @@ CUSTOMERS: tuple[JsonObj, ...] = (
     {"customer_id": "CUST-0103", "name": "テスト工業株式会社（架空）"},
     {"customer_id": "CUST-0104", "name": "架空物産株式会社"},
     {"customer_id": "CUST-0105", "name": "サンプル建設株式会社（架空）"},
+    # A subsidiary whose parent pays and owns the rules (issue 45, slide 18).
+    {"customer_id": "CUST-0106", "name": "架空物産ロジスティクス株式会社", "parent": "CUST-0104"},
 )
+PARENT = {str(c["customer_id"]): str(c["parent"]) for c in CUSTOMERS if c.get("parent")}
+
+
+def group_of(customer: str) -> str:
+    """The customer group a customer belongs to: its parent, or itself."""
+    return PARENT.get(customer, customer)
 
 
 def _gap(ctx: Context) -> int:
@@ -124,10 +132,11 @@ RULES: tuple[RuleSpec, ...] = (
         "jp/finance/q2c-cash-application",
         "default",
         20,
-        "架空物産の不足額は手数料として処理せず、担当者が確認する（過去に手数料と誤認した例がある）。",
+        "架空物産グループ（子会社を含む）の不足額は手数料として処理せず、担当者が確認する"
+        "（過去に手数料と誤認した例がある）。",
         ("allocation.bank_fee",),
-        f'payment.customer_id == "CUST-0104" && payment.gap > 0 && payment.gap <= {FEE_LIMIT}',
-        lambda ctx: _is(ctx, "CUST-0104") and 0 < _gap(ctx) <= FEE_LIMIT,
+        f'payment.group_id == "CUST-0104" && payment.gap > 0 && payment.gap <= {FEE_LIMIT}',
+        lambda ctx: ctx["payment"]["group_id"] == "CUST-0104" and 0 < _gap(ctx) <= FEE_LIMIT,
         entities=("customer:CUST-0104",),
         body_extra={
             "exception": "bank_fee",
@@ -148,6 +157,7 @@ _SHAPES: tuple[tuple[str, str, int, tuple[int, ...], int], ...] = (
     ("PAY-A008", "CUST-0105", 1, (88000,), 176000),  # paid twice
     ("PAY-A009", "CUST-0105", 1, (77000,), 76999),  # ¥1 short: tax rounding
     ("PAY-A010", "CUST-0103", 1, (66000,), 66000),  # exact
+    ("PAY-A011", "CUST-0106", 1, (330000,), 329560),  # the subsidiary: its group's rule
 )
 
 
@@ -189,6 +199,7 @@ def generate(out_dir: Path) -> dict[str, int]:
         ctx: Context = {
             "payment": {
                 "customer_id": case["customer_id"],
+                "group_id": group_of(case["customer_id"]),
                 "gap": case["gap"],
                 "candidate_count": len(case["candidate_invoices"]),
                 "candidates_total": sum(i["total"] for i in case["candidate_invoices"]),
@@ -196,7 +207,13 @@ def generate(out_dir: Path) -> dict[str, int]:
             }
         }
         rules, overridden = expected_rules(
-            RULES, ctx, request_scope=REQUEST_SCOPE, entities={f"customer:{case['customer_id']}"}
+            RULES,
+            ctx,
+            request_scope=REQUEST_SCOPE,
+            entities={
+                f"customer:{case['customer_id']}",
+                f"customer:{group_of(case['customer_id'])}",
+            },
         )
         expected.append(
             {

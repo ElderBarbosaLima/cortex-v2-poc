@@ -104,6 +104,9 @@ PEOPLE: tuple[JsonObj, ...] = (
         "node": "jp/finance",
     },
     {"key": "X-001", "label": "別テナント担当", "role": "final_validator", "node": "other"},
+    # Cash specialists: each owns some customers' rules (issue 45, slide 18).
+    {"key": "CS-101", "label": "入金消込担当 A", "role": "final_validator", "node": "jp/finance"},
+    {"key": "CS-102", "label": "入金消込担当 B", "role": "final_validator", "node": "jp/finance"},
     # English example set: at the tenant root, so its group-wide rules can be proposed and decided.
     {"key": "EN-R-001", "label": "Invoice reviewer 1", "role": "reviewer", "node": "en"},
     {"key": "EN-R-002", "label": "Invoice reviewer 2", "role": "reviewer", "node": "en"},
@@ -171,6 +174,15 @@ OWNERS: tuple[JsonObj, ...] = (
     {"node": "en", "owner": "EN-OWN-001", "backup": "EN-OWN-002"},
 )
 
+# A customer's own owner and backup: its cash specialist (issue 45). Rules that
+# name the customer are decided by them, not by the scope's owner.
+CUSTOMER_OWNERS: tuple[JsonObj, ...] = (
+    {"entity": "customer:CUST-0101", "owner": "CS-101", "backup": "CS-102", "tenant": "jp"},
+    {"entity": "customer:CUST-0102", "owner": "CS-101", "backup": "CS-102", "tenant": "jp"},
+    {"entity": "customer:CUST-0103", "owner": "CS-102", "backup": "CS-101", "tenant": "jp"},
+    {"entity": "customer:CUST-0104", "owner": "CS-102", "backup": "CS-101", "tenant": "jp"},
+)
+
 
 def path_up(node_key: str) -> list[str]:
     by_key = {n.key: n for n in NODES}
@@ -199,6 +211,7 @@ def tenant_document() -> JsonObj:
         "people": [{**p, "obj_id": stable_uuid("person", str(p["key"]))} for p in PEOPLE],
         "consumers": list(CONSUMERS),
         "owners": list(OWNERS),
+        "customer_owners": list(CUSTOMER_OWNERS),
     }
 
 

@@ -522,7 +522,11 @@ def retire_record(
                 if caller.end_user_id
                 else {"type": "consumer", "id": caller.consumer_id}
             ),
-            "record": {"scope": current.scope, "contributors": []},
+            "record": {
+                "scope": current.scope,
+                "contributors": [],
+                "entities": list(current.entities or []),
+            },
             "now": now_rfc3339(),
         }
     )

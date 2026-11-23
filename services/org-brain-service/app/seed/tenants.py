@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -109,6 +110,14 @@ def build_seed(doc: dict[str, Any]) -> Seed:
             for o in doc.get("owners", [])
             if _tenant_key(o["node"]) == tkey
         }
+        entity_owners = {
+            str(o["entity"]): {
+                "owner": people_ids[o["owner"]],
+                "backup": people_ids[o["backup"]] if o.get("backup") else None,
+            }
+            for o in doc.get("customer_owners", [])
+            if o["tenant"] == tkey
+        }
         tenant_id = node_ids[tkey]
         for c in tenant_consumers:
             consumers[c["key"]] = ConsumerInfo(
@@ -124,6 +133,7 @@ def build_seed(doc: dict[str, Any]) -> Seed:
                     "grants": sorted(grants, key=lambda g: g["id"]),
                     "consumers": {c["key"]: {"purposes": c["purposes"]} for c in tenant_consumers},
                     "owners": owners,
+                    "entity_owners": entity_owners,
                 },
             )
         )
@@ -131,9 +141,16 @@ def build_seed(doc: dict[str, Any]) -> Seed:
     return Seed(tuple(tenants), consumers, node_ids, people)
 
 
-def named_owners(tenant: TenantSeed, scope: str) -> dict[str, str | None] | None:
-    """The owner and backup of the nearest owned node at or above `scope`, the
-    same lookup the approval policy makes."""
+def named_owners(
+    tenant: TenantSeed, scope: str, entities: Sequence[str] = ()
+) -> dict[str, str | None] | None:
+    """The owner and backup who decide, the same lookup the approval policy
+    makes: the first owned customer the record names (issue 45), else the
+    nearest owned node at or above `scope`."""
+    by_entity: dict[str, dict[str, str | None]] = tenant.opa_data.get("entity_owners", {})
+    for entity in sorted(entities):
+        if entity in by_entity:
+            return by_entity[entity]
     node: dict[str, Any] | None = tenant.opa_data["nodes"].get(scope)
     owners: dict[str, dict[str, str | None]] = tenant.opa_data["owners"]
     path: list[str] = node["path_up"] if node else []

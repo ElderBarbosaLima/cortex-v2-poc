@@ -170,3 +170,13 @@ def test_an_outcome_becomes_a_rule_with_both_layers() -> None:
     assert draft.body["text_ja"] == "For CUST-0104: Short by the bank fee."  # the note's language
     assert draft.entities == ("customer:CUST-0104",)
     assert validate_proposal(_proposal(dict(draft.body), entities=draft.entities))[1] == []
+
+
+def test_a_subsidiary_carries_its_groups_entity_and_group_id() -> None:
+    sub = BY_ID["PAY-A011"]
+    entities = PACK.resolve_entities(sub)
+    payment = PACK.condition_context(sub, entities)["payment"]
+
+    assert [m.key for m in entities] == ["customer:CUST-0106", "customer:CUST-0104"]
+    assert (payment["customer_id"], payment["group_id"]) == ("CUST-0106", "CUST-0104")
+    assert PACK.condition_context(BY_ID["PAY-A001"], [])["payment"]["group_id"] == "CUST-0101"

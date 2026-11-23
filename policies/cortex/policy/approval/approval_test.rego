@@ -117,3 +117,46 @@ test_only_the_named_owner_or_backup_retires if {
 	d := decide("retire", {"type": "user", "id": "FV-009"}, [])
 	d.reason == "only the named owner or backup of this scope can decide"
 }
+
+# ── Owners per customer (issue 45) ──────────────────────────────────────────
+
+customer_tenants := {"t-jp": object.union(authz_test.tenant, {
+	"grants": array.concat(authz_test.tenant.grants, [
+		{"id": "g-cs1", "principal_type": "user", "principal_id": "CS-101", "role": "final_validator", "node": "jp"},
+		{"id": "g-cs2", "principal_type": "user", "principal_id": "CS-102", "role": "final_validator", "node": "jp"},
+	]),
+	"entity_owners": {
+		"customer:CUST-0101": {"owner": "CS-101", "backup": "CS-102"},
+		"customer:CUST-0103": {"owner": "CS-102", "backup": null},
+	},
+})}
+
+decide_about(entities, actor) := d if {
+	d := approval.decision with input as {
+		"tenant_id": "t-jp", "action": "approve", "actor": actor, "now": authz_test.now,
+		"record": {"scope": "jp/finance/q2c-invoicing", "contributors": ["R-001"], "entities": entities},
+	}
+		with data.cortex.tenants as customer_tenants
+		with data.system.bundles as authz_test.bundles
+}
+
+test_the_customers_owner_and_backup_decide_on_its_rules if {
+	decide_about(["customer:CUST-0101"], {"type": "user", "id": "CS-101"}).allow
+	decide_about(["customer:CUST-0101"], {"type": "user", "id": "CS-102"}).allow
+}
+
+test_the_scopes_owner_does_not_decide_a_customer_with_its_own_owner if {
+	d := decide_about(["customer:CUST-0101"], owner)
+	not d.allow
+	d.reason == "only the named owner or backup of this customer can decide"
+}
+
+test_a_customer_without_an_owner_falls_back_to_the_scopes_owner if {
+	decide_about(["customer:CUST-9999"], owner).allow
+	not decide_about(["customer:CUST-9999"], {"type": "user", "id": "CS-101"}).allow
+}
+
+test_a_rule_about_two_owned_customers_needs_someone_who_owns_both if {
+	not decide_about(["customer:CUST-0101", "customer:CUST-0103"], {"type": "user", "id": "CS-101"}).allow
+	decide_about(["customer:CUST-0101", "customer:CUST-0103"], {"type": "user", "id": "CS-102"}).allow
+}

@@ -13,6 +13,11 @@
 #     contributor (separation of duties, D17: "the corrector can't approve"),
 #     and must be the named owner or backup of the nearest owned node at or
 #     above the record's scope (doc 06; data.cortex.tenants[t].owners).
+#   - A record about a customer with its own owner (record.entities, e.g.
+#     customer:CUST-0101; data.cortex.tenants[t].entity_owners) is decided by
+#     that customer's owner or backup instead: its cash specialist (issue 45,
+#     slide 18). A record naming several owned customers needs a person who
+#     owns or backs up every one of them.
 package cortex.policy.approval
 
 import data.cortex.policy.rbac
@@ -40,11 +45,29 @@ _owned := [n |
 
 _named := _tenant.owners[_owned[0]]
 
-_is_named if input.actor.id == _named.owner
+# Owners of the customers the record names (issue 45).
+_entity_owners := [o |
+	some e in object.get(input.record, "entities", [])
+	o := object.get(_tenant, "entity_owners", {})[e]
+]
+
+_owns(o) if input.actor.id == o.owner
+
+_owns(o) if {
+	o.backup != null
+	input.actor.id == o.backup
+}
 
 _is_named if {
-	_named.backup != null
-	input.actor.id == _named.backup
+	count(_entity_owners) > 0
+	every o in _entity_owners {
+		_owns(o)
+	}
+}
+
+_is_named if {
+	count(_entity_owners) == 0
+	_owns(_named)
 }
 
 _denial := "unknown tenant" if {
@@ -63,7 +86,12 @@ _denial := "unknown tenant" if {
 	not _rbac.allowed
 } else := "no named owner for this scope" if {
 	_deciding
+	count(_entity_owners) == 0
 	count(_owned) == 0
+} else := "only the named owner or backup of this customer can decide" if {
+	_deciding
+	count(_entity_owners) > 0
+	not _is_named
 } else := "only the named owner or backup of this scope can decide" if {
 	_deciding
 	not _is_named

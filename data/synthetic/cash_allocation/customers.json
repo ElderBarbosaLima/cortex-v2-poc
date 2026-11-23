@@ -19,6 +19,11 @@
     {
       "customer_id": "CUST-0105",
       "name": "サンプル建設株式会社（架空）"
+    },
+    {
+      "customer_id": "CUST-0106",
+      "name": "架空物産ロジスティクス株式会社",
+      "parent": "CUST-0104"
     }
   ]
 }
