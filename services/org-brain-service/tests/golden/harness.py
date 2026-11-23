@@ -2,7 +2,9 @@
 real API and compare every pack, absence, verify result and outcome with
 `expected.json`. Generic over packs: the timeline's step kinds are the same
 (seed, process-*, correct-*, approve-*, retire-*); the pack gives only an
-`ideal_output(case)` that satisfies any rule it can ask for.
+`ideal_output(case)` that satisfies any rule it can ask for, and optionally
+`build_cases` (when a case is assembled from several files) and `extra_check`
+(per-pack expectations such as payer resolution or routing).
 
 Every mismatch is collected, so one run reports them all.
 """
@@ -39,6 +41,10 @@ class GoldenRun:
     api: TestClient
     seed: Seed
     ideal_output: Callable[[dict[str, Any]], dict[str, Any]]
+    build_cases: Callable[[dict[str, dict[str, Any]]], dict[str, dict[str, Any]]] | None = None
+    extra_check: (
+        Callable[[str, dict[str, Any], dict[str, Any], dict[str, Any]], list[str]] | None
+    ) = None
     mismatches: list[str] = field(default_factory=list[str])
     checked: dict[str, int] = field(default_factory=dict[str, int])
     packs: dict[str, str] = field(default_factory=dict[str, str])  # case_id -> pack_id
@@ -48,7 +54,8 @@ class GoldenRun:
     def __post_init__(self) -> None:
         d = self.data_dir / self.workflow
         self.timeline = json.loads((d / "timeline.json").read_text(encoding="utf-8"))
-        self.cases = {c["case_id"]: c for c in _jsonl(d / "cases.jsonl")}
+        raw = {c.get("case_id") or c["payment_id"]: c for c in _jsonl(d / "cases.jsonl")}
+        self.cases = self.build_cases(raw) if self.build_cases else raw
         self.corrections = {c["correction_id"]: c for c in _jsonl(d / "corrections.jsonl")}
         self.expected = {
             e["case_id"]: e for e in json.loads((d / "expected.json").read_text(encoding="utf-8"))
@@ -127,6 +134,10 @@ class GoldenRun:
                 self._miss(f"{case_id}: rules {kept} != expected {sorted(exp['expected_rules'])}")
             if overridden != exp["overridden"]:
                 self._miss(f"{case_id}: overridden {overridden} != {exp['overridden']}")
+            if self.extra_check:
+                self._count("extra checks")
+                for problem in self.extra_check(case_id, self.cases[case_id], exp, pack):
+                    self._miss(f"{case_id}: {problem}")
         self._verify_after(step["step"])
 
     def _verify_after(self, step_name: str) -> None:

@@ -143,8 +143,15 @@ provides:
   attachments);
 - how a correction becomes a rule draft, and an output check for verify.
 
-`make seed` loads each pack's `rules.json` into the ledger (idempotent). The golden set for
-`custom_invoices` (`tests/integration/test_golden_custom_invoices.py`) replays the whole timeline
+The second pack is `cash_application`. Its case is a bank payment plus the open invoice it is
+matched with. It normalises bank payer names: half- and full-width kana, `ｶ)`, `(ｶ` and
+`ｶﾌﾞｼｷｶﾞｲｼｬ` markers, and truncated names. It resolves them to `customer:` keys and states its
+confidence and evidence. Only a `high` match names a customer; an ambiguous payer is routed to a
+person, never auto-matched. Garnishment (差押) always forces review, and a learned rule books a
+deducted transfer fee (≤ ¥880) as 支払手数料.
+
+`make seed` loads each pack's `rules.json` into the ledger (idempotent). The golden sets
+(`tests/integration/test_golden_*.py`, one per pack) replay the whole timeline
 through the API: 40 packs, corrections, approval, retirement, verify.
 
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
