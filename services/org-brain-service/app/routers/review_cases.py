@@ -166,6 +166,7 @@ def get_review_case(
                 "body": (body := review.body_or_none(session, row)),
                 "body_erased": body is None,
                 "outcome": review.outcome(row.status, row.record_id in approved),
+                "inherited_conflicts": review.inherited_conflicts(session, row),
             }
         )
         for row in oc.items

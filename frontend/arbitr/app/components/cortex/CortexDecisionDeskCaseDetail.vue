@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDecisionDeskStore } from '~/stores/decisionDesk'
-import type { CortexReviewCaseDetail } from '~/utils/api/cortex'
+import type { CortexCaseProposal, CortexReviewCaseDetail } from '~/utils/api/cortex'
+import { businessDate } from '~/utils/businessDates'
 
 const props = defineProps<{ detail: CortexReviewCaseDetail }>()
 const { t } = useI18n()
@@ -24,6 +25,49 @@ function list(value: unknown): string[] {
 }
 
 const owners = computed(() => props.detail.named_owners)
+
+const IMPORT_CAP = 10
+
+function cases(source: Record<string, unknown>): string {
+  return list(source.case_refs).join(', ') || String(source.case_ref ?? '—')
+}
+
+function correctors(source: Record<string, unknown>): string {
+  return list(source.contributors).map(desk.labelFor).join(', ') || '—'
+}
+
+/** Who or what proposed it, in words (issue 38): never an empty "suggestion from cases —". */
+function provenance(proposal: CortexCaseProposal): string[] {
+  const by = proposal.asserted_by as Record<string, unknown>
+  const source = proposal.source as Record<string, unknown>
+  switch (by.type) {
+    case 'model':
+      return [t('cortex.desk.detail.provenance.model', { model: String(by.id ?? ''), cases: cases(source), correctors: correctors(source) })]
+    case 'policy':
+      return [t('cortex.desk.detail.provenance.policy', { cases: cases(source), correctors: correctors(source) })]
+    case 'user':
+      return [t('cortex.desk.detail.provenance.user', { person: desk.labelFor(String(by.id ?? '')) })]
+    case 'import': {
+      const lines = [t('cortex.desk.detail.provenance.import', { system: String(by.id ?? ''), person: desk.labelFor(String(by.by ?? '')) })]
+      const requested = Number(source.requested_authority)
+      if (Number.isFinite(requested) && requested > IMPORT_CAP) {
+        lines.push(t('cortex.desk.detail.provenance.importAuthority', { requested, cap: IMPORT_CAP }))
+      }
+      return lines
+    }
+    case 'replication':
+      return [t('cortex.desk.detail.provenance.replication', { region: String(by.id ?? '') })]
+    default:
+      return [t('cortex.desk.detail.provenance.other', { type: String(by.type ?? ''), id: String(by.id ?? '') })]
+  }
+}
+
+function validity(proposal: CortexCaseProposal): string {
+  return t('cortex.desk.detail.validityRange', {
+    from: businessDate(proposal.valid_from) ?? t('cortex.desk.detail.noStart'),
+    to: businessDate(proposal.valid_to) ?? t('cortex.desk.detail.noEnd')
+  })
+}
 </script>
 
 <template>
@@ -74,12 +118,14 @@ const owners = computed(() => props.detail.named_owners)
         </UBadge>
       </div>
       <p
-        v-for="warning in list(proposal.source.inherited_conflicts).length ? (proposal.source.inherited_conflicts as Array<Record<string, string>>) : []"
-        :key="warning.detail"
+        v-for="conflict in proposal.inherited_conflicts ?? []"
+        :key="conflict.record_id"
         class="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-body text-warning"
         data-test-id="cortex-decision-desk-loosens-text"
       >
-        {{ t('cortex.desk.detail.loosens', { detail: warning.detail }) }}
+        {{ conflict.text_ja
+          ? t('cortex.desk.detail.loosens', { enforcement: conflict.enforcement ?? '', text: conflict.text_ja, targets: conflict.targets.join(', ') })
+          : t('cortex.desk.detail.loosensErased', { enforcement: conflict.enforcement ?? '', targets: conflict.targets.join(', ') }) }}
       </p>
       <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-body">
         <dt class="text-muted">
@@ -101,14 +147,20 @@ const owners = computed(() => props.detail.named_owners)
         </dt>
         <dd>{{ proposal.enforcement ?? '—' }} · {{ t('cortex.desk.detail.authority', { authority: proposal.authority }) }}</dd>
         <dt class="text-muted">
+          {{ t('cortex.desk.detail.validity') }}
+        </dt>
+        <dd data-test-id="cortex-decision-desk-validity-text">
+          {{ validity(proposal) }}
+        </dd>
+        <dt class="text-muted">
           {{ t('cortex.desk.detail.source') }}
         </dt>
-        <dd>
-          {{ t('cortex.desk.detail.sourceText', {
-            asserted: String(proposal.asserted_by.type ?? ''),
-            cases: list(proposal.source.case_refs).join(', ') || String(proposal.source.case_ref ?? '—'),
-            correctors: list(proposal.source.contributors).map(desk.labelFor).join(', ') || '—'
-          }) }}
+        <dd data-test-id="cortex-decision-desk-provenance-text">
+          <span
+            v-for="line in provenance(proposal)"
+            :key="line"
+            class="block"
+          >{{ line }}</span>
         </dd>
       </dl>
     </section>

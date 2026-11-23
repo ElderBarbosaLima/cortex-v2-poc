@@ -553,3 +553,16 @@ As issues abaixo cobrem o que falta.
 
 ## Fora do plano (pelo brief)
 MCP server (só o contrato já marca as ferramentas), selos Merkle, replay completo, recertificação, consolidação, evolução de schema, migração v1, Elasticsearch, Redis Streams, SSO, UI em japonês, CI/CD, deploy real. Cenários 1, 5 e 6 da Rev. B não têm teste dedicado (o 5 é coberto em parte pela issue 20; o 6, pelo agrupamento da issue 17).
+
+## 38. Decision Desk: o que o teste como usuário encontrou
+**Contexto.** Teste da aplicação como usuário (2026-11-23, `docs/user-test-prompt.md`). Tudo funcionou, mas uma pessoa não conseguia entender ou fazer algumas coisas no Decision Desk.
+**Inclui.**
+1. Mostrar a vigência no detalhe, e permitir que o dono defina `valid_from`/`valid_to` na aprovação (a API aceita desde a issue 33).
+2. "Veio de" em palavras: modelo, regra do pack, proposta direta (quem), import (sistema, quem, autoridade pedida e o teto), replicação (região).
+3. O aviso de afrouxamento mostra a regra herdada pelo texto, e não por um id. O texto é aberto na leitura, nunca copiado para `source`.
+4. A página inicial `/cortex` tem um link para o Decision Desk.
+5. Os botões desabilitados parecem desabilitados.
+6. Trocar a pessoa, o escopo ou o status limpa o aviso anterior.
+7. Um painel "Vencendo em breve" (90 dias) no escopo, com o texto de cada regra.
+**Critérios de aceite.** Os sete itens são verificados no navegador e cobertos por testes de unidade (frontend) e de integração (API).
+**Dependências.** 28, 31, 33. **Dono sugerido.** WS3 (Decision Desk).

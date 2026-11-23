@@ -21,9 +21,10 @@ records what was decided. One decision does three things in one transaction:
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -126,6 +127,41 @@ def body_or_none(session: Session, row: MemoryRecord) -> dict[str, Any] | None:
         return ledger.open_body(session, row)
     except BodyUnreadableError:
         return None
+
+
+_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def inherited_conflicts(session: Session, row: MemoryRecord) -> list[dict[str, Any]]:
+    """The inherited constraints a proposal would loosen, with their text
+    (issue 38). Bodies are opened now, never copied into `source`, so an
+    erased constraint shows no text."""
+    found: list[dict[str, Any]] = []
+    entries: list[Any] = list((row.source or {}).get("inherited_conflicts") or [])
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        item = cast(dict[str, Any], entry)
+        rid = item.get("record_id")
+        if not rid:  # proposals admitted before issue 38 name it only in the detail
+            match = _UUID.search(str(item.get("detail", "")))
+            rid = match.group(0) if match else None
+        if not rid:
+            continue
+        try:
+            constraint = ledger.latest(session, str(rid))
+        except ledger.RecordNotFoundError:
+            continue
+        body = body_or_none(session, constraint)
+        found.append(
+            {
+                "record_id": rid,
+                "enforcement": constraint.enforcement,
+                "text_ja": (body or {}).get("text_ja"),
+                "targets": list((body or {}).get("targets") or []),
+            }
+        )
+    return found
 
 
 def title(session: Session, row: MemoryRecord) -> str:

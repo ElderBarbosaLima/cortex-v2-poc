@@ -7,7 +7,7 @@ const desk = useDecisionDeskStore()
 useHead({ title: () => t('cortex.desk.title') })
 
 async function reload() {
-  desk.selected = null
+  desk.resetView()
   await desk.loadCases()
 }
 
@@ -48,7 +48,10 @@ onMounted(async () => {
     </p>
 
     <div class="grid gap-6 md:grid-cols-[minmax(16rem,1fr)_2fr]">
-      <CortexDecisionDeskCaseList />
+      <div class="flex flex-col gap-6">
+        <CortexDecisionDeskCaseList />
+        <CortexDecisionDeskExpiring />
+      </div>
       <CortexDecisionDeskCaseDetail
         v-if="desk.selected"
         :detail="desk.selected"
