@@ -14,11 +14,37 @@ const desk = useDecisionDeskStore()
     >
       {{ t('cortex.desk.list.empty') }}
     </p>
+    <div
+      v-if="desk.status === 'open' && desk.cases.length > 1"
+      class="mb-2 flex flex-wrap items-center gap-2"
+    >
+      <UButton
+        size="sm"
+        class="disabled:cursor-not-allowed disabled:opacity-40"
+        data-test-id="cortex-decision-desk-approve-selected-button"
+        :disabled="!desk.picked.length || desk.deciding"
+        :loading="desk.deciding"
+        @click="desk.approvePicked()"
+      >
+        {{ t('cortex.desk.bulk.approve', { count: desk.picked.length }) }}
+      </UButton>
+      <span class="text-caption text-muted">{{ t('cortex.desk.bulk.hint') }}</span>
+    </div>
     <ul class="flex flex-col gap-2">
       <li
         v-for="item in desk.cases"
         :key="item.case_id"
+        class="flex items-start gap-2"
       >
+        <input
+          v-if="desk.status === 'open' && desk.cases.length > 1"
+          type="checkbox"
+          class="mt-3"
+          :checked="desk.picked.includes(item.case_id)"
+          :aria-label="t('cortex.desk.bulk.pick', { title: item.title })"
+          data-test-id="cortex-decision-desk-pick-checkbox"
+          @change="desk.togglePick(item.case_id)"
+        >
         <button
           type="button"
           class="w-full rounded-lg border border-default px-3 py-2 text-left hover:bg-elevated"

@@ -62,7 +62,9 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
     examples: 'ja' as ExampleKey,
     exampleSets: [] as ExampleSetInfo[],
     loadingExamples: false,
-    exampleReport: null as ExampleStep[] | null
+    exampleReport: null as ExampleStep[] | null,
+    picked: [] as string[],
+    bulkResult: null as { approved: number, refused: Array<{ title: string, reason: string }> } | null
   }),
   getters: {
     person: state => state.people.find(p => p.id === state.personId) ?? null,
@@ -186,6 +188,52 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
       this.selected = null
       this.notice = null
       this.problem = null
+      this.picked = []
+      this.bulkResult = null
+    },
+    togglePick(caseId: string) {
+      this.picked = this.picked.includes(caseId)
+        ? this.picked.filter(id => id !== caseId)
+        : [...this.picked, caseId]
+    },
+    /**
+     * Approve the picked cases as proposed (issue 47: an owner loading many
+     * rules at once). Still one decision per case: OPA decides each, each is
+     * recorded on its own, and a refusal is reported, not hidden.
+     */
+    async approvePicked() {
+      if (!this.picked.length) return
+      this.deciding = true
+      this.problem = null
+      this.notice = null
+      const refused: Array<{ title: string, reason: string }> = []
+      let approved = 0
+      for (const caseId of this.picked) {
+        const title = this.cases.find(c => c.case_id === caseId)?.title ?? caseId
+        try {
+          const detail = await getReviewCase(caseId, this.personId || undefined)
+          const pending = detail.proposals.find(p => p.outcome === 'pending')
+          if (!pending) continue
+          if (!detail.can_decide.approve.allowed) {
+            refused.push({ title, reason: detail.can_decide.approve.reason ?? 'not allowed' })
+            continue
+          }
+          await approveReviewCase(caseId, {
+            record_id: pending.record_id,
+            authority: Math.max(pending.authority, 20),
+            enforcement: pending.kind === 'rule' ? (pending.enforcement ?? 'default') : null,
+            reason: null
+          }, this.personId)
+          approved += 1
+        } catch (error) {
+          refused.push({ title, reason: problem(error).message })
+        }
+      }
+      this.bulkResult = { approved, refused }
+      this.picked = []
+      this.selected = null
+      this.deciding = false
+      await this.loadCases()
     },
     async select(caseId: string) {
       this.problem = null
