@@ -72,5 +72,13 @@
     "as_of": "2026-12-03",
     "expected_rules": [],
     "overridden": {}
+  },
+  {
+    "case_id": "PAY-A011",
+    "as_of": "2026-12-18",
+    "expected_rules": [
+      "AL-C-0104-FEE-HOLD"
+    ],
+    "overridden": {}
   }
 ]

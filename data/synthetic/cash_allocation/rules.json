@@ -259,11 +259,11 @@
       "retention_days": 3650
     },
     "body": {
-      "text_ja": "架空物産の不足額は手数料として処理せず、担当者が確認する（過去に手数料と誤認した例がある）。",
+      "text_ja": "架空物産グループ（子会社を含む）の不足額は手数料として処理せず、担当者が確認する（過去に手数料と誤認した例がある）。",
       "targets": [
         "allocation.bank_fee"
       ],
-      "condition": "payment.customer_id == \"CUST-0104\" && payment.gap > 0 && payment.gap <= 880",
+      "condition": "payment.group_id == \"CUST-0104\" && payment.gap > 0 && payment.gap <= 880",
       "exception": "bank_fee",
       "engine": {
         "expected_fee": 440,

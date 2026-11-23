@@ -28,6 +28,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.domain_packs.base import EntityMatch, NoRuleToLearnError, RuleBody, RuleDraft
+from app.domain_packs.cash_allocation.synthetic import group_of
 
 Exception_ = Literal[
     "combined_payment", "bank_fee", "tax_difference", "duplicate_payment", "partial_payment"
@@ -219,6 +220,7 @@ class CashAllocationPack:
                 {
                     "payment_id",
                     "customer_id",
+                    "group_id",
                     "amount",
                     "value_date",
                     "gap",
@@ -229,7 +231,9 @@ class CashAllocationPack:
             )
         }
     )
-    entity_fields = MappingProxyType({"payment.customer_id": "customer"})
+    entity_fields = MappingProxyType(
+        {"payment.customer_id": "customer", "payment.group_id": "customer"}
+    )
     targets = TARGETS
     rule_body_schema = AllocationRuleBody
     correction_schema = AllocationOutcome
@@ -237,7 +241,11 @@ class CashAllocationPack:
     def resolve_entities(self, case: Mapping[str, Any]) -> list[EntityMatch]:
         c = parse_case(case)
         # CAT maps the payer to the customer before IBM's AI asks: taken as given.
-        return [EntityMatch(f"customer:{c.customer_id}", "high", {"source": "cat"})]
+        matches = [EntityMatch(f"customer:{c.customer_id}", "high", {"source": "cat"})]
+        group = group_of(c.customer_id)
+        if group != c.customer_id:  # a subsidiary: its group's rules and past cases apply too
+            matches.append(EntityMatch(f"customer:{group}", "high", {"source": "customer_group"}))
+        return matches
 
     def condition_context(
         self, case: Mapping[str, Any], entities: Sequence[EntityMatch]
@@ -247,6 +255,7 @@ class CashAllocationPack:
             "payment": {
                 "payment_id": c.payment.payment_id,
                 "customer_id": c.customer_id,
+                "group_id": group_of(c.customer_id),
                 "amount": c.payment.amount,
                 "value_date": c.payment.value_date,
                 "gap": c.effective_gap,

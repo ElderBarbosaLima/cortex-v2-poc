@@ -9,6 +9,7 @@ fails closed: OPA down is a 503 and nothing is written.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -49,10 +50,12 @@ _DECISION_ERRORS: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _owners(request: Request, caller: AuthedCaller, scope: str) -> NamedOwners | None:
+def _owners(
+    request: Request, caller: AuthedCaller, scope: str, entities: Sequence[str] = ()
+) -> NamedOwners | None:
     seed: Seed = request.app.state.seed
     tenant = next(t for t in seed.tenants if t.tenant_id == caller.tenant_id)
-    found = named_owners(tenant, scope)
+    found = named_owners(tenant, scope, entities)
     return NamedOwners.model_validate(found) if found else None
 
 
@@ -179,7 +182,7 @@ def get_review_case(
         opened_at=oc.case.opened_at,
         proposal_count=len(oc.items),
         sensitivity_class=oc.sensitivity_class,  # type: ignore[arg-type]
-        named_owners=_owners(request, caller, oc.case.scope),
+        named_owners=_owners(request, caller, oc.case.scope, oc.entities),
         proposals=proposals,
         can_decide=_can_decide(request, caller, oc),
         affected_cases=_affected(oc),
@@ -204,7 +207,11 @@ def _ask(request: Request, caller: AuthedCaller, action: str, oc: review.OpenCas
             "tenant_id": caller.tenant_id,
             "action": action,
             "actor": actor,
-            "record": {"scope": oc.case.scope, "contributors": oc.contributors},
+            "record": {
+                "scope": oc.case.scope,
+                "contributors": oc.contributors,
+                "entities": oc.entities,
+            },
             "now": now_rfc3339(),
         }
     )

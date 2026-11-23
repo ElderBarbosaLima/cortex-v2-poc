@@ -180,6 +180,20 @@
       "obj_id": "aa29d668-d44d-5ed0-8db0-6c7e32f3749f"
     },
     {
+      "key": "CS-101",
+      "label": "入金消込担当 A",
+      "role": "final_validator",
+      "node": "jp/finance",
+      "obj_id": "5a189b58-d2ab-5850-85cb-3748e1e847b9"
+    },
+    {
+      "key": "CS-102",
+      "label": "入金消込担当 B",
+      "role": "final_validator",
+      "node": "jp/finance",
+      "obj_id": "0bf04694-c1d8-54b0-90d2-81ed76eb37cf"
+    },
+    {
       "key": "EN-R-001",
       "label": "Invoice reviewer 1",
       "role": "reviewer",
@@ -315,6 +329,32 @@
       "node": "en",
       "owner": "EN-OWN-001",
       "backup": "EN-OWN-002"
+    }
+  ],
+  "customer_owners": [
+    {
+      "entity": "customer:CUST-0101",
+      "owner": "CS-101",
+      "backup": "CS-102",
+      "tenant": "jp"
+    },
+    {
+      "entity": "customer:CUST-0102",
+      "owner": "CS-101",
+      "backup": "CS-102",
+      "tenant": "jp"
+    },
+    {
+      "entity": "customer:CUST-0103",
+      "owner": "CS-102",
+      "backup": "CS-101",
+      "tenant": "jp"
+    },
+    {
+      "entity": "customer:CUST-0104",
+      "owner": "CS-102",
+      "backup": "CS-101",
+      "tenant": "jp"
     }
   ]
 }

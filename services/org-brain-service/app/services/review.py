@@ -90,6 +90,11 @@ class OpenCase:
         return [r for r in self.items if r.status == Status.PROPOSED.value]
 
     @property
+    def entities(self) -> list[str]:
+        """Every entity the case's proposals name: who owns them decides (issue 45)."""
+        return sorted({e for r in self.items for e in (r.entities or [])})
+
+    @property
     def contributors(self) -> list[str]:
         """People whose assertions or corrections produced the proposals: none of
         them may decide (separation of duties, D17)."""
