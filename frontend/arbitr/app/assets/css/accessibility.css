@@ -1,0 +1,124 @@
+/* ============================================================================
+   Accessibility preference overrides (RAY-79580)
+
+   Driven by data-attributes set on <html> by app/plugins/accessibility.client.ts.
+   Default values are NOT represented as data-attrs — only non-default values
+   set them. That keeps the DOM clean and selectors simple.
+   ============================================================================ */
+
+/* 1. Text scale — many utilities use absolute px sizes that don't inherit
+      from the root font-size, so a font-size tweak on <html> doesn't
+      propagate. `zoom` scales the entire rendered subtree (text, layout,
+      gaps) regardless of the unit used and is supported across evergreen
+      browsers (Firefox 126+). The trade-off is that fixed-size elements grow too, which is
+      arguably what a user enlarging text actually wants. */
+html[data-a11y-text="large"]  { zoom: 1.125; }
+html[data-a11y-text="xlarge"] { zoom: 1.25; }
+
+/* 2. Reduced motion — mirrors the `prefers-reduced-motion` block in main.css
+      so the user toggle works independent of the OS setting. */
+html[data-a11y-motion="reduced"] *,
+html[data-a11y-motion="reduced"] *::before,
+html[data-a11y-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* 3. High contrast — variable overrides on the v2 roles.
+      Muted, dimmed and toned text go to night-900, every border role to
+      night-600 and error to ember-700, so no text, placeholder (placeholders
+      use the muted/dimmed roles) or control edge falls below AA on a light
+      surface. These selectors outrank the `:root` role block in main.css. */
+html[data-a11y-contrast="high"] {
+  --ui-text-muted:      var(--color-night-900);
+  --ui-text-dimmed:     var(--color-night-900);
+  --ui-text-toned:      var(--color-night-900);
+  --ui-border:          var(--color-night-600);
+  --ui-border-muted:    var(--color-night-600);
+  --ui-border-accented: var(--color-night-600);
+  --ui-error:           var(--color-ember-700);
+}
+
+/* Text dimmed with an opacity utility, or a placeholder set to a fixed light
+   step (placeholder:text-night-300), does not follow the role variables above,
+   so lift it directly. Disabled controls keep their dimming so they still read
+   as disabled, and opacity-0 stays hidden for hover and fade reveals. */
+html[data-a11y-contrast="high"] [class*="opacity-"]:not([class~="opacity-0"]):not(:disabled):not([aria-disabled="true"]) {
+  opacity: 1 !important;
+}
+html[data-a11y-contrast="high"] ::placeholder {
+  color: var(--color-night-600);
+  opacity: 1;
+}
+html[data-a11y-contrast="high"] .chrome-dark ::placeholder {
+  color: var(--color-night-200);
+}
+
+/* The Midnight chrome (header, nav, SwiftBridge hero and other night-900
+   surfaces) sits inside `.chrome-dark`. There the same roles go to white and
+   light steps, so a dark surface is never forced to dark text. */
+html[data-a11y-contrast="high"] .chrome-dark {
+  --ui-text-highlighted: white;
+  --ui-text:             white;
+  --ui-text-toned:       white;
+  --ui-text-muted:       white;
+  --ui-text-dimmed:      var(--color-night-200);
+  --ui-border:           var(--color-night-300);
+  --ui-border-muted:     var(--color-night-300);
+  --ui-border-accented:  var(--color-night-300);
+  --ui-error:            var(--color-ember-200);
+}
+
+/* White menus (account, language) open inside the header's `.chrome-dark`
+   scope. Put them back to the light-surface high-contrast values so menu text
+   stays dark on white. */
+html[data-a11y-contrast="high"] .chrome-dark .chrome-menu {
+  --ui-text-highlighted: var(--color-night-900);
+  --ui-text:             var(--color-night-900);
+  --ui-text-toned:       var(--color-night-900);
+  --ui-text-muted:       var(--color-night-900);
+  --ui-text-dimmed:      var(--color-night-900);
+  --ui-border:           var(--color-night-600);
+  --ui-border-muted:     var(--color-night-600);
+  --ui-border-accented:  var(--color-night-600);
+  --ui-error:            var(--color-ember-700);
+}
+
+html[data-a11y-contrast="high"] :focus-visible {
+  outline-width: 3px;
+}
+
+/* 4. High-contrast root font-size floor.
+      Only affects rem-based utilities, but kept so user-agent stylesheets
+      that respect the root size honour the 14px floor when high contrast is
+      on. The text-size zoom above stacks on top of this multiplicatively. */
+html[data-a11y-contrast="high"] {
+  font-size: max(100%, 14px);
+}
+
+/* 5. Dyslexia-friendly font — swaps all three families the app draws text
+      with. RAY-82745: only --font-sans was swapped, so everything set in
+      --font-mono (filenames, figures, IDs: `font-mono` is on ~1,000 elements)
+      and --font-display (headings) kept its normal face. The setting is a
+      global override, so mono gives up fixed-width figures while it is on.
+      `:lang(ja)` in main.css re-declares all three on every ja element, so
+      the ja form targets those elements too and keeps IBM Plex Sans JP as the
+      fallback for Japanese glyphs. */
+html[data-a11y-font="dyslexic"] {
+  --font-sans: 'OpenDyslexic', system-ui, sans-serif;
+  --font-mono: 'OpenDyslexic', ui-monospace, monospace;
+  --font-display: 'OpenDyslexic', system-ui, sans-serif;
+}
+html[data-a11y-font="dyslexic"]:lang(ja),
+html[data-a11y-font="dyslexic"] :lang(ja) {
+  --font-sans: 'OpenDyslexic', 'IBM Plex Sans JP', system-ui, sans-serif;
+  --font-mono: 'OpenDyslexic', 'IBM Plex Sans JP', ui-monospace, monospace;
+  --font-display: 'OpenDyslexic', 'IBM Plex Sans JP', system-ui, sans-serif;
+}
+
+/* 6. Underlined links — also covers buttons styled as links via `.nav-link`
+      (the codebase's convention for link-looking-but-not-an-anchor triggers,
+      e.g. the Cookie preferences trigger in the footer). */
+html[data-a11y-links="underlined"] a,
+html[data-a11y-links="underlined"] .nav-link { text-decoration: underline; }

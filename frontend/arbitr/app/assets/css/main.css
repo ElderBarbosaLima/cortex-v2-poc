@@ -1,0 +1,272 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "./typography.css";
+@import "./components.css";
+@import "./accessibility.css";
+
+@theme {
+  /* ─── Fonts ─── */
+  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-sans:    'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ─── v2 type scale: named steps between Tailwind's own sizes ─── */
+  --text-2xs:     0.625rem;   /* 10px */
+  --text-caption: 0.6875rem;  /* 11px */
+  --text-body:    0.8125rem;  /* 13px */
+  --text-md:      0.9375rem;  /* 15px */
+  --text-h2:      1.375rem;   /* 22px */
+}
+
+
+/* ─── v2 colour scales ───
+ * Six 11-step scales. Anchor steps come from the v2 brand palette; steps
+ * marked "interpolated" sit evenly between their neighbouring anchors, and
+ * each 950 darkens the darkest anchor. Step 500 is the AA text and fill colour
+ * of every scale. `static` emits every step even when no utility uses it,
+ * because Nuxt UI reads the shades through CSS variables at runtime.
+ * Contrast is checked by tests/unit/brand-v2-contrast.spec.ts. */
+@theme static {
+  /* brand */
+  --color-brand-50: #F1EEFF;
+  --color-brand-100: #E6E1FF;  /* interpolated */
+  --color-brand-200: #D1C6FF;
+  --color-brand-300: #B8A9FE;  /* interpolated */
+  --color-brand-400: #9E8BFD;
+  --color-brand-500: #3D16FA;
+  --color-brand-600: #2E10C4;
+  --color-brand-700: #2B0FAF;
+  --color-brand-800: #210B85;  /* interpolated */
+  --color-brand-900: #16085B;  /* interpolated */
+  --color-brand-950: #110646;
+  /* night */
+  --color-night-50: #F4F5FF;
+  --color-night-100: #EDEFFB;
+  --color-night-200: #D8DCF5;
+  --color-night-300: #C3C7EA;
+  --color-night-400: #8087AC;
+  --color-night-500: #5E6582;
+  --color-night-600: #444B70;
+  --color-night-700: #322D5C;
+  --color-night-800: #1A1640;
+  --color-night-900: #0D092A;
+  --color-night-950: #080519;
+  /* mint */
+  --color-mint-50: #E6F8F3;
+  --color-mint-100: #CCF1E7;  /* interpolated */
+  --color-mint-200: #99E3CF;
+  --color-mint-300: #4DCEAB;  /* interpolated */
+  --color-mint-400: #00B887;
+  --color-mint-500: #00805A;
+  --color-mint-600: #006D4D;  /* interpolated */
+  --color-mint-700: #00593F;
+  --color-mint-800: #00533D;  /* interpolated */
+  --color-mint-900: #004D3A;
+  --color-mint-950: #002E23;
+  /* honey */
+  --color-honey-50: #FFF7E6;
+  --color-honey-100: #FFF4DF;  /* interpolated */
+  --color-honey-200: #FFEFD1;
+  --color-honey-300: #FFD069;  /* interpolated */
+  --color-honey-400: #FFB000;
+  --color-honey-500: #996800;
+  --color-honey-600: #8D5E14;  /* interpolated */
+  --color-honey-700: #805428;
+  --color-honey-800: #734C1D;  /* interpolated */
+  --color-honey-900: #664411;
+  --color-honey-950: #3D290A;
+  /* ember */
+  --color-ember-50: #FDECEA;
+  --color-ember-100: #FCDFDD;  /* interpolated */
+  --color-ember-200: #F9C6C2;
+  --color-ember-300: #EF807C;  /* interpolated */
+  --color-ember-400: #E53935;
+  --color-ember-500: #C62828;
+  --color-ember-600: #B52424;  /* interpolated */
+  --color-ember-700: #A32020;
+  --color-ember-800: #911D1D;  /* interpolated */
+  --color-ember-900: #7F1919;
+  --color-ember-950: #4C0F0F;
+  /* azure */
+  --color-azure-50: #E6F3FF;
+  --color-azure-100: #D7ECFF;  /* interpolated */
+  --color-azure-200: #B9DFFF;
+  --color-azure-300: #5DB4FF;  /* interpolated */
+  --color-azure-400: #0088FF;
+  --color-azure-500: #0066CC;
+  --color-azure-600: #005BB5;  /* interpolated */
+  --color-azure-700: #00509E;
+  --color-azure-800: #00468B;  /* interpolated */
+  --color-azure-900: #003C77;
+  --color-azure-950: #002447;
+
+  /* Cyan accent: only ever on night-900. */
+  --color-lens: #00F0FF;
+}
+
+/* ─── Retired colour names ───
+ * The v1 names and Tailwind's default palettes are reset one name at a time,
+ * so a class that uses one renders nothing instead of an off-brand colour.
+ * tests/unit/brand-v2-guard.spec.ts keeps them out of the source. Never use
+ * `--color-*: initial`: it would also wipe Nuxt UI's own colours. */
+@theme {
+  /* v1 names */
+  --color-ink-*: initial;
+  --color-steel-*: initial;
+  --color-slate-*: initial;
+  --color-mist-*: initial;
+  --color-cream-*: initial;
+  --color-pale-*: initial;
+  --color-rule-*: initial;
+  --color-ocean-*: initial;
+  --color-amber-*: initial;
+  --color-teal-*: initial;
+  --color-sage-*: initial;
+  --color-critical-*: initial;
+  --color-sky-*: initial;
+
+  /* Tailwind default palettes (slate, mist, amber, teal and sky are reset above) */
+  --color-gray-*: initial;
+  --color-zinc-*: initial;
+  --color-neutral-*: initial;
+  --color-stone-*: initial;
+  --color-taupe-*: initial;
+  --color-mauve-*: initial;
+  --color-olive-*: initial;
+  --color-red-*: initial;
+  --color-rose-*: initial;
+  --color-orange-*: initial;
+  --color-yellow-*: initial;
+  --color-lime-*: initial;
+  --color-green-*: initial;
+  --color-emerald-*: initial;
+  --color-cyan-*: initial;
+  --color-blue-*: initial;
+  --color-indigo-*: initial;
+  --color-violet-*: initial;
+  --color-purple-*: initial;
+  --color-fuchsia-*: initial;
+  --color-pink-*: initial;
+}
+
+/* ─── Nuxt UI role variables ───
+ * Unlayered so they win over Nuxt UI's own `@layer theme` values. Text, surface
+ * and border roles all come from the night scale. */
+:root {
+  --ui-text-highlighted: var(--color-night-900);
+  --ui-text:             var(--color-night-700);
+  --ui-text-toned:       var(--color-night-600);
+  --ui-text-muted:       var(--color-night-500);  /* secondary text and placeholders */
+  --ui-text-dimmed:      var(--color-night-400);  /* disabled text only */
+  --ui-text-inverted:    white;
+
+  --ui-bg:          white;
+  --ui-bg-muted:    var(--color-night-50);
+  --ui-bg-elevated: var(--color-night-100);
+  --ui-bg-accented: var(--color-night-200);
+  --ui-bg-inverted: var(--color-night-900);
+
+  --ui-border:          var(--color-night-200);  /* decorative hairlines */
+  --ui-border-muted:    var(--color-night-200);
+  --ui-border-accented: var(--color-night-400);  /* input and control edges */
+  --ui-border-inverted: var(--color-night-900);
+}
+
+/* ─── Japanese UI ───
+ * IBM Plex Sans JP is added only under the ja UI, so Chinese and Korean
+ * content elsewhere keeps its own glyph forms. Sans text leads with the JP
+ * face (its Latin is drawn to match IBM Plex Sans). Mono keeps IBM Plex Mono
+ * first so figures and IDs stay monospaced, with the JP face before the system
+ * fallbacks for Japanese glyphs; headings do the same after Plus Jakarta Sans. */
+:lang(ja) {
+  --font-sans:    'IBM Plex Sans JP', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'IBM Plex Sans JP', ui-monospace, monospace;
+  --font-display: 'Plus Jakarta Sans', 'IBM Plex Sans JP', system-ui, -apple-system, sans-serif;
+}
+
+/* Mono micro-labels (the page-header eyebrow): Japanese has no case, and wide
+ * tracking breaks up kana and kanji, so ja drops both and reads in sans. */
+:lang(ja) .label-mono,
+:lang(ja) .label-mono-sm {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+@layer base {
+  /* Tell the browser the app is light-only. Without this, browsers with
+     "force dark mode" enabled (or extensions like Dark Reader) inject
+     their own dark stylesheet on top of ours and the page renders black.
+     Pairs with `ui: { colorMode: false }` in the Nuxt config.
+
+     `only light`, not `light`: plain `light` still permits engines with a
+     forced dark mode (Chrome's Auto Dark Theme, Android WebView) to repaint
+     over us; the `only` keyword is the actual opt-out.
+
+     Declared on `body` as well as `html` because Nuxt UI ships its own
+     `body { color-scheme: light }`. `color-scheme` is inherited, so a
+     declaration on `body` replaces whatever `html` passed down for the whole
+     subtree — which would drop the `only` opt-out for every control on the
+     page. Our sheet is emitted after Nuxt UI's, so this wins at equal
+     specificity. */
+  html,
+  body {
+    color-scheme: only light;
+  }
+
+  /* A native <select> renders its dropdown list through the OS, not through
+     our CSS, so on a machine set to dark the list came back dark over a light
+     page. `color-scheme` on the control fixes the chrome; the explicit
+     <option> colours fix the engines (GTK/Firefox) that paint the list from
+     the widget theme regardless. 13 selects across the app rely on this. */
+  select,
+  option,
+  input,
+  textarea,
+  button {
+    color-scheme: only light;
+  }
+
+  option {
+    background-color: var(--ui-bg);
+    color: var(--ui-text-highlighted);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: white;
+    color: var(--ui-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Clip horizontal overflow at the viewport only. This MUST NOT be applied to
+     `body`: a non-visible overflow-x makes body a scroll container, and because
+     body's height is auto it never scrolls (the document does), so every
+     `position: sticky` descendant -- Header, GlobalNav -- resolves against a
+     scrollport that never moves and scrolls away with the page. Setting it on
+     the root element propagates the clip to the viewport while leaving html's
+     own computed overflow `visible`, which keeps sticky working. */
+  html {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

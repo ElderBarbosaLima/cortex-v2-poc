@@ -1,0 +1,62 @@
+@layer base {
+  /* Headings: Plus Jakarta Sans, tight tracking. h1 is the 20px page title
+     (UiPageHeader); h2 is the 22px section heading. */
+  h1, h2, h3, h4, h5, h6,
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--ui-text-highlighted);
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  h3.heading-card,
+  .heading-card {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--ui-text-highlighted);
+  }
+}
+
+@layer components {
+  .body-prose {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--ui-text);
+  }
+  .body-prose strong { font-weight: 600; }
+  .body-prose em     { font-style: italic; }
+  .body-prose p + p  { margin-top: 1.1em; }
+
+  /* The mono eyebrow: 10px uppercase, 0.16em tracking, muted. Under
+     `:lang(ja)` main.css drops the uppercase and the tracking. */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ui-text-muted);
+  }
+  .label-mono-primary { color: var(--ui-primary); }
+  .label-mono-muted { color: var(--ui-text-muted); }
+  .label-mono-sm {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ui-text-muted);
+  }
+}
