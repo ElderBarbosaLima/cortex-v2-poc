@@ -133,6 +133,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report Outcome
+         * @description IBM's third operation (issue 43, slide 20): the outcome of a reviewed
+         *     case. The same writeback as a correction, under a scope that allows
+         *     nothing else; the person who decided is X-End-User-Id.
+         */
+        post: operations["report_outcome"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/records": {
         parameters: {
             query?: never;
@@ -304,6 +326,26 @@ export interface paths {
          *     becomes deprecated without ever being approved (outcome: rejected).
          */
         post: operations["reject_review_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cortex/rules/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Rules
+         * @description For a rule engine (issue 44): the domain's rules a scope sees, as changes since `cursor`. `upsert` an approved version; `remove` one no longer in force. Start without a cursor for everything; keep `next_cursor` for the next call (daily or on change).
+         */
+        get: operations["sync_rules"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -960,6 +1002,11 @@ export interface components {
         /** PackRecord */
         PackRecord: {
             /**
+             * Approved By
+             * @description Who approved this version: with record_id and version, what an audit trail cites (issue 43)
+             */
+            approved_by?: string | null;
+            /**
              * Body
              * @description Null when the record was erased after the pack was served
              */
@@ -1346,6 +1393,22 @@ export interface components {
             /** Window Days */
             window_days: number;
         };
+        /** RuleSyncPage */
+        RuleSyncPage: {
+            /** Domain */
+            domain: string;
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["SyncedRule"][];
+            /**
+             * Next Cursor
+             * @description Opaque. Pass back as `cursor` to get only what changed since
+             */
+            next_cursor: string;
+            /** Policy Revision */
+            policy_revision: string | null;
+        };
         /** Sensitivity */
         Sensitivity: {
             /**
@@ -1360,6 +1423,48 @@ export interface components {
             personal_data: boolean;
             /** Retention Days */
             retention_days?: number | null;
+        };
+        /** SyncedRule */
+        SyncedRule: {
+            /** Approved By */
+            approved_by?: string | null;
+            /** Authority */
+            authority?: number | null;
+            /**
+             * Body
+             * @description The rule as the domain pack defines it (e.g. engine fields and guidance); null on remove
+             */
+            body?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Change
+             * @description upsert: approved, apply this version; remove: no longer in force (retired, superseded, stale or erased)
+             * @enum {string}
+             */
+            change: "upsert" | "remove";
+            /** Enforcement */
+            enforcement?: string | null;
+            /** Entities */
+            entities?: string[];
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /** Status */
+            status: string;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Version */
+            version: number;
         };
         /** VerifyRequest */
         VerifyRequest: {
@@ -1835,6 +1940,84 @@ export interface operations {
             };
             /** @description Insufficient scope, or denied by policy */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    report_outcome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionAccepted"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such pack (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Idempotency key reused for another request */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2452,6 +2635,68 @@ export interface operations {
             };
             /** @description The case is already decided */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    sync_rules: {
+        parameters: {
+            query: {
+                domain: string;
+                scope: string;
+                purpose: string;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSyncPage"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

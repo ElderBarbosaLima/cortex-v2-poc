@@ -242,6 +242,15 @@ def _similar_cases(
     return [item for _, _, item in found[:SIMILAR_CASES]]
 
 
+def _approver(row: MemoryRecord) -> str | None:
+    """The person who approved this version, as a UUID string, or None."""
+    user = (row.approved_by or {}).get("user_id")
+    try:
+        return str(uuid.UUID(str(user))) if user else None
+    except ValueError:
+        return None
+
+
 @dataclass(frozen=True)
 class Built:
     pack_id: str
@@ -295,6 +304,7 @@ def build_and_store(
                 enforcement=item.row.enforcement,
                 role=item.role,
                 overridden_by=item.overridden_by,
+                approved_by=_approver(item.row),
                 body_hash=item.row.body_hash,
                 body_sealed=codec.seal(
                     session, tenant_id=request.tenant_id, key_ref=key_ref, body=item.body
@@ -366,6 +376,7 @@ def render(stored: StoredPack) -> ContextPack:
                 enforcement=item.enforcement,
                 role=item.role,  # type: ignore[arg-type]
                 overridden_by=uuid.UUID(item.overridden_by) if item.overridden_by else None,
+                approved_by=uuid.UUID(item.approved_by) if item.approved_by else None,
                 body_hash=item.body_hash,
                 body=body,
                 body_erased=body is None,

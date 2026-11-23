@@ -66,6 +66,11 @@ class PackRecord(BaseModel):
         "closest first (issue 42)"
     )
     overridden_by: uuid.UUID | None = None
+    approved_by: uuid.UUID | None = Field(
+        default=None,
+        description="Who approved this version: with record_id and version, what an audit "
+        "trail cites (issue 43)",
+    )
     body_hash: str = Field(description="sha256 of the body as served; survives erasure")
     body: dict[str, Any] | None = Field(
         description="Null when the record was erased after the pack was served"
@@ -437,3 +442,38 @@ class ImportItemResult(BaseModel):
 class ImportResult(BaseModel):
     source_system: str
     items: list[ImportItemResult]
+
+
+# ── Rule sync for a rule engine (issue 44) ───────────────────────────────────
+
+
+class SyncedRule(BaseModel):
+    record_id: uuid.UUID
+    version: int
+    change: Literal["upsert", "remove"] = Field(
+        description="upsert: approved, apply this version; remove: no longer in force "
+        "(retired, superseded, stale or erased)"
+    )
+    status: str
+    enforcement: str | None = None
+    authority: int | None = None
+    scope: uuid.UUID
+    entities: list[str] = Field(default_factory=list[str])
+    valid_from: dt.datetime | None = None
+    valid_to: dt.datetime | None = None
+    approved_by: uuid.UUID | None = None
+    body: dict[str, Any] | None = Field(
+        default=None,
+        description="The rule as the domain pack defines it (e.g. engine fields and guidance); "
+        "null on remove",
+    )
+
+
+class RuleSyncPage(BaseModel):
+    domain: str
+    items: list[SyncedRule]
+    next_cursor: str = Field(
+        description="Opaque. Pass back as `cursor` to get only what changed since"
+    )
+    has_more: bool
+    policy_revision: str | None

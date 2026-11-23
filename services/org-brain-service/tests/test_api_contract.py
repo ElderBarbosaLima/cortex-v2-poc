@@ -53,7 +53,12 @@ def test_the_mcp_tool_list_is_fixed(spec: dict[str, Any]) -> None:
     }
 
     assert tools == {name: name for name in MCP_TOOLS}
-    assert set(MCP_TOOLS) == {"request_context_pack", "verify_output", "submit_correction"}
+    assert set(MCP_TOOLS) == {
+        "request_context_pack",
+        "verify_output",
+        "submit_correction",
+        "report_outcome",  # issue 43: IBM's third operation
+    }
 
 
 def _properties(spec: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:

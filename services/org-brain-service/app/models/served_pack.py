@@ -48,6 +48,7 @@ class ServedPackItem(Base):
     enforcement: Mapped[str | None] = mapped_column(String(16), nullable=True)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     overridden_by: Mapped[str | None] = mapped_column(UuidCol, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(UuidCol, nullable=True)  # issue 43
     body_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     body_sealed: Mapped[bytes] = mapped_column(Bytes, nullable=False)
     body_codec: Mapped[str] = mapped_column(String(32), nullable=False)
