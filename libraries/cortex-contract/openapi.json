@@ -68,6 +68,32 @@
             ],
             "description": "Which pending proposal to approve; default the first. The other pending proposals in the case become superseded",
             "title": "Record Id"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Final business date from which it holds (default: as proposed)",
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business date it stops holding (exclusive); null: no end",
+            "title": "Valid To"
           }
         },
         "required": [
@@ -231,6 +257,18 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes"
           },
           "valid_from": {
             "format": "date-time",
@@ -893,6 +931,137 @@
         "title": "EvidenceExportView",
         "type": "object"
       },
+      "ExpiringPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpiringRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "within_days": {
+            "title": "Within Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "within_days",
+          "policy_revision"
+        ],
+        "title": "ExpiringPage",
+        "type": "object"
+      },
+      "ExpiringRecord": {
+        "properties": {
+          "authority": {
+            "description": "Authority ladder rung (0–40), not a key",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Authority",
+            "type": "integer"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "expired": {
+            "description": "valid_to has passed: packs for later dates no longer carry it",
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "fact",
+              "rule",
+              "decision",
+              "content"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "sensitivity_class": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "restricted"
+            ],
+            "title": "Sensitivity Class",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved",
+              "stale",
+              "deprecated",
+              "superseded",
+              "erased"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "valid_to": {
+            "format": "date-time",
+            "title": "Valid To",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version of the record (1, 2, …), not a database key",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "kind",
+          "status",
+          "scope",
+          "enforcement",
+          "authority",
+          "sensitivity_class",
+          "valid_to",
+          "expired"
+        ],
+        "title": "ExpiringRecord",
+        "type": "object"
+      },
       "HealthResponse": {
         "properties": {
           "service": {
@@ -1207,6 +1376,19 @@
             "additionalProperties": true,
             "title": "Source",
             "type": "object"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An approved record this one replaces once a named owner approves it",
+            "title": "Supersedes"
           },
           "valid_from": {
             "description": "Business date from which it holds",
@@ -2637,6 +2819,104 @@
           }
         },
         "summary": "Propose Record",
+        "tags": [
+          "cortex"
+        ]
+      }
+    },
+    "/v1/cortex/records/expiring": {
+      "get": {
+        "description": "Basic expiry (issue 33): approved records whose validity ends within\n`within_days`, or has already ended, soonest first. Expiry itself is the\nrecord's `valid_to`, applied by business date when packs are built and\nverified; this list is for the owners to act before it happens.",
+        "operationId": "list_expiring_records",
+        "parameters": [
+          {
+            "description": "Scope node to read at; resolves upward",
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "description": "Scope node to read at; resolves upward",
+              "format": "uuid",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "within_days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 3650,
+              "minimum": 0,
+              "title": "Within Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpiringPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "List Expiring Records",
         "tags": [
           "cortex"
         ]

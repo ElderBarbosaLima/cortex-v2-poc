@@ -163,6 +163,8 @@ def build_manifest(session: Session, stored: StoredPack, pack_view: dict[str, An
                 "valid_from": _iso(version.valid_from),
                 "valid_to": _iso(version.valid_to),
                 "recorded_at": _iso(version.recorded_at),
+                "supersedes": version.supersedes,
+                "derived_from": list(version.derived_from),
             }
         )
     verifications = [

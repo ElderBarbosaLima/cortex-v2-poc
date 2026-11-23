@@ -36,6 +36,7 @@ from app.seed.tenants import Seed, named_owners
 from app.services import ledger, review
 from app.services.admission import SENSITIVITY_RANK
 from app.services.policy_gate import PolicyGate, now_rfc3339
+from app.utils.business_dates import business_start
 
 router = APIRouter(prefix="/v1/cortex/review-cases", tags=["review"], responses=ERROR_RESPONSES)
 
@@ -278,10 +279,12 @@ def approve_review_case(
             enforcement=body.enforcement,
             reason=body.reason,
             policy_revision=permit.policy_revision,
+            valid_from=business_start(body.valid_from) if body.valid_from else None,
+            valid_to=business_start(body.valid_to) if body.valid_to else None,
         )
     except review.CaseDecidedError as exc:
         raise CortexApiError(409, "case_decided", str(exc)) from None
-    except review.InvalidDecisionError as exc:
+    except (review.InvalidDecisionError, ledger.IllegalTransitionError) as exc:
         raise CortexApiError(422, "invalid_decision", str(exc)) from None
     return _result(session, decided, oc.case.case_id)
 

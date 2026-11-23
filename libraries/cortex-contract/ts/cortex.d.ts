@@ -137,6 +137,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/records/expiring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Expiring Records
+         * @description Basic expiry (issue 33): approved records whose validity ends within
+         *     `within_days`, or has already ended, soonest first. Expiry itself is the
+         *     record's `valid_to`, applied by business date when packs are built and
+         *     verified; this list is for the owners to act before it happens.
+         */
+        get: operations["list_expiring_records"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/records/{record_id}": {
         parameters: {
             query?: never;
@@ -334,6 +357,16 @@ export interface components {
              * @description Which pending proposal to approve; default the first. The other pending proposals in the case become superseded
              */
             record_id?: string | null;
+            /**
+             * Valid From
+             * @description Final business date from which it holds (default: as proposed)
+             */
+            valid_from?: string | null;
+            /**
+             * Valid To
+             * @description Business date it stops holding (exclusive); null: no end
+             */
+            valid_to?: string | null;
         };
         /**
          * CanDecide
@@ -418,6 +451,8 @@ export interface components {
              * @enum {string}
              */
             status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
+            /** Supersedes */
+            supersedes?: string | null;
             /**
              * Valid From
              * Format: date-time
@@ -711,6 +746,65 @@ export interface components {
             /** Version Id */
             version_id: string | null;
         };
+        /** ExpiringPage */
+        ExpiringPage: {
+            /** Items */
+            items: components["schemas"]["ExpiringRecord"][];
+            /** Policy Revision */
+            policy_revision: string | null;
+            /** Within Days */
+            within_days: number;
+        };
+        /** ExpiringRecord */
+        ExpiringRecord: {
+            /**
+             * Authority
+             * @description Authority ladder rung (0–40), not a key
+             */
+            authority: number;
+            /** Enforcement */
+            enforcement: ("mandatory" | "prohibition" | "default") | null;
+            /**
+             * Expired
+             * @description valid_to has passed: packs for later dates no longer carry it
+             */
+            expired: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fact" | "rule" | "decision" | "content";
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Scope
+             * Format: uuid
+             */
+            scope: string;
+            /**
+             * Sensitivity Class
+             * @enum {string}
+             */
+            sensitivity_class: "public" | "internal" | "confidential" | "restricted";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
+            /**
+             * Valid To
+             * Format: date-time
+             */
+            valid_to: string;
+            /**
+             * Version
+             * @description Version of the record (1, 2, …), not a database key
+             */
+            version: number;
+        };
         /** HealthResponse */
         HealthResponse: {
             /** Service */
@@ -865,6 +959,11 @@ export interface components {
             source?: {
                 [key: string]: unknown;
             };
+            /**
+             * Supersedes
+             * @description An approved record this one replaces once a named owner approves it
+             */
+            supersedes?: string | null;
             /**
              * Valid From
              * Format: date
@@ -1686,6 +1785,67 @@ export interface operations {
                 };
             };
             /** @description Invalid proposal: every problem listed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list_expiring_records: {
+        parameters: {
+            query: {
+                /** @description Scope node to read at; resolves upward */
+                scope: string;
+                purpose: string;
+                within_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpiringPage"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
             422: {
                 headers: {
                     [name: string]: unknown;
