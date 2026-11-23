@@ -904,11 +904,25 @@
       "PackRecord": {
         "properties": {
           "body": {
-            "additionalProperties": true,
-            "title": "Body",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the record was erased after the pack was served",
+            "title": "Body"
+          },
+          "body_erased": {
+            "default": false,
+            "title": "Body Erased",
+            "type": "boolean"
           },
           "body_hash": {
+            "description": "sha256 of the body as served; survives erasure",
             "title": "Body Hash",
             "type": "string"
           },

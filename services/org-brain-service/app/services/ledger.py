@@ -130,7 +130,7 @@ def append_new(
     _check_ceiling(draft.asserted_by, draft.authority, approved_by)
     codec = codec or default_codec()
     record_id = record_id or new_record_id()
-    key_ref = _lineage_root(session, record_id, draft.derived_from)
+    key_ref = _record_key_ref(record_id)
     row = MemoryRecord(
         record_id=record_id,
         version=1,
@@ -271,14 +271,15 @@ def is_valid_at(row: MemoryRecord, t: dt.datetime) -> bool:
     return row.valid_from <= t and (row.valid_to is None or t < row.valid_to)
 
 
-def _lineage_root(session: Session, record_id: str, derived_from: tuple[str, ...]) -> str:
-    """Whose data key seals this body: the lineage root (Q10). A record derived
-    from others shares its first parent's key, so erasing the root's key makes
-    every derived body unreadable too."""
-    if not derived_from:
-        return record_id
-    parent = latest(session, derived_from[0])
-    return parent.key_ref or parent.record_id
+def _record_key_ref(record_id: str) -> str:
+    """Whose data key seals this body: the record's own (Q10, DEK per record).
+
+    Issue 12 shared the lineage root's key with derived records. Issue 24
+    found that this makes a derived record impossible to erase without its
+    root, and lets a record derived from several parents survive the erasure
+    of any parent but the first. A key per record, plus erasure that follows
+    `derived_from` to every descendant (app/services/erasure.py), does both."""
+    return record_id
 
 
 def open_body(session: Session, row: MemoryRecord, codec: BodyCodec | None = None) -> Body:

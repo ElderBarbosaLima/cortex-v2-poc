@@ -115,3 +115,21 @@ class EvidenceExport(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     exported_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Erasure(Base):
+    """What an erasure destroyed (migration 010). Append-only."""
+
+    __tablename__ = "erasure"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    erasure_id: Mapped[str] = mapped_column(UuidCol, nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    scope: Mapped[str] = mapped_column(String(8), nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_by: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    report: Mapped[dict[str, Any]] = mapped_column(JsonCol, nullable=False)
+    erased_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

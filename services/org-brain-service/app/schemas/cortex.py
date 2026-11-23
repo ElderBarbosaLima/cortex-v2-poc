@@ -63,8 +63,11 @@ class PackRecord(BaseModel):
     enforcement: str | None
     role: Literal["constraint", "applied", "overridden", "candidate"]
     overridden_by: uuid.UUID | None = None
-    body_hash: str
-    body: dict[str, Any]
+    body_hash: str = Field(description="sha256 of the body as served; survives erasure")
+    body: dict[str, Any] | None = Field(
+        description="Null when the record was erased after the pack was served"
+    )
+    body_erased: bool = False
 
 
 class ContextPack(BaseModel):

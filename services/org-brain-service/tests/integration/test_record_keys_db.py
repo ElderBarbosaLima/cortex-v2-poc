@@ -98,7 +98,7 @@ def test_the_body_is_never_stored_in_clear_and_the_app_reads_it_back(stack: Any)
     assert reopened == {"text_ja": SECRET_TEXT}
 
 
-def test_records_get_distinct_keys_and_derived_records_use_the_roots(stack: Any) -> None:
+def test_every_record_gets_its_own_key_derived_ones_too(stack: Any) -> None:
     app, _, keys, codec, kms = stack
     with allow_network(), tenant_session(TENANT, app) as s:
         a = ledger.append_new(s, tenant_id=TENANT, draft=_draft(), codec=codec)
@@ -119,10 +119,10 @@ def test_records_get_distinct_keys_and_derived_records_use_the_roots(stack: Any)
             ref: keys.data_key(s, tenant_id=TENANT, key_ref=ref, create=False) for ref in wrapped
         }
 
-    assert set(wrapped) == {a.record_id, b.record_id}
-    assert wrapped[a.record_id] != wrapped[b.record_id]
-    assert plain[a.record_id] != plain[b.record_id]
-    assert child.key_ref == a.record_id
+    assert set(wrapped) == {a.record_id, b.record_id, child.record_id}  # issue 24: per record
+    assert len({bytes(w) for w in wrapped.values()}) == 3
+    assert len(set(plain.values())) == 3
+    assert child.key_ref == child.record_id
     # The wrapped key only unwraps for its own tenant and record (KMS EncryptionContext).
     with allow_network(), pytest.raises(kms.exceptions.InvalidCiphertextException):
         kms.decrypt(

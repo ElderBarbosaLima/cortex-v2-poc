@@ -40,7 +40,7 @@ from app.services import ledger
 from app.services.access_gate.applicability import CaseFacts, applicable_rules
 from app.services.access_gate.resolve import resolve
 from app.services.admission import SENSITIVITY_RANK
-from app.services.body_codec import body_hash, codec_for, default_codec
+from app.services.body_codec import BodyUnreadableError, body_hash, codec_for, default_codec
 from app.utils.business_dates import business_start
 from app.utils.ids import new_record_id
 
@@ -248,7 +248,7 @@ def build_and_store(
 @dataclass(frozen=True)
 class StoredPack:
     pack: ServedPack
-    items: Sequence[tuple[ServedPackItem, dict[str, Any]]]
+    items: Sequence[tuple[ServedPackItem, dict[str, Any] | None]]  # None: erased since
 
 
 class PackNotFoundError(LookupError):
@@ -266,18 +266,18 @@ def load(session: Session, pack_id: str) -> StoredPack:
         .where(ServedPackItem.pack_id == pack_id)
         .order_by(ServedPackItem.position)
     ).all()
-    return StoredPack(
-        served,
-        [
-            (
-                row,
-                codec_for(row.body_codec).open(
-                    session, tenant_id=row.tenant_id, key_ref=row.key_ref, sealed=row.body_sealed
-                ),
-            )
-            for row in rows
-        ],
-    )
+    return StoredPack(served, [(row, _open_item(session, row)) for row in rows])
+
+
+def _open_item(session: Session, row: ServedPackItem) -> dict[str, Any] | None:
+    """The served body, or None once the record's key was erased (issue 24):
+    the pack stays whole (ids, versions, roles, body_hash), that body does not."""
+    try:
+        return codec_for(row.body_codec).open(
+            session, tenant_id=row.tenant_id, key_ref=row.key_ref, sealed=row.body_sealed
+        )
+    except BodyUnreadableError:
+        return None
 
 
 def render(stored: StoredPack) -> ContextPack:
@@ -303,6 +303,7 @@ def render(stored: StoredPack) -> ContextPack:
                 overridden_by=uuid.UUID(item.overridden_by) if item.overridden_by else None,
                 body_hash=item.body_hash,
                 body=body,
+                body_erased=body is None,
             )
             for item, body in stored.items
         ],

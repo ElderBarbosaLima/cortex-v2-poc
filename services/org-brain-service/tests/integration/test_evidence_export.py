@@ -35,7 +35,7 @@ from app.models import Kind, Status
 from app.seed.tenants import Seed, load_seed
 from app.services import ledger
 from app.services.body_codec import canonical
-from app.services.evidence import EvidenceArchive, install_archive
+from app.services.evidence import EvidenceArchive, install_archive, open_pack
 from app.services.policy_gate import PolicyGate
 from app.utils.business_dates import business_start
 from app.workers import handlers  # noqa: F401 -- registers the outbox handlers
@@ -202,7 +202,13 @@ def test_the_exported_object_opens_and_its_hash_matches_the_pack(world: World) -
     manifest = json.loads(manifest_bytes)
     replay = _http(world, "GET", f"/v1/cortex/context-packs/{pack['pack_id']}").json()
     assert manifest["pack_sha256"] == hashlib.sha256(canonical(replay)).hexdigest()
-    assert manifest["pack"] == replay == pack
+    assert replay == pack
+    # Bodies are kept sealed under each record's own key (issue 24), even inside
+    # the encrypted manifest; while the keys exist, the pack rebuilds exactly.
+    assert "検品必須" not in manifest_bytes.decode()
+    assert all(r["body"] is None and r["body_sealed"] for r in manifest["pack"]["records"])
+    with allow_network(), tenant_session(world.tenant) as s:
+        assert open_pack(s, manifest) == replay
     assert manifest["policy_revision"] == pack["policy_revision"]
     assert [(r["record_id"], r["version"]) for r in manifest["records"]] == [
         (r["record_id"], r["version"]) for r in pack["records"]

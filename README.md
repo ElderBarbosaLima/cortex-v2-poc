@@ -122,6 +122,19 @@ worker does the upload and asking again returns the same export. Retention is pe
 (`EVIDENCE_RETENTION_MODE`, `EVIDENCE_RETENTION_DAYS`; default COMPLIANCE, 1 day locally).
 `GET …/export` shows the status, object key, version and manifest sha256.
 
+**Erasure is crypto-shredding.** The ledger is append-only, so nothing is deleted from it; the keys
+that open the bodies are destroyed instead. Every record has its own data key.
+- `make erase-record TENANT=… RECORD=… BY=… REASON=…` erases a record and every record derived from
+  it (through `derived_from`, any position). They get an `erased` version, their data keys and search
+  rows are deleted, and their copies in served packs and evidence manifests become unreadable. The
+  packs stay whole: ids, versions and hashes remain, and the other bodies stay readable.
+- `make erase-tenant TENANT=… BY=… REASON=… CONFIRM=yes` disables the tenant's KMS key and schedules
+  its deletion, and drops its data keys and projection. No body, pack or export of that tenant opens
+  any more.
+
+Each erasure is logged with a report (ids and counts, never text), and `make reindex` afterwards
+does not bring anything back.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

@@ -42,7 +42,8 @@ data "aws_iam_policy_document" "org_brain" {
     ]
   }
 
-  # Envelope encryption and crypto-shredding, only on keys reached through a
+  # Envelope encryption and crypto-shredding (tenant erasure disables the key
+  # and schedules its deletion, issue 24), only on keys reached through a
   # tenant alias, and only with an encryption context naming the tenant.
   statement {
     sid = "UseTenantKeys"
@@ -50,6 +51,7 @@ data "aws_iam_policy_document" "org_brain" {
       "kms:GenerateDataKey",
       "kms:Decrypt",
       "kms:DescribeKey",
+      "kms:DisableKey",
       "kms:ScheduleKeyDeletion",
     ]
     resources = ["arn:aws:kms:${local.region}:${local.account_id}:key/*"]

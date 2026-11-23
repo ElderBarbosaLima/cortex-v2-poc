@@ -42,6 +42,7 @@
       "Action": [
         "kms:ScheduleKeyDeletion",
         "kms:GenerateDataKey",
+        "kms:DisableKey",
         "kms:DescribeKey",
         "kms:Decrypt"
       ],

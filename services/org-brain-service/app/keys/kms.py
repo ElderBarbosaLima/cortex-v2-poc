@@ -2,13 +2,16 @@
 
 - One KMS key per tenant, the KEK, reached through `alias/cortex/tenant/<id>`
   and created at tenant onboarding (no tags: KMS keys stay out of Terraform).
-- One data key (DEK) per lineage root, from `GenerateDataKey` with an
-  EncryptionContext naming the tenant and the root, so a wrapped DEK unwraps
+- One data key (DEK) per record, from `GenerateDataKey` with an
+  EncryptionContext naming the tenant and the record, so a wrapped DEK unwraps
   only for that tenant and that record (the IAM policy also denies KMS use
   without a tenant_id context). The wrapped DEK lives in `record_key`; the
   plaintext DEK only in this process's memory.
 - Erasing a record = deleting its `record_key` row (issue 24); erasing a tenant
   = ScheduleKeyDeletion on its KEK. Either way the body can no longer be opened.
+- The plaintext cache only saves the KMS call: every use still checks that the
+  wrapped key exists, so an erasure done by another process takes effect at
+  once here too, not when this process restarts.
 
 AWS is reached through boto3 configured only by environment variables.
 """
@@ -17,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from typing import Any, Protocol
 
 from cryptography.exceptions import InvalidTag
@@ -46,6 +50,8 @@ class KeyService(Protocol):
         self, session: Session, *, tenant_id: str, key_ref: str, create: bool
     ) -> bytes: ...
 
+    def forget_keys(self, tenant_id: str, key_refs: Iterable[str]) -> None: ...
+
     def forget(self, tenant_id: str | None = None) -> None: ...
 
 
@@ -70,13 +76,15 @@ class KmsKeyService:
             return key_id
 
     def data_key(self, session: Session, *, tenant_id: str, key_ref: str, create: bool) -> bytes:
-        cached = self._cache.get((tenant_id, key_ref))
-        if cached is not None:
-            return cached
         context = {"tenant_id": tenant_id, "key_ref": key_ref}
         row = session.scalars(
             select(RecordKey).where(RecordKey.tenant_id == tenant_id, RecordKey.key_ref == key_ref)
         ).first()
+        cached = self._cache.get((tenant_id, key_ref))
+        if row is None:
+            self._cache.pop((tenant_id, key_ref), None)
+        elif cached is not None:
+            return cached
         if row is not None:
             plaintext = bytes(
                 self._kms.decrypt(CiphertextBlob=row.wrapped_dek, EncryptionContext=context)[
@@ -101,6 +109,10 @@ class KmsKeyService:
             raise KeyErasedError(f"no data key for {key_ref}: erased")
         self._cache[(tenant_id, key_ref)] = plaintext
         return plaintext
+
+    def forget_keys(self, tenant_id: str, key_refs: Iterable[str]) -> None:
+        for ref in key_refs:
+            self._cache.pop((tenant_id, ref), None)
 
     def forget(self, tenant_id: str | None = None) -> None:
         """Drop cached plaintext keys (all, or one tenant's) — part of erasure."""
