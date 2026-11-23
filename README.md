@@ -333,6 +333,7 @@ only in `infra/terraform/` and behind the AWS SDK (configured by environment var
 | Learned rules have no lower validity bound | a correction teaches a requirement that already existed | your decision, issue 25 |
 | A reissue is judged as of its reissue date | rules in force when it is issued, CEL on the old invoice date | your decision, issue 25 |
 | `check_output` receives the case | verify let an auto-match of an ambiguous payer pass | your decision, issue 26 |
+| Machine proposals stay in the ledger as `proposed`; the database refuses a `model` or `policy` record born approved, or approved by anyone but a person | Nake: model rules never skip review. Rev. B keeps `proposed` in the envelope, so rejections stay auditable | issue 34 |
 | A model's rule draft is proposed as `model`, never approved, with a fallback to the pack's draft | rule 4: machines propose, people approve; the golden path stays deterministic | issue 30 |
 | `search_doc.embedding` is a plain `vector` (no fixed dimension) | real embeddings (1536) and the fixed test vectors (8) coexist; search compares the same dimension only | issue 30 |
 | Owners retire through `POST /records/{id}/retire` | scenario 4 through the public API | issue 29 |
