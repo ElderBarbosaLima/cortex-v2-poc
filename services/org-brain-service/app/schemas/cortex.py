@@ -70,6 +70,13 @@ class PackRecord(BaseModel):
     body_erased: bool = False
 
 
+class PackBuiltWith(BaseModel):
+    """What built the pack: a stored pack keeps the values it was served with."""
+
+    projection: str | None
+    embedding_model: str | None = Field(description="Null when embeddings were off")
+
+
 class ContextPack(BaseModel):
     """As served, and as stored: `GET /context-packs/{pack_id}` returns the same."""
 
@@ -81,6 +88,7 @@ class ContextPack(BaseModel):
     as_of: dt.date
     policy_revision: str | None
     served_at: dt.datetime
+    built_with: PackBuiltWith
     records: list[PackRecord] = Field(
         description="Constraints, then applied and overridden defaults (from the ledger, never "
         "search), then knowledge candidates found by search and revalidated against the ledger"
@@ -374,3 +382,33 @@ class ExpiringPage(BaseModel):
     items: list[ExpiringRecord]
     within_days: int
     policy_revision: str | None
+
+
+# ── Imports (issue 37, scenario 1) ──────────────────────────────────────────
+
+
+class ImportRequest(BaseModel):
+    source_system: str = Field(
+        min_length=1, max_length=120, description="Where the batch comes from"
+    )
+    items: list[ProposeRecordRequest] = Field(min_length=1, max_length=500)
+
+
+class ImportItemResult(BaseModel):
+    index: int
+    status: Literal["proposed", "duplicate", "rejected"]
+    record_id: uuid.UUID | None = None
+    review_case_id: uuid.UUID | None = None
+    expired: bool = Field(
+        default=False, description="Already past valid_to: never applies, even if approved"
+    )
+    supersedes: uuid.UUID | None = Field(
+        default=None, description="The approved record this item would replace once approved"
+    )
+    error: str | None = None
+    problems: list[dict[str, str]] = Field(default_factory=list[dict[str, str]])
+
+
+class ImportResult(BaseModel):
+    source_system: str
+    items: list[ImportItemResult]

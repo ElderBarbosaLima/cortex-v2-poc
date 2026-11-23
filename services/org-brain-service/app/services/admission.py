@@ -34,7 +34,7 @@ from app.domain_packs.base import (
 )
 from app.models import Kind, ReviewCase, ReviewCaseItem
 from app.services import ledger
-from app.services.body_codec import BodyUnreadableError
+from app.services.body_codec import BodyUnreadableError, body_hash
 from app.utils.ids import new_record_id
 
 SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
@@ -255,6 +255,43 @@ def supersede_problems(session: Session, proposal: Proposal) -> list[Problem]:
     if old.kind != proposal.kind.value or old.schema_version != proposal.schema_version:
         return [Problem("supersede_mismatch", "a record replaces one of its own domain and kind")]
     return []
+
+
+@dataclass(frozen=True)
+class SameContent:
+    record_id: str
+    same_validity: bool
+
+
+def approved_same_content(
+    session: Session,
+    schema_version: str,
+    scope: str,
+    entities: Sequence[str],
+    body: dict[str, Any],
+    valid_from: dt.datetime,
+    valid_to: dt.datetime | None,
+) -> SameContent | None:
+    """An approved, current record with this exact content at this scope (issue
+    37, scenario 1). Same validity too: a re-import changes nothing. Other
+    validity: it is a change to review, never a silent renewal."""
+    row = session.execute(
+        text(
+            "SELECT record_id::text, valid_from, valid_to FROM memory_record_current "
+            "WHERE status = 'approved' AND schema_version = :schema "
+            "AND scope = CAST(:scope AS uuid) AND body_hash = :hash "
+            "AND entities = CAST(:entities AS text[]) ORDER BY record_id LIMIT 1"
+        ),
+        {
+            "schema": schema_version,
+            "scope": scope,
+            "hash": body_hash(body),
+            "entities": list(entities),
+        },
+    ).first()
+    if row is None:
+        return None
+    return SameContent(str(row[0]), row[1] == valid_from and row[2] == valid_to)
 
 
 def problems_payload(problems: Sequence[Problem]) -> list[dict[str, str]]:

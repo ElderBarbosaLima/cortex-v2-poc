@@ -82,6 +82,8 @@ def _vector_literal(values: Any) -> str | None:
 
 
 class PostgresSearchProjection:
+    version = "postgres-search/2"  # pg_bigm + FTS + pgvector of any dimension (migration 011)
+
     def _drop(self, session: Session, row: MemoryRecord) -> None:
         session.execute(
             text("DELETE FROM search_doc WHERE tenant_id = :t AND record_id = :r"),

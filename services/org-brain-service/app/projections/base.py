@@ -43,6 +43,11 @@ class SearchQuery:
 
 
 class SearchProjection(Protocol):
+    @property
+    def version(self) -> str:
+        """Which projection builds candidates; recorded on every served pack."""
+        ...
+
     def apply(self, session: Session, payload: dict[str, Any]) -> None:
         """Bring the projection up to date with one `record.appended` event."""
         ...

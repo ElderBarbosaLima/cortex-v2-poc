@@ -10,7 +10,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from fastapi import APIRouter, Depends, Query, Request
@@ -30,6 +30,9 @@ from app.schemas.cortex import (
     ExpiringPage,
     ExpiringRecord,
     HoldReason,
+    ImportItemResult,
+    ImportRequest,
+    ImportResult,
     ProposalAccepted,
     ProposeRecordRequest,
     RecordPage,
@@ -203,18 +206,12 @@ def _business_start(day: dt.date | None) -> dt.datetime | None:
     return None if day is None else business_start(day)
 
 
-@router.post(
-    "/records",
-    response_model=ProposalAccepted,
-    status_code=201,
-    operation_id="propose_record",
-    responses={422: {"model": ApiError, "description": "Invalid proposal: every problem listed"}},
-)
-def propose_record(
+def _propose(
     body: ProposeRecordRequest,
     request: Request,
-    caller: AuthedCaller = Depends(require_scope("cortex:write")),
-    session: Session = Depends(caller_session),
+    caller: AuthedCaller,
+    session: Session,
+    asserted_by_override: dict[str, Any] | None = None,
 ) -> ProposalAccepted:
     """The admission gate: validate, authorise, then append as `proposed` and
     route to the review queue (one open case per conflict). Never approved here."""
@@ -271,7 +268,7 @@ def propose_record(
 
     # A person behind the call asserts it; an agent alone asserts as a model
     # (authority capped at the model ceiling until a person approves).
-    asserted_by = (
+    asserted_by = asserted_by_override or (
         {"type": "user", "id": caller.end_user_id}
         if caller.end_user_id
         else {"type": "model", "id": caller.consumer_id}
@@ -302,6 +299,115 @@ def propose_record(
         grouped=admitted.grouped,
         warnings=admission.problems_payload(loosens),
     )
+
+
+@router.post(
+    "/records",
+    response_model=ProposalAccepted,
+    status_code=201,
+    operation_id="propose_record",
+    responses={422: {"model": ApiError, "description": "Invalid proposal: every problem listed"}},
+)
+def propose_record(
+    body: ProposeRecordRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
+) -> ProposalAccepted:
+    """The admission gate: validate, authorise, then append as `proposed` and
+    route to the review queue (one open case per conflict). Never approved here."""
+    return _propose(body, request, caller, session)
+
+
+def _problem_list(code: str, detail: Any) -> list[dict[str, str]]:
+    if not isinstance(detail, list):
+        return [{"code": code, "detail": str(detail)}]
+    out: list[dict[str, str]] = []
+    for item in cast(list[Any], detail):
+        if isinstance(item, dict):
+            out.append({str(k): str(v) for k, v in cast(dict[Any, Any], item).items()})
+    return out
+
+
+@router.post(
+    "/imports",
+    response_model=ImportResult,
+    operation_id="import_records",
+)
+def import_records(
+    body: ImportRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
+) -> ImportResult:
+    """A batch import (e.g. a source system's rule list) through the admission
+    gate, item by item (issue 37, scenario 1). An import never approves:
+    every new item is `proposed` (authority capped at 10 until an owner sets
+    it), an item identical to an approved record is a `duplicate` (nothing
+    written, that approval neither renewed nor extended), an item already
+    past its validity is flagged `expired`, and a refused item does not stop
+    the others."""
+    if caller.end_user_id is None:
+        raise CortexApiError(
+            422, "importer_required", "an import needs the person running it as X-End-User-Id"
+        )
+    importer = {"type": "import", "id": body.source_system, "by": str(caller.end_user_id)}
+    today = dt.datetime.now(JST)
+    results: list[ImportItemResult] = []
+    for index, item in enumerate(body.items):
+        item = item.model_copy(
+            update={
+                "authority": min(item.authority, ledger.MODEL_AUTHORITY_CEILING),
+                "source": {
+                    **item.source,
+                    "import": body.source_system,
+                    "requested_authority": item.authority,
+                },
+            }
+        )
+        same = admission.approved_same_content(
+            session,
+            item.schema_version,
+            str(item.scope),
+            item.entities,
+            item.body,
+            _business_start(item.valid_from) or today,
+            _business_start(item.valid_to),
+        )
+        if same and same.same_validity:
+            results.append(
+                ImportItemResult(
+                    index=index, status="duplicate", record_id=uuid.UUID(same.record_id)
+                )
+            )
+            continue
+        if same and item.supersedes is None:
+            # Same rule, other validity: a proposed change that replaces the
+            # approved record only once an owner approves it.
+            item = item.model_copy(update={"supersedes": uuid.UUID(same.record_id)})
+        try:
+            with session.begin_nested():
+                accepted = _propose(item, request, caller, session, asserted_by_override=importer)
+        except CortexApiError as exc:
+            detail: Any = exc.body.get("detail")
+            code = str(exc.body.get("error"))
+            problems = _problem_list(code, detail)
+            results.append(
+                ImportItemResult(index=index, status="rejected", error=code, problems=problems)
+            )
+            continue
+        expired = item.valid_to is not None and business_start(item.valid_to) <= today
+        results.append(
+            ImportItemResult(
+                index=index,
+                status="proposed",
+                record_id=accepted.record_id,
+                review_case_id=accepted.review_case_id,
+                expired=expired,
+                supersedes=item.supersedes,
+            )
+        )
+    return ImportResult(source_system=body.source_system, items=results)
 
 
 @router.post(

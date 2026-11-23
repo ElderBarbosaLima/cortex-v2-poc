@@ -32,11 +32,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clients.llm import embedder
 from app.domain_packs.base import DomainPack
 from app.models import MemoryRecord, ServedPack, ServedPackItem, Status
 from app.projections.base import SearchFilters, SearchProjection, SearchQuery
 from app.projections.embeddings import query_vector
-from app.schemas.cortex import ContextPack, PackRecord
+from app.schemas.cortex import ContextPack, PackBuiltWith, PackRecord
 from app.services import ledger
 from app.services.access_gate.applicability import CaseFacts, applicable_rules
 from app.services.access_gate.resolve import resolve
@@ -218,6 +219,8 @@ def build_and_store(
             as_of=request.as_of,
             policy_revision=access.policy_revision,
             case_hash=body_hash(dict(request.case)),
+            projection=search.version,
+            embedding_model=embedding.embedding_model if (embedding := embedder()) else None,
         )
     )
     session.flush()
@@ -295,6 +298,9 @@ def render(stored: StoredPack) -> ContextPack:
         as_of=served.as_of,
         policy_revision=served.policy_revision,
         served_at=served.served_at,
+        built_with=PackBuiltWith(
+            projection=served.projection, embedding_model=served.embedding_model
+        ),
         records=[
             PackRecord(
                 record_id=uuid.UUID(item.record_id),
