@@ -21,6 +21,7 @@ from sqlalchemy import cast as cast_
 from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
+from app.config import OrgBrainConfig
 from app.domain_packs.base import UnknownPackError, get_pack
 from app.identity import (
     OUTCOMES_SCOPE,
@@ -48,8 +49,14 @@ from app.schemas.cortex import (
     RecordPage,
     RecordRead,
     RecordSummary,
+    RenewItemResult,
+    RenewRequest,
+    RenewResult,
     RetireRequest,
     RetireResult,
+    RuleAlert,
+    RuleAlertItem,
+    RuleAlertPage,
     RuleSuggestion,
     RuleSyncPage,
     SyncedRule,
@@ -1032,3 +1039,193 @@ def sync_rules(
         has_more=has_more,
         policy_revision=decision.policy_revision,
     )
+
+
+_ALERT_WINDOW_DAYS = 90
+_ALERT_MIN_COUNT = 3
+
+
+@router.get(
+    "/rules/alerts",
+    response_model=RuleAlertPage,
+    operation_id="list_rule_alerts",
+    description="For owners (issue 48, slide 18): approved rules that need a look. review_due: "
+    "not reviewed for a year; expiring: valid_to within `within_days`; often_overridden: "
+    "specialists corrected cases where it applied, 3+ times in 90 days; keeps_losing: served "
+    "but overridden by another rule, 3+ times in 90 days.",
+)
+def list_rule_alerts(
+    request: Request,
+    scope: uuid.UUID = Query(),
+    purpose: str = Query(min_length=1),
+    within_days: int = Query(default=90, ge=1, le=366),
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> RuleAlertPage:
+    decision = authorise(request, caller, purpose=purpose, scope=str(scope))
+    allowed = [
+        c
+        for c, rank in SENSITIVITY_RANK.items()
+        if rank <= SENSITIVITY_RANK.get(decision.sensitivity_ceiling or "", -1)
+    ]
+    review_every = OrgBrainConfig().review_every_days
+    rows = (
+        session.execute(
+            text(
+                "WITH r AS (SELECT record_id, version, scope, entities, valid_to, recorded_at "
+                "  FROM memory_record_current WHERE kind = 'rule' AND status = 'approved' "
+                "  AND scope = ANY(CAST(:scopes AS uuid[])) "
+                "  AND sensitivity_class = ANY(CAST(:allowed AS text[]))), "
+                "o AS (SELECT i.record_id, count(DISTINCT c.case_ref) AS n FROM correction c "
+                "  JOIN served_pack_item i ON i.pack_id = c.pack_id "
+                "  AND i.role IN ('constraint', 'applied') "
+                "  WHERE c.conflict_key NOT LIKE 'confirmed:%' "
+                "  AND c.created_at >= now() - make_interval(days => :window) "
+                "  GROUP BY i.record_id), "
+                "l AS (SELECT i.record_id, count(*) AS n FROM served_pack_item i "
+                "  JOIN served_pack p ON p.pack_id = i.pack_id WHERE i.role = 'overridden' "
+                "  AND p.served_at >= now() - make_interval(days => :window) "
+                "  GROUP BY i.record_id) "
+                "SELECT r.record_id::text AS record_id, r.version, r.scope::text AS scope, "
+                "  r.entities, "
+                "  r.valid_to, "
+                "  r.recorded_at < now() - make_interval(days => :review) AS review_due, "
+                "  r.valid_to IS NOT NULL AND r.valid_to <= now() + make_interval(days => :days) "
+                "    AS expiring, "
+                "  coalesce(o.n, 0) AS overrides, coalesce(l.n, 0) AS losses "
+                "FROM r LEFT JOIN o ON o.record_id = r.record_id "
+                "LEFT JOIN l ON l.record_id = r.record_id ORDER BY r.record_id"
+            ),
+            {
+                "scopes": decision.readable_scopes,
+                "allowed": allowed,
+                "window": _ALERT_WINDOW_DAYS,
+                "review": review_every,
+                "days": within_days,
+            },
+        )
+        .mappings()
+        .all()
+    )
+    items: list[RuleAlert] = []
+    for r in rows:
+        alerts: list[RuleAlertItem] = []
+        if r["review_due"]:
+            alerts.append(
+                RuleAlertItem(kind="review_due", detail=f"not reviewed for {review_every} days")
+            )
+        if r["expiring"]:
+            alerts.append(RuleAlertItem(kind="expiring", detail=f"ends within {within_days} days"))
+        if r["overrides"] >= _ALERT_MIN_COUNT:
+            alerts.append(
+                RuleAlertItem(
+                    kind="often_overridden",
+                    count=int(r["overrides"]),
+                    detail=f"corrected in {r['overrides']} cases where it applied (90 days)",
+                )
+            )
+        if r["losses"] >= _ALERT_MIN_COUNT:
+            alerts.append(
+                RuleAlertItem(
+                    kind="keeps_losing",
+                    count=int(r["losses"]),
+                    detail=f"overridden by another rule in {r['losses']} packs (90 days)",
+                )
+            )
+        if alerts:
+            items.append(
+                RuleAlert(
+                    record_id=uuid.UUID(r["record_id"]),
+                    version=r["version"],
+                    title=_text_of(session, r["record_id"]),
+                    scope=uuid.UUID(r["scope"]),
+                    entities=list(r["entities"] or []),
+                    valid_to=r["valid_to"],
+                    alerts=alerts,
+                )
+            )
+    return RuleAlertPage(items=items, policy_revision=decision.policy_revision)
+
+
+@router.post(
+    "/rules/renew",
+    response_model=RenewResult,
+    operation_id="renew_rules",
+    description="April (issue 48): propose a new version of each rule with a new end date. "
+    "Each goes through the review queue as a supersede; nothing changes until its owner approves.",
+)
+def renew_rules(
+    body: RenewRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
+) -> RenewResult:
+    if caller.end_user_id is None:
+        raise CortexApiError(
+            422, "person_required", "a renewal is proposed by a person (X-End-User-Id)"
+        )
+    results: list[RenewItemResult] = []
+    for record_id in body.record_ids:
+        try:
+            current = ledger.latest(session, str(record_id))
+        except ledger.RecordNotFoundError:
+            results.append(
+                RenewItemResult(
+                    record_id=record_id,
+                    status="rejected",
+                    problems=[{"code": "not_found", "detail": "no such record"}],
+                )
+            )
+            continue
+        rule_body = review.body_or_none(session, current)
+        if current.status != Status.APPROVED.value or current.kind != "rule" or rule_body is None:
+            results.append(
+                RenewItemResult(
+                    record_id=record_id,
+                    status="rejected",
+                    problems=[
+                        {
+                            "code": "not_renewable",
+                            "detail": f"a {current.kind} that is {current.status}",
+                        }
+                    ],
+                )
+            )
+            continue
+        request_item = ProposeRecordRequest(
+            domain=current.schema_version.split(".", 1)[0],
+            kind="rule",
+            schema_version=current.schema_version,
+            body=rule_body,
+            scope=uuid.UUID(current.scope),
+            entities=list(current.entities or []),
+            enforcement=current.enforcement,  # type: ignore[arg-type]
+            authority=min(current.authority, 40),
+            sensitivity=current.sensitivity,  # type: ignore[arg-type]
+            purpose=body.purpose,
+            valid_from=(current.valid_from + dt.timedelta(hours=9)).date(),
+            valid_to=body.valid_to,
+            source={"renewal_of": str(record_id)},
+            supersedes=record_id,
+        )
+        try:
+            with session.begin_nested():
+                accepted = propose_record(request_item, request, caller, session)
+        except CortexApiError as exc:
+            results.append(
+                RenewItemResult(
+                    record_id=record_id,
+                    status="rejected",
+                    problems=_problem_list(str(exc.body.get("error")), exc.body.get("detail")),
+                )
+            )
+            continue
+        results.append(
+            RenewItemResult(
+                record_id=record_id,
+                status="pending" if accepted.already_pending else "proposed",
+                proposed_record_id=accepted.record_id,
+                review_case_id=accepted.review_case_id,
+            )
+        )
+    return RenewResult(items=results)

@@ -1930,6 +1930,112 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "RenewItemResult": {
+        "properties": {
+          "problems": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "proposed_record_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Record Id"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "review_case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Case Id"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "pending",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_id",
+          "status"
+        ],
+        "title": "RenewItemResult",
+        "type": "object"
+      },
+      "RenewRequest": {
+        "properties": {
+          "purpose": {
+            "minLength": 1,
+            "title": "Purpose",
+            "type": "string"
+          },
+          "record_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Record Ids",
+            "type": "array"
+          },
+          "valid_to": {
+            "description": "The new end date (business date, JST)",
+            "format": "date",
+            "title": "Valid To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_ids",
+          "valid_to",
+          "purpose"
+        ],
+        "title": "RenewRequest",
+        "type": "object"
+      },
+      "RenewResult": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RenewItemResult"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RenewResult",
+        "type": "object"
+      },
       "RetireRequest": {
         "properties": {
           "reason": {
@@ -2222,6 +2328,136 @@
           "named_owners"
         ],
         "title": "ReviewCaseSummary",
+        "type": "object"
+      },
+      "RuleAlert": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/RuleAlertItem"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "entities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "format": "uuid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rule text, read from the sealed body",
+            "title": "Title"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "version",
+          "title",
+          "scope",
+          "entities",
+          "valid_to",
+          "alerts"
+        ],
+        "title": "RuleAlert",
+        "type": "object"
+      },
+      "RuleAlertItem": {
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "review_due",
+              "expiring",
+              "often_overridden",
+              "keeps_losing"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "detail"
+        ],
+        "title": "RuleAlertItem",
+        "type": "object"
+      },
+      "RuleAlertPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RuleAlert"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          }
+        },
+        "required": [
+          "items",
+          "policy_revision"
+        ],
+        "title": "RuleAlertPage",
         "type": "object"
       },
       "RuleSuggestion": {
@@ -4133,6 +4369,174 @@
         "summary": "Reject Review Case",
         "tags": [
           "review"
+        ]
+      }
+    },
+    "/v1/cortex/rules/alerts": {
+      "get": {
+        "description": "For owners (issue 48, slide 18): approved rules that need a look. review_due: not reviewed for a year; expiring: valid_to within `within_days`; often_overridden: specialists corrected cases where it applied, 3+ times in 90 days; keeps_losing: served but overridden by another rule, 3+ times in 90 days.",
+        "operationId": "list_rule_alerts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "within_days",
+            "required": false,
+            "schema": {
+              "default": 90,
+              "maximum": 366,
+              "minimum": 1,
+              "title": "Within Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleAlertPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "List Rule Alerts",
+        "tags": [
+          "cortex"
+        ]
+      }
+    },
+    "/v1/cortex/rules/renew": {
+      "post": {
+        "description": "April (issue 48): propose a new version of each rule with a new end date. Each goes through the review queue as a supersede; nothing changes until its owner approves.",
+        "operationId": "renew_rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Renew Rules",
+        "tags": [
+          "cortex"
         ]
       }
     },

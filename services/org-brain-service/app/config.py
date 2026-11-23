@@ -31,6 +31,8 @@ class OrgBrainConfig(BaseSettings):
     rule_suggestion: str = "1/1/30"
     # Per domain (issue 46): IBM's "same fix 6 times" for cash allocation, per customer
     # and exception type (the conflict key), within 90 days. JSON: {"domain": "c/p/d"}.
+    # Owner alerts (issue 48): a rule not reviewed for this long is due a review.
+    review_every_days: int = 365
     rule_suggestion_by_domain: str = '{"cash_allocation": "6/1/90"}'
     # Every model call goes through LiteLLM (issue 30). The key is never here:
     # it is read from Secrets Manager (`litellm_key_secret`). Each use has its

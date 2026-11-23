@@ -13,6 +13,8 @@ export type CortexApproveRequest = Schemas['ApproveRequest']
 export type CortexRejectRequest = Schemas['RejectRequest']
 export type CortexDecisionResult = Schemas['DecisionResult']
 export type CortexExpiringPage = Schemas['ExpiringPage']
+export type CortexRuleAlertPage = Schemas['RuleAlertPage']
+export type CortexRenewResult = Schemas['RenewResult']
 export type CortexCaseProposal = Schemas['CaseProposal']
 
 export const REVIEW_PURPOSE = 'rule_review'
@@ -48,4 +50,18 @@ export function listExpiringRecords(
   endUser?: string
 ): Promise<CortexExpiringPage> {
   return cortexRequest('GET', '/records/expiring', { query: { purpose: REVIEW_PURPOSE, ...params }, endUser })
+}
+
+export function listRuleAlerts(
+  params: { scope: string, within_days?: number },
+  endUser?: string
+): Promise<CortexRuleAlertPage> {
+  return cortexRequest('GET', '/rules/alerts', { query: { purpose: REVIEW_PURPOSE, ...params }, endUser })
+}
+
+export function renewRules(
+  body: { record_ids: string[], valid_to: string, purpose: string },
+  endUser: string
+): Promise<CortexRenewResult> {
+  return cortexRequest('POST', '/rules/renew', { body, endUser })
 }

@@ -68,11 +68,13 @@ beforeEach(() => {
     [/^\/api\/dev\/seed$/, 200, seed],
     [/^\/api\/cortex\/review-cases\?/, 200, { items: [{ case_id: CASE, scope: SCOPE, title: '注文番号を備考に入れる', status: 'open', opened_at: '2026-12-04T06:00:00Z', proposal_count: 1, sensitivity_class: 'internal', named_owners: null }], next_cursor: null, policy_revision: null }],
     [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, detail({ allowed: true, reason: null })],
-    [/^\/api\/cortex\/records\/expiring\?/, 200, { items: [{
-      record_id: 'exp-1', version: 2, kind: 'rule', status: 'approved', scope: SCOPE, enforcement: 'default',
-      authority: 20, sensitivity_class: 'internal', valid_to: '2027-03-30T15:00:00Z', expired: false,
-      title: '備考に注文番号を記載する（全顧客）。'
-    }], within_days: 90, policy_revision: null }]
+    [/^\/api\/cortex\/rules\/alerts\?/, 200, { items: [{
+      record_id: 'exp-1', version: 2, scope: SCOPE, entities: [], valid_to: '2027-03-30T15:00:00Z',
+      title: '備考に注文番号を記載する（全顧客）。', alerts: [{ kind: 'expiring', detail: 'ends within 90 days', count: null }]
+    }, {
+      record_id: 'ovr-1', version: 1, scope: SCOPE, entities: [], valid_to: null,
+      title: '検収書を添付する。', alerts: [{ kind: 'often_overridden', detail: 'x', count: 4 }]
+    }], policy_revision: null }]
   ]
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, init })
@@ -201,6 +203,23 @@ describe('the Decision Desk', () => {
     await flushPromises()
 
     expect(page.find('[data-test-id="cortex-decision-desk-notice-text"]').exists()).toBe(false)
+  })
+
+  it('lists what needs attention and renews an expiring rule through the queue (issue 48)', async () => {
+    routes.unshift([/\/api\/cortex\/rules\/renew$/, 200, { items: [{ record_id: 'exp-1', status: 'proposed', proposed_record_id: 'new-1', review_case_id: 'c-9', problems: [] }] }])
+    const page = await mountSuspended(DecisionDesk)
+    await vi.waitFor(() => expect(page.findAll('[data-test-id="cortex-decision-desk-expiring-item-text"]').length).toBe(2))
+
+    expect(page.findAll('[data-test-id="cortex-decision-desk-expiring-item-text"]')[1]!.text())
+      .toContain('Specialists corrected 4 cases where it applied (90 days)')
+    await page.get('[data-test-id="cortex-decision-desk-renew-checkbox"]').setValue(true)
+    await page.get('[data-test-id="cortex-decision-desk-renew-to-input"]').setValue('2028-03-31')
+    await page.get('[data-test-id="cortex-decision-desk-renew-button"]').trigger('click')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-renew-result-text"]').exists()).toBe(true))
+
+    const post = calls.find(c => c.url.endsWith('/rules/renew'))!
+    expect(JSON.parse(String(post.init?.body))).toEqual({ record_ids: ['exp-1'], valid_to: '2028-03-31', purpose: 'rule_review' })
+    expect(page.get('[data-test-id="cortex-decision-desk-renew-result-text"]').text()).toBe('1 renewal(s) sent to the review queue; 0 refused.')
   })
 
   it('lists what expires soon in the scope', async () => {
