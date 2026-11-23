@@ -138,6 +138,7 @@ def _decision(
     correction: BaseModel,
     summary: Mapping[str, Any],
     domain: str,
+    case: Mapping[str, Any],
 ) -> str:
     """The reviewed outcome as episodic memory (issue 42): what was decided,
     by whom, on which case, with the pack's summary to find it again."""
@@ -159,6 +160,9 @@ def _decision(
                 "pack_id": stored.pack.pack_id,
                 "correction": correction.model_dump(mode="json"),
                 "case_summary": dict(summary),
+                # The case itself (issue 52): evidence for the owner and the approval
+                # preview. Sealed under this record's key, so erasure shreds it.
+                "case": dict(case),
             },
             scope=stored.pack.scope,
             asserted_by={"type": "user", "id": corrector},
@@ -273,6 +277,7 @@ def submit(
             correction=correction,
             summary=pack.case_summary(case, correction),
             domain=pack.name,
+            case=case,
         )
         row = Correction(
             correction_id=new_record_id(),
@@ -313,6 +318,7 @@ def submit(
         correction=correction,
         summary=pack.case_summary(case, correction),
         domain=pack.name,
+        case=case,
     )
     evidence = _evidence(session, key=key, policy=policy, case_ref=case_ref, corrector=corrector)
     proposed_id: str | None = None

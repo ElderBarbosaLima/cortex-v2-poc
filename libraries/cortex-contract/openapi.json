@@ -18,6 +18,59 @@
         "title": "ApiError",
         "type": "object"
       },
+      "ApprovalPreview": {
+        "description": "The origin case's pack now and once approved (issue 52).",
+        "properties": {
+          "after": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewRule"
+            },
+            "title": "After",
+            "type": "array"
+          },
+          "applies": {
+            "description": "The approved rule would apply to the origin case",
+            "title": "Applies",
+            "type": "boolean"
+          },
+          "available": {
+            "description": "False when no case was kept for this proposal",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "before": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewRule"
+            },
+            "title": "Before",
+            "type": "array"
+          },
+          "case_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Ref"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_id",
+          "case_ref",
+          "available",
+          "applies"
+        ],
+        "title": "ApprovalPreview",
+        "type": "object"
+      },
       "ApproveRequest": {
         "properties": {
           "authority": {
@@ -119,6 +172,78 @@
         "title": "CanDecide",
         "type": "object"
       },
+      "CaseEvidence": {
+        "description": "One correction behind a proposal (issue 52): what the reviewer changed and\non which case. A null case: kept before issue 52, or erased.",
+        "properties": {
+          "case": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case"
+          },
+          "case_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Ref"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decision_record_id": {
+            "format": "uuid",
+            "title": "Decision Record Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_record_id",
+          "case_ref",
+          "decided_by",
+          "decided_at",
+          "correction",
+          "case"
+        ],
+        "title": "CaseEvidence",
+        "type": "object"
+      },
       "CaseProposal": {
         "properties": {
           "approved_by": {
@@ -196,6 +321,13 @@
               "type": "string"
             },
             "title": "Entities",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/CaseEvidence"
+            },
+            "title": "Evidence",
             "type": "array"
           },
           "inherited_conflicts": {
@@ -1498,6 +1630,72 @@
           "body"
         ],
         "title": "PackRecord",
+        "type": "object"
+      },
+      "PreviewRule": {
+        "properties": {
+          "enforcement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "overridden_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overridden By"
+          },
+          "proposed": {
+            "description": "This is the proposal, as if approved",
+            "title": "Proposed",
+            "type": "boolean"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "constraint",
+              "applied",
+              "overridden"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "record_id",
+          "text",
+          "enforcement",
+          "role",
+          "proposed"
+        ],
+        "title": "PreviewRule",
         "type": "object"
       },
       "ProposalAccepted": {
@@ -4401,6 +4599,145 @@
           }
         },
         "summary": "Approve Review Case",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/v1/cortex/review-cases/{case_id}/preview": {
+      "get": {
+        "description": "What approving this proposal would change for the case it came from\n(issue 52): that case's pack now, and with the rule approved at the given\nenforcement and authority. Nothing is written.",
+        "operationId": "preview_approval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "enforcement",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(mandatory|prohibition|default)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Enforcement"
+            }
+          },
+          {
+            "in": "query",
+            "name": "authority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 40,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authority"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such case (or another tenant's)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Preview Approval",
         "tags": [
           "review"
         ]

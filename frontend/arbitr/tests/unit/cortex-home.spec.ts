@@ -1,6 +1,7 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import CortexHome from '~/pages/cortex/index.vue'
+import { useCortexUserStore } from '~/stores/cortexUser'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -12,6 +13,9 @@ describe('the Cortex home page', () => {
       consumer_id: 'decision-desk', tenant_id: 't', end_user_id: null, scopes: ['cortex:read']
     }), { status: 200 })))
 
+    const user = useCortexUserStore()
+    user.loaded = true
+    user.user = { setKey: 'ja', personId: 'p', personKey: 'OWN-001', label: 'ルール責任者', role: 'final_validator' }
     const page = await mountSuspended(CortexHome)
     await vi.waitFor(() => expect(page.get('[data-test-id="cortex-home-status-text"]').text())
       .toBe('Connected as decision-desk'))

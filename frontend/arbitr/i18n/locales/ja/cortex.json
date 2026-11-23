@@ -1,0 +1,209 @@
+{
+  "cortex": {
+    "home": {
+      "title": "Cortex",
+      "intro": "エージェントの仕事を支える、統制された組織の記憶。チームが承認したルール、解決済みの事例、そしてすべての回答の根拠。",
+      "connecting": "Cortex に接続しています…",
+      "connected": "{consumer} として接続中",
+      "unavailable": "Cortex に接続できません: {reason}",
+      "retry": "再試行",
+      "openDesk": "Decision Desk を開く",
+      "cards": {
+        "desk": {
+          "title": "Decision Desk",
+          "body": "担当者の修正から Cortex が学んだことを根拠とともに確認し、承認または却下します。"
+        },
+        "rules": {
+          "title": "承認済みルールを一元管理",
+          "body": "すべてのルールに責任者、バージョン、適用開始日があります。ルールエンジンと AI は同じルールを参照します。"
+        },
+        "audit": {
+          "title": "すべての回答に根拠",
+          "body": "回答ごとに、使用したルールのバージョンと承認者を記録し、監査証跡に残します。"
+        }
+      },
+      "signIn": "サインインして開始"
+    },
+    "desk": {
+      "title": "Decision Desk",
+      "intro": "Cortex が学んだ内容を根拠とともに確認し、承認または却下します。決定できるのは、そのスコープまたは顧客の責任者と代理者だけです。",
+      "pick": "確認するケースを選択してください。",
+      "problem": "Cortex が拒否しました（{code}）",
+      "toolbar": {
+        "label": "絞り込み",
+        "person": "操作するユーザー",
+        "scope": "スコープ",
+        "status": "状態",
+        "refresh": "更新",
+        "devNote": "開発用: 選択したユーザーは X-End-User-Id として送信されます。本番ではセッションから取得します。"
+      },
+      "status": {
+        "open": "未決定",
+        "decided": "決定済み"
+      },
+      "list": {
+        "label": "レビューケース",
+        "empty": "ケースはありません。",
+        "meta": "提案 {count} 件 · {scope}"
+      },
+      "detail": {
+        "meta": "{scope} · {status}",
+        "owners": "責任者: {owner} · 代理: {backup}",
+        "proposal": "提案",
+        "condition": "適用条件",
+        "targets": "対象",
+        "entities": "エンティティ",
+        "proposed": "提案内容",
+        "authority": "権限度 {authority}",
+        "source": "提案元",
+        "affected": "影響するケース",
+        "decisions": "決定履歴",
+        "erased": "この提案は消去されました。本文はもう読めません。",
+        "loosens": "このルールは上位の{enforcement}ルールを緩めます。パック作成時には上位ルールが常に優先されます: 「{text}」（{targets}）",
+        "loosensErased": "このルールは、本文が消去された上位の{enforcement}ルールを緩めます（{targets}）",
+        "validity": "有効期間",
+        "validityRange": "{from} → {to}",
+        "noStart": "常時",
+        "noEnd": "終了日なし",
+        "provenance": {
+          "model": "モデル {model} がケース {cases} から作成（修正者: {correctors}）",
+          "policy": "パックのルールがケース {cases} から作成（修正者: {correctors}）",
+          "user": "{person} が直接提案",
+          "import": "{system} から {person} がインポート",
+          "importAuthority": "要求された権限度は {requested}。インポートは決定まで {cap} が上限です",
+          "replication": "{region} から複製",
+          "other": "{type} {id}"
+        }
+      },
+      "outcome": {
+        "pending": "未決定",
+        "approved": "承認済み",
+        "rejected": "却下",
+        "retired": "廃止",
+        "superseded": "置き換え済み"
+      },
+      "decision": {
+        "approve": "承認",
+        "reject": "却下"
+      },
+      "decide": {
+        "label": "このケースを決定",
+        "title": "あなたの決定",
+        "enforcement": "最終的な拘束力",
+        "authority": "最終的な権限度（0–40）",
+        "reason": "理由（却下時は必須）",
+        "approve": "承認",
+        "reject": "却下",
+        "approveDenied": "承認できません: {reason}",
+        "rejectDenied": "却下できません: {reason}",
+        "reasonNeeded": "却下するには理由を入力してください。",
+        "validFrom": "適用開始日（JST）",
+        "validTo": "適用終了日（JST、空欄 = 終了なし）",
+        "validityHint": "日付は日本の営業日です。別の期間に適用する場合のみ変更してください。",
+        "authorityHint": "提案時の権限度は {proposed}。機械とインポートの提案は最大 10 です。承認済みルールは通常 20（チーム）から 30（グループ）。既定ルール同士では高い方が優先されます。"
+      },
+      "notice": {
+        "approved": "承認しました。次に該当するケースからこのルールが適用されます。",
+        "rejected": "却下しました。"
+      },
+      "expiring": {
+        "title": "まもなく期限切れ",
+        "intro": "このスコープで {days} 日以内に有効期間が終わる承認済みルール。",
+        "empty": "今後 {days} 日以内に期限切れになるものはありません。",
+        "until": "{date} まで",
+        "expired": "{date} に期限切れ"
+      },
+      "examples": {
+        "label": "サンプル",
+        "load": "サンプルケースを読み込む",
+        "report": "サンプル読み込みの結果",
+        "outcome": {
+          "created": "作成",
+          "already_there": "既存",
+          "failed": "失敗"
+        }
+      },
+      "bulk": {
+        "approve": "選択したものを承認（{count}）",
+        "hint": "提案どおりに、ケースごとに 1 件ずつ決定します。拘束力・権限度・期間を変えるにはケースを開いてください。",
+        "pick": "{title} を選択",
+        "done": "{count} 件を承認しました。",
+        "refused": "未承認: {title} — {reason}"
+      },
+      "alerts": {
+        "title": "要確認",
+        "intro": "このスコープで確認が必要な承認済みルール: {days} 日以内に終了、見直し時期、頻繁な修正、他のルールに負け続けているもの。",
+        "empty": "確認が必要なものはありません。",
+        "pick": "{title} を更新対象に選択",
+        "renewTo": "新しい終了日（JST）",
+        "renew": "選択したものを更新（{count}）",
+        "renewed": "{proposed} 件の更新をレビューキューに送りました。{refused} 件は拒否されました。",
+        "kind": {
+          "review_due": "見直し時期です",
+          "often_overridden": "適用されたケースのうち {count} 件が担当者に修正されました（90 日間）",
+          "keeps_losing": "{count} 件のパックで他のルールに負けました（90 日間）"
+        }
+      },
+      "dev": {
+        "title": "開発者ツール"
+      },
+      "evidence": {
+        "title": "根拠",
+        "from": "{case}（{date} に {person} が修正）",
+        "exception": "例外種別: {exception}",
+        "result": {
+          "confirmed": "担当者が消込を確認",
+          "corrected": "担当者が消込を修正"
+        },
+        "selected": "選択した請求書: {list}",
+        "case": "ケース {case} を表示",
+        "items": "{count} 件"
+      },
+      "preview": {
+        "appliesTo": "承認後は、次の条件を満たすすべてのケースに適用されます",
+        "button": "影響をプレビュー",
+        "title": "{case} で変わること",
+        "before": "現在",
+        "after": "承認後",
+        "proposed": "この提案",
+        "notApplicable": "この設定では {case} には適用されません。",
+        "unavailable": "この提案には元のケースが保存されていないため、プレビューできません。",
+        "role": {
+          "constraint": "必須",
+          "applied": "適用",
+          "overridden": "非適用"
+        }
+      },
+      "enforcement": {
+        "mandatory": "必須",
+        "prohibition": "禁止",
+        "default": "既定"
+      }
+    },
+    "shell": {
+      "brand": "Cortex",
+      "nav": {
+        "label": "メイン",
+        "home": "ホーム",
+        "desk": "Decision Desk"
+      },
+      "language": "言語",
+      "signOut": "サインアウト",
+      "devMode": "開発者ツール",
+      "footer": "Cortex PoC · arbitr · 架空データのみ"
+    },
+    "login": {
+      "title": "サインイン",
+      "intro": "会社とあなたを選択してください。",
+      "company": "会社",
+      "person": "あなたは？",
+      "submit": "サインイン",
+      "note": "PoC のサインインにパスワードはありません。本番では会社のシングルサインオンでサインインします。",
+      "unavailable": "ユーザー一覧を読み込めませんでした。",
+      "roles": {
+        "reviewer": "レビュアー",
+        "final_validator": "ルール責任者"
+      }
+    }
+  }
+}

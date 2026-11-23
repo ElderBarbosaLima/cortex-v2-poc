@@ -655,3 +655,38 @@ As issues abaixo seguem a ordem de dependência. O pack novo, `cash_allocation`,
 **Contexto.** Slide 26.
 **Inclui.** Um harness que repete o histórico de pagamentos contra as faturas abertas naquele dia e mede: a porcentagem com evidência de regra, a concordância com o especialista (shadow) e as sugestões aceitas. Roda com dados sintéticos até haver dados da IBM num ambiente próprio.
 **Dependências.** 42, 46.
+
+---
+
+## Revisão da demo (2026-11-23): o que falta
+
+## 50. O aviso de conflito no tenant japonês, e o critério "nenhuma regra obrigatória perdida"
+**Contexto.** A regra dos ¥5.000 no conjunto 日本語 chegou com `inherited_conflicts: []`. Causa: o stack estava sem `make seed`, e o conjunto japonês dependia do seed para ter as regras de grupo (登録番号). O conjunto inglês traz as suas. A checagem também só olhava escopos acima do da proposta, nunca o próprio.
+**Inclui.** O conjunto 日本語 traz as regras de grupo dele: as já presentes contam como "já estavam", e as que faltam são importadas e aprovadas pelo dono do grupo. O tenant `jp` ganha um dono na raiz (OWN-001/OWN-002). A checagem considera também as restrições do mesmo escopo. Um teste de ponta a ponta: num stack sem seed, carregar o conjunto japonês mostra os dois avisos.
+**Dependências.** 31, 39.
+
+## 51. A autoridade do formulário é a proposta
+**Contexto.** A regra é proposta com 10, e o formulário abria com 20.
+**Inclui.** O formulário abre com a autoridade proposta, e uma dica explica o teto de 10 para máquinas e importações e os valores usuais na aprovação.
+
+## 52. Evidências e o que muda ao aprovar
+**Contexto.** O doc 06 promete que a regra aprovada vale para toda fatura do cliente. A tela mostrava só o ID do caso de origem, sem trecho da correção, sem a fatura e sem prévia.
+**Inclui.**
+- A decisão guarda o caso corrigido, selado por registro e apagável.
+- O detalhe mostra, por evidência, o trecho da correção (antes → depois, nota) e a fatura ou o pagamento.
+- `GET /review-cases/{id}/preview`: o pack do caso de origem hoje e como ficaria com a regra aprovada, e a quem ela passa a valer (a condição em palavras).
+
+## 53. Casos de cash application nos exemplos
+**Contexto.** O escopo Q2C 入金消込チーム ficava vazio na demo.
+**Inclui.** Os conjuntos 日本語 e English carregam também casos do pack `cash_allocation`: um resultado corrigido (regra aprendida), uma regra local que afrouxa uma regra de grupo, e uma importação. O tenant `en` ganha o escopo de cash application.
+
+## 54. Login e modo de apresentação
+**Contexto.** "Acting as (dev)", o aviso de `X-End-User-Id`, `make seed` e "Load example cases" aparecem para quem assiste à demo.
+**Inclui.** Uma tela de login: escolher a pessoa, sem senha (no PoC; em produção, o SSO da IBM). O Desk usa a pessoa logada e permite sair. As ferramentas de dev ficam num painel separado, que só aparece com o modo de desenvolvedor ligado.
+
+## 55. Interface em japonês
+**Contexto.** Os rótulos estavam em inglês (lacuna do doc 06, P7). O idioma mudava com o tenant, não com a tela.
+**Inclui.** O locale `ja` completo e um seletor de idioma da interface, independente do conjunto de exemplos e lembrado no navegador.
+
+## 56. Frontend com cara de produto
+**Inclui.** Um app shell: cabeçalho com a marca, navegação, idioma e usuário. O Desk em cards, com badges de estado, hierarquia tipográfica, estados vazios e de carregamento.

@@ -331,6 +331,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/review-cases/{case_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Approval
+         * @description What approving this proposal would change for the case it came from
+         *     (issue 52): that case's pack now, and with the rule approved at the given
+         *     enforcement and authority. Nothing is written.
+         */
+        get: operations["preview_approval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/review-cases/{case_id}/reject": {
         parameters: {
             query?: never;
@@ -464,6 +486,33 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ApprovalPreview
+         * @description The origin case's pack now and once approved (issue 52).
+         */
+        ApprovalPreview: {
+            /** After */
+            after?: components["schemas"]["PreviewRule"][];
+            /**
+             * Applies
+             * @description The approved rule would apply to the origin case
+             */
+            applies: boolean;
+            /**
+             * Available
+             * @description False when no case was kept for this proposal
+             */
+            available: boolean;
+            /** Before */
+            before?: components["schemas"]["PreviewRule"][];
+            /** Case Ref */
+            case_ref: string | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+        };
         /** ApproveRequest */
         ApproveRequest: {
             /**
@@ -504,6 +553,35 @@ export interface components {
             approve: components["schemas"]["DecisionPermission"];
             reject: components["schemas"]["DecisionPermission"];
         };
+        /**
+         * CaseEvidence
+         * @description One correction behind a proposal (issue 52): what the reviewer changed and
+         *     on which case. A null case: kept before issue 52, or erased.
+         */
+        CaseEvidence: {
+            /** Case */
+            case: {
+                [key: string]: unknown;
+            } | null;
+            /** Case Ref */
+            case_ref: string | null;
+            /** Correction */
+            correction: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Decision Record Id
+             * Format: uuid
+             */
+            decision_record_id: string;
+        };
         /** CaseProposal */
         CaseProposal: {
             /** Approved By */
@@ -539,6 +617,8 @@ export interface components {
             enforcement: ("mandatory" | "prohibition" | "default") | null;
             /** Entities */
             entities: string[];
+            /** Evidence */
+            evidence?: components["schemas"]["CaseEvidence"][];
             /** Inherited Conflicts */
             inherited_conflicts?: components["schemas"]["InheritedConflict"][];
             /**
@@ -1102,6 +1182,30 @@ export interface components {
             role: "constraint" | "applied" | "overridden" | "candidate" | "similar_case";
             /** Version */
             version: number;
+        };
+        /** PreviewRule */
+        PreviewRule: {
+            /** Enforcement */
+            enforcement: string | null;
+            /** Overridden By */
+            overridden_by?: string | null;
+            /**
+             * Proposed
+             * @description This is the proposal, as if approved
+             */
+            proposed: boolean;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "constraint" | "applied" | "overridden";
+            /** Text */
+            text: string | null;
         };
         /** ProposalAccepted */
         ProposalAccepted: {
@@ -2779,6 +2883,78 @@ export interface operations {
             };
             /** @description The case is already decided */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    preview_approval: {
+        parameters: {
+            query: {
+                record_id: string;
+                purpose: string;
+                enforcement?: string | null;
+                authority?: number | null;
+            };
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalPreview"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such case (or another tenant's) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -73,6 +73,24 @@ def load_pack_rules(seed: Seed, seed_dir: Path) -> list[Loaded]:
                     continue
                 except ledger.RecordNotFoundError:
                     pass
+                valid_to = (
+                    business_start(dt.date.fromisoformat(doc["valid_to"]))
+                    if doc.get("valid_to")
+                    else None
+                )
+                # The same rule may already be there under another id, e.g. loaded by an
+                # example set through the review queue (issue 50): never twice.
+                if admission.approved_same_content(
+                    session,
+                    proposal.schema_version,
+                    proposal.scope,
+                    proposal.entities,
+                    proposal.body,
+                    proposal.valid_from,
+                    valid_to,
+                ):
+                    present += 1
+                    continue
                 ledger.append_new(
                     session,
                     tenant_id=tenant_id,

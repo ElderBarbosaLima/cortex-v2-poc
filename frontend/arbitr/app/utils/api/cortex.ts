@@ -15,6 +15,8 @@ export type CortexDecisionResult = Schemas['DecisionResult']
 export type CortexExpiringPage = Schemas['ExpiringPage']
 export type CortexRuleAlertPage = Schemas['RuleAlertPage']
 export type CortexRenewResult = Schemas['RenewResult']
+export type CortexApprovalPreview = Schemas['ApprovalPreview']
+export type CortexCaseEvidence = Schemas['CaseEvidence']
 export type CortexCaseProposal = Schemas['CaseProposal']
 
 export const REVIEW_PURPOSE = 'rule_review'
@@ -64,4 +66,14 @@ export function renewRules(
   endUser: string
 ): Promise<CortexRenewResult> {
   return cortexRequest('POST', '/rules/renew', { body, endUser })
+}
+
+export function previewApproval(
+  caseId: string,
+  params: { record_id: string, enforcement?: string | null, authority?: number },
+  endUser?: string
+): Promise<CortexApprovalPreview> {
+  const query: Record<string, string | number | undefined> = { purpose: REVIEW_PURPOSE, record_id: params.record_id, authority: params.authority }
+  if (params.enforcement) query.enforcement = params.enforcement
+  return cortexRequest('GET', `/review-cases/${encodeURIComponent(caseId)}/preview`, { query, endUser })
 }

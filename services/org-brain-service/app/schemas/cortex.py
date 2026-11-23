@@ -267,6 +267,18 @@ class InheritedConflict(BaseModel):
     targets: list[str]
 
 
+class CaseEvidence(BaseModel):
+    """One correction behind a proposal (issue 52): what the reviewer changed and
+    on which case. A null case: kept before issue 52, or erased."""
+
+    decision_record_id: uuid.UUID
+    case_ref: str | None
+    decided_by: uuid.UUID | None
+    decided_at: dt.datetime
+    correction: dict[str, Any] | None
+    case: dict[str, Any] | None
+
+
 class CaseProposal(RecordSummary):
     outcome: Outcome = Field(description="Derived from history: rejected = never approved")
     asserted_by: dict[str, Any]
@@ -281,6 +293,7 @@ class CaseProposal(RecordSummary):
     valid_from: dt.datetime
     valid_to: dt.datetime | None
     inherited_conflicts: list[InheritedConflict] = Field(default_factory=list[InheritedConflict])
+    evidence: list[CaseEvidence] = Field(default_factory=list[CaseEvidence])
 
 
 class DecisionView(BaseModel):
@@ -530,3 +543,23 @@ class SuggestionMetrics(BaseModel):
     pending: int
     acceptance: float | None = Field(description="accepted / decided; null when none decided yet")
     policy_revision: str | None
+
+
+class PreviewRule(BaseModel):
+    record_id: uuid.UUID
+    text: str | None
+    enforcement: str | None
+    role: Literal["constraint", "applied", "overridden"]
+    overridden_by: uuid.UUID | None = None
+    proposed: bool = Field(description="This is the proposal, as if approved")
+
+
+class ApprovalPreview(BaseModel):
+    """The origin case's pack now and once approved (issue 52)."""
+
+    record_id: uuid.UUID
+    case_ref: str | None
+    available: bool = Field(description="False when no case was kept for this proposal")
+    applies: bool = Field(description="The approved rule would apply to the origin case")
+    before: list[PreviewRule] = Field(default_factory=list[PreviewRule])
+    after: list[PreviewRule] = Field(default_factory=list[PreviewRule])

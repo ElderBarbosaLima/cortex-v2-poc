@@ -10,21 +10,29 @@ export function exampleKey(value: unknown): ExampleKey {
   return value === 'en' ? 'en' : 'ja'
 }
 
-interface RuleBody { text_ja: string, targets: string[], condition: string }
+interface RuleBody { text_ja: string, targets: string[], condition: string, [field: string]: unknown }
+
+export interface ExampleWorkflow {
+  label: string
+  scope: string
+  domain: string
+  purpose: string
+  base_rules: Array<{ key: string, scope: string, enforcement: string, authority: number, by: string, approver: string, body: RuleBody }>
+  /** Invoices: one case and a correction. Cash: several cases and the same outcome each time. */
+  case?: Record<string, unknown> & { case_id: string }
+  cases?: Array<Record<string, unknown> & { case_id: string }>
+  correction?: { reviewer: string, changes: unknown[], note_ja: string }
+  outcome?: { reviewer: string, [field: string]: unknown }
+  proposal: { by: string, enforcement: string, authority: number, body: RuleBody, entities?: string[] }
+  import: { by: string, source_system: string, authority: number, valid_to: string, body: RuleBody, entities?: string[] }
+}
 
 export interface ExampleSet {
   key: ExampleKey
   label: string
   tenant: string
-  scope: string
-  domain: string
-  purpose: string
   note: string
-  base_rules: Array<{ key: string, scope: string, enforcement: string, authority: number, by: string, approver: string, body: RuleBody }>
-  case: Record<string, unknown> & { case_id: string }
-  correction: { reviewer: string, changes: unknown[], note_ja: string }
-  proposal: { by: string, enforcement: string, authority: number, body: RuleBody }
-  import: { by: string, source_system: string, authority: number, valid_to: string, body: RuleBody }
+  workflows: ExampleWorkflow[]
 }
 
 export interface ExampleStep { step: string, outcome: 'created' | 'already_there' | 'failed', detail: string }
@@ -37,48 +45,41 @@ export type CortexCall = (
   options: { as: 'agent' | 'desk', user?: string, body?: unknown }
 ) => Promise<{ status: number, body: any }> // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const SCHEMA = 'custom_invoices.rule/1'
 const VALID_FROM = '2026-11-01'
 const AS_OF = '2026-12-04'
 
-function ruleItem(set: ExampleSet, ids: Ids, scope: string, body: RuleBody, enforcement: string, authority: number, validTo?: string) {
+function ruleItem(w: ExampleWorkflow, ids: Ids, scope: string, body: RuleBody, enforcement: string, authority: number,
+  opts: { validTo?: string, entities?: string[] } = {}) {
   return {
-    domain: set.domain,
+    domain: w.domain,
     kind: 'rule',
-    schema_version: SCHEMA,
+    schema_version: `${w.domain}.rule/1`,
     body,
     scope: ids.node(scope),
-    entities: [],
+    entities: opts.entities ?? [],
     enforcement,
     authority,
     sensitivity: { class: 'internal' },
-    purpose: set.purpose,
+    purpose: w.purpose,
     valid_from: VALID_FROM,
-    ...(validTo ? { valid_to: validTo } : {})
+    ...(opts.validTo ? { valid_to: opts.validTo } : {})
   }
 }
 
 function failed(step: string, status: number, body: unknown): ExampleStep {
-  const detail = typeof body === 'object' && body !== null && 'detail' in body ? JSON.stringify((body as { detail: unknown }).detail) : String(status)
+  const b = (typeof body === 'object' && body !== null ? body : {}) as { detail?: unknown, problems?: unknown }
+  const why = b.detail ?? (Array.isArray(b.problems) && b.problems.length ? b.problems : undefined)
+  const detail = why === undefined ? String(status) : JSON.stringify(why)
   return { step, outcome: 'failed', detail: `${status}: ${detail}`.slice(0, 300) }
 }
 
-/**
- * Load one set through the public API, as an agent and the people of its
- * tenant would: group rules imported and approved by the owner (English set
- * only), then a correction, a loosening proposal and an import to review.
- * Idempotent: an import of the same rule is a duplicate, the correction
- * replays by its idempotency key.
- */
-export async function loadExampleSet(set: ExampleSet, ids: Ids, call: CortexCall): Promise<ExampleStep[]> {
-  const steps: ExampleStep[] = []
-
-  for (const rule of set.base_rules) {
-    const name = `group rule ${rule.key}`
+async function groupRules(w: ExampleWorkflow, ids: Ids, call: CortexCall, steps: ExampleStep[]): Promise<void> {
+  for (const rule of w.base_rules) {
+    const name = `${w.label} · group rule ${rule.key}`
     const imported = await call('POST', '/imports', {
       as: 'agent',
       user: ids.person(rule.by),
-      body: { source_system: 'example-group-rules', items: [ruleItem(set, ids, rule.scope, rule.body, rule.enforcement, rule.authority)] }
+      body: { source_system: 'example-group-rules', items: [ruleItem(w, ids, rule.scope, rule.body, rule.enforcement, rule.authority)] }
     })
     const item = imported.body?.items?.[0]
     if (imported.status !== 200 || !item) {
@@ -93,7 +94,6 @@ export async function loadExampleSet(set: ExampleSet, ids: Ids, call: CortexCall
       steps.push(failed(name, imported.status, item))
       continue
     }
-    // proposed now, or still waiting from an earlier load: the owner approves it either way
     const approved = await call('POST', `/review-cases/${item.review_case_id}/approve`, {
       as: 'desk',
       user: ids.person(rule.approver),
@@ -103,65 +103,84 @@ export async function loadExampleSet(set: ExampleSet, ids: Ids, call: CortexCall
       ? { step: name, outcome: 'created', detail: `approved by ${rule.approver}` }
       : failed(name, approved.status, approved.body))
   }
+}
 
-  const scope = ids.node(set.scope)
-  const pack = await call('POST', '/context-packs', {
-    as: 'agent',
-    body: { domain: set.domain, case: set.case, scope, purpose: set.purpose, as_of: AS_OF }
-  })
-  if (pack.status !== 201) {
-    steps.push(failed('context pack', pack.status, pack.body))
-  } else {
-    const corrected = await call('POST', '/corrections', {
+async function corrections(w: ExampleWorkflow, setKey: string, ids: Ids, call: CortexCall, steps: ExampleStep[]): Promise<void> {
+  const cases = w.cases ?? (w.case ? [w.case] : [])
+  const name = cases.length > 1 ? `${w.label} · the same fix on ${cases.length} payments` : `${w.label} · correction`
+  let learned = false
+  let replayed = 0
+  for (const [n, c] of cases.entries()) {
+    const value = (c.payment as { value_date?: string } | undefined)?.value_date ?? AS_OF
+    const pack = await call('POST', '/context-packs', {
       as: 'agent',
-      user: ids.person(set.correction.reviewer),
-      body: {
-        pack_id: pack.body.pack_id,
-        domain: set.domain,
-        case_id: set.case.case_id,
-        case: set.case,
-        correction: {
-          correction_id: `EX-C-${set.key}-1`,
-          case_id: set.case.case_id,
-          reviewer: set.correction.reviewer,
-          corrected_at: `${AS_OF}T15:00:00+09:00`,
-          changes: set.correction.changes,
-          note_ja: set.correction.note_ja
-        },
-        idempotency_key: `examples-${set.key}-correction-1`
-      }
+      body: { domain: w.domain, case: c, scope: ids.node(w.scope), purpose: w.purpose, as_of: value }
     })
-    if (corrected.status === 202) {
-      steps.push({ step: 'correction', outcome: corrected.body.replayed ? 'already_there' : 'created', detail: corrected.body.proposed_record_id ? 'a learned rule to decide' : 'recorded' })
-    } else if (corrected.status === 409) {
-      // Submitted by an earlier load: its idempotency key now names that one (with an older pack).
-      steps.push({ step: 'correction', outcome: 'already_there', detail: 'submitted by an earlier load' })
+    if (pack.status !== 201) {
+      steps.push(failed(name, pack.status, pack.body))
+      return
+    }
+    const reviewer = (w.outcome ?? w.correction)!.reviewer
+    const correction = w.outcome
+      ? { ...w.outcome, correction_id: `EX-O-${setKey}-${n}`, case_id: c.case_id, corrected_at: `${AS_OF}T15:00:00+09:00` }
+      : { correction_id: `EX-C-${setKey}-1`, case_id: c.case_id, reviewer, corrected_at: `${AS_OF}T15:00:00+09:00`,
+          changes: w.correction!.changes, note_ja: w.correction!.note_ja }
+    const sent = await call('POST', w.outcome ? '/outcomes' : '/corrections', {
+      as: 'agent',
+      user: ids.person(reviewer),
+      body: { pack_id: pack.body.pack_id, domain: w.domain, case_id: c.case_id, case: c, correction,
+        idempotency_key: `examples-${setKey}-${w.domain}-${n}` }
+    })
+    if (sent.status === 202) {
+      if (sent.body.replayed) replayed += 1
+      if (sent.body.proposed_record_id) learned = true
+    } else if (sent.status === 409) {
+      replayed += 1 // submitted by an earlier load: its key now names that one
     } else {
-      steps.push(failed('correction', corrected.status, corrected.body))
+      steps.push(failed(name, sent.status, sent.body))
+      return
     }
   }
+  steps.push(replayed === cases.length
+    ? { step: name, outcome: 'already_there', detail: 'submitted by an earlier load' }
+    : { step: name, outcome: 'created', detail: learned ? 'a learned rule to decide' : 'recorded' })
+}
 
-  const proposed = await call('POST', '/records', {
-    as: 'agent',
-    user: ids.person(set.proposal.by),
-    body: ruleItem(set, ids, set.scope, set.proposal.body, set.proposal.enforcement, set.proposal.authority)
-  })
-  steps.push(proposed.status === 201
-    ? { step: 'local rule that loosens a group rule', outcome: proposed.body.already_pending ? 'already_there' : 'created', detail: `${(proposed.body.warnings ?? []).length} warning(s)` }
-    : failed('local rule that loosens a group rule', proposed.status, proposed.body))
+/**
+ * Load one set through the public API, as an agent and the people of its
+ * tenant would, workflow by workflow: group rules imported and approved by
+ * their owner, then corrections (or the same outcome repeated up to the
+ * pattern threshold), a local rule that loosens a group rule, and an import.
+ * Idempotent: duplicates and replays are reported as already there.
+ */
+export async function loadExampleSet(set: ExampleSet, ids: Ids, call: CortexCall): Promise<ExampleStep[]> {
+  const steps: ExampleStep[] = []
+  for (const w of set.workflows) {
+    await groupRules(w, ids, call, steps)
+    await corrections(w, set.key, ids, call, steps)
 
-  const imported = await call('POST', '/imports', {
-    as: 'agent',
-    user: ids.person(set.import.by),
-    body: {
-      source_system: set.import.source_system,
-      items: [ruleItem(set, ids, set.scope, set.import.body, 'default', set.import.authority, set.import.valid_to)]
-    }
-  })
-  const item = imported.body?.items?.[0]
-  steps.push(imported.status === 200 && item && item.status !== 'rejected'
-    ? { step: 'import', outcome: item.status === 'proposed' ? 'created' : 'already_there', detail: `valid until ${set.import.valid_to}` }
-    : failed('import', imported.status, item ?? imported.body))
+    const proposed = await call('POST', '/records', {
+      as: 'agent',
+      user: ids.person(w.proposal.by),
+      body: ruleItem(w, ids, w.scope, w.proposal.body, w.proposal.enforcement, w.proposal.authority, { entities: w.proposal.entities })
+    })
+    const loosens = `${w.label} · local rule that loosens a group rule`
+    steps.push(proposed.status === 201
+      ? { step: loosens, outcome: proposed.body.already_pending ? 'already_there' : 'created', detail: `${(proposed.body.warnings ?? []).length} warning(s)` }
+      : failed(loosens, proposed.status, proposed.body))
 
+    const imported = await call('POST', '/imports', {
+      as: 'agent',
+      user: ids.person(w.import.by),
+      body: {
+        source_system: w.import.source_system,
+        items: [ruleItem(w, ids, w.scope, w.import.body, 'default', w.import.authority, { validTo: w.import.valid_to, entities: w.import.entities })]
+      }
+    })
+    const item = imported.body?.items?.[0]
+    steps.push(imported.status === 200 && item && item.status !== 'rejected'
+      ? { step: `${w.label} · import`, outcome: item.status === 'proposed' ? 'created' : 'already_there', detail: `valid until ${w.import.valid_to}` }
+      : failed(`${w.label} · import`, imported.status, item ?? imported.body))
+  }
   return steps
 }

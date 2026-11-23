@@ -88,6 +88,7 @@ NODES: tuple[NodeSpec, ...] = (
     NodeSpec("en", "Fictitious Group UK (example)", "org", "tenant"),
     NodeSpec("en/finance", "Finance", "en", "team"),
     NodeSpec("en/finance/q2c-invoicing", "Q2C Invoicing team", "en/finance", "team"),
+    NodeSpec("en/finance/q2c-cash-application", "Q2C Cash application team", "en/finance", "team"),
 )
 
 # People are role labels only: no names, nothing personal.
@@ -104,6 +105,14 @@ PEOPLE: tuple[JsonObj, ...] = (
         "node": "jp/finance",
     },
     {"key": "X-001", "label": "別テナント担当", "role": "final_validator", "node": "other"},
+    # The group's rule managers: group-wide rules (scope jp) are theirs (issue 50).
+    {"key": "GRP-001", "label": "グループ経理 ルール管理", "role": "final_validator", "node": "jp"},
+    {
+        "key": "GRP-002",
+        "label": "グループ経理 ルール管理（代理）",
+        "role": "final_validator",
+        "node": "jp",
+    },
     # Cash specialists: each owns some customers' rules (issue 45, slide 18).
     {"key": "CS-101", "label": "入金消込担当 A", "role": "final_validator", "node": "jp/finance"},
     {"key": "CS-102", "label": "入金消込担当 B", "role": "final_validator", "node": "jp/finance"},
@@ -147,7 +156,10 @@ CONSUMERS: tuple[JsonObj, ...] = (
         "key": "examples-agent-en",
         "tenant": "en",
         "scopes": ["cortex:read", "cortex:write"],
-        "purposes": {"invoice_drafting": {"sensitivity_ceiling": "confidential"}},
+        "purposes": {
+            "invoice_drafting": {"sensitivity_ceiling": "confidential"},
+            "cash_matching": {"sensitivity_ceiling": "confidential"},
+        },
     },
     {
         "key": "decision-desk-en",
@@ -168,6 +180,8 @@ CONSUMERS: tuple[JsonObj, ...] = (
 # The named owner and backup who decide on proposals at a scope (doc 06: an
 # IBM owner plus a backup). The nearest owned node up the tree applies.
 OWNERS: tuple[JsonObj, ...] = (
+    # The group's own rules (scope jp) need an owner too: issue 50.
+    {"node": "jp", "owner": "GRP-001", "backup": "GRP-002"},
     {"node": "jp/finance/q2c-invoicing", "owner": "OWN-001", "backup": "OWN-002"},
     {"node": "jp/finance/q2c-cash-application", "owner": "OWN-001", "backup": "OWN-002"},
     {"node": "other", "owner": "X-001", "backup": None},
