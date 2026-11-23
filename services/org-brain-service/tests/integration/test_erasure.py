@@ -324,3 +324,19 @@ def test_erasing_an_unknown_record_says_so(
 
     assert code == 1
     assert "nothing to erase" in capsys.readouterr().err
+
+
+def test_an_erased_proposal_still_lists_with_no_title_or_body(tenant: Tenant) -> None:
+    """A review case whose proposal was erased stays listable (issue 29)."""
+    from app.services import review
+
+    rid = _record(tenant, Kind.FACT, "消える提案")
+    with allow_network(), tenant_session(tenant.tenant_id) as s:
+        assert review.title(s, ledger.latest(s, rid)) == "消える提案"
+        erasure.erase_record(
+            s, tenant_id=tenant.tenant_id, record_id=rid, requested_by="it", reason="t"
+        )
+    with allow_network(), tenant_session(tenant.tenant_id) as s:
+        row = ledger.latest(s, rid)
+        assert review.title(s, row) == review.ERASED_TITLE
+        assert review.body_or_none(s, row) is None

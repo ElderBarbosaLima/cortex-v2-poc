@@ -360,10 +360,18 @@ export interface components {
              * @description Authority ladder rung (0–40), not a key
              */
             authority: number;
-            /** Body */
+            /**
+             * Body
+             * @description Null once the record was erased
+             */
             body: {
                 [key: string]: unknown;
-            };
+            } | null;
+            /**
+             * Body Erased
+             * @default false
+             */
+            body_erased: boolean;
             /** Body Hash */
             body_hash: string;
             /** Derived From */

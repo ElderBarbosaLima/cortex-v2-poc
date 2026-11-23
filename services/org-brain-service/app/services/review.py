@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from app.models import Kind, MemoryRecord, ReviewCase, ReviewCaseItem, ReviewDecision, Status
 from app.services import ledger
 from app.services.admission import SENSITIVITY_RANK
+from app.services.body_codec import BodyUnreadableError
 from app.utils.ids import new_record_id
 
 Outcome = Literal["pending", "approved", "rejected", "retired", "superseded"]
@@ -116,9 +117,23 @@ def load_case(session: Session, case_id: str, *, for_update: bool = False) -> Op
     return OpenCase(case, [ledger.latest(session, r) for r in record_ids])
 
 
+ERASED_TITLE = "(erased)"
+
+
+def body_or_none(session: Session, row: MemoryRecord) -> dict[str, Any] | None:
+    """The record's body, or None once its key was erased (issue 24)."""
+    try:
+        return ledger.open_body(session, row)
+    except BodyUnreadableError:
+        return None
+
+
 def title(session: Session, row: MemoryRecord) -> str:
-    """Read from the sealed body, never stored in clear (migration 005)."""
-    body = ledger.open_body(session, row)
+    """Read from the sealed body, never stored in clear (migration 005). An
+    erased body has no title: a case with one stays listable."""
+    body = body_or_none(session, row)
+    if body is None:
+        return ERASED_TITLE
     return str(body.get("text_ja") or row.kind)[:200]
 
 

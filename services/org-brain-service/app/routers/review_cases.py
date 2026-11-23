@@ -162,7 +162,8 @@ def get_review_case(
         CaseProposal.model_validate(
             {
                 **{c: getattr(row, c) for c in CaseProposal.model_fields if hasattr(row, c)},
-                "body": ledger.open_body(session, row),
+                "body": (body := review.body_or_none(session, row)),
+                "body_erased": body is None,
                 "outcome": review.outcome(row.status, row.record_id in approved),
             }
         )

@@ -120,9 +120,22 @@
             "type": "integer"
           },
           "body": {
-            "additionalProperties": true,
-            "title": "Body",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null once the record was erased",
+            "title": "Body"
+          },
+          "body_erased": {
+            "default": false,
+            "title": "Body Erased",
+            "type": "boolean"
           },
           "body_hash": {
             "title": "Body Hash",

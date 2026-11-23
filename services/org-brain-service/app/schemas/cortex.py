@@ -227,7 +227,8 @@ class CaseProposal(RecordSummary):
     outcome: Outcome = Field(description="Derived from history: rejected = never approved")
     asserted_by: dict[str, Any]
     approved_by: dict[str, Any] | None
-    body: dict[str, Any]
+    body: dict[str, Any] | None = Field(description="Null once the record was erased")
+    body_erased: bool = False
     body_hash: str
     entities: list[str]
     source: dict[str, Any] = Field(description="Evidence: where the proposal came from")
