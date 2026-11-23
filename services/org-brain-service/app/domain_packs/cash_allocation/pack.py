@@ -27,7 +27,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from app.domain_packs.base import EntityMatch, RuleBody, RuleDraft
+from app.domain_packs.base import EntityMatch, NoRuleToLearnError, RuleBody, RuleDraft
 
 Exception_ = Literal[
     "combined_payment", "bank_fee", "tax_difference", "duplicate_payment", "partial_payment"
@@ -259,8 +259,8 @@ class CashAllocationPack:
     def correction_to_rule(self, correction: BaseModel, *, case: Mapping[str, Any]) -> RuleDraft:
         o = AllocationOutcome.model_validate(correction.model_dump())
         c = parse_case(case)
-        if o.exception is None:
-            raise ValueError("a rule is learned only from an outcome with an exception type")
+        if o.result == "confirmed" or o.exception is None:
+            raise NoRuleToLearnError("a confirmed outcome, or one with no exception type")
         gap = c.effective_gap
         engine = o.engine or _engine_from_gap(o.exception, gap)
         note = o.note_ja or f"{o.exception} ({gap} 円)"
@@ -276,6 +276,24 @@ class CashAllocationPack:
             "engine": engine,
         }
         return RuleDraft(body=body, entities=(f"customer:{c.customer_id}",))
+
+    def case_summary(self, case: Mapping[str, Any], correction: BaseModel | None) -> dict[str, Any]:
+        c = parse_case(case)
+        summary: dict[str, Any] = {
+            "customer_id": c.customer_id,
+            "amount": c.payment.amount,
+            "gap": c.effective_gap,
+            "candidate_count": len(c.candidate_invoices),
+        }
+        if correction is not None:
+            o = AllocationOutcome.model_validate(correction.model_dump())
+            summary |= {
+                "result": o.result,
+                "exception": o.exception,
+                "selected_invoices": o.selected_invoices,
+                "reason": o.note_ja,
+            }
+        return summary
 
     def search_text(self, case: Mapping[str, Any]) -> str:
         c = parse_case(case)

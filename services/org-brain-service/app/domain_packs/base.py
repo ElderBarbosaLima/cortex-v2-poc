@@ -98,6 +98,13 @@ class DomainPack(Protocol):
 
     def search_text(self, case: Mapping[str, Any]) -> str: ...
 
+    def case_summary(self, case: Mapping[str, Any], correction: BaseModel | None) -> dict[str, Any]:
+        """A small, non-identifying summary of a case and how it was decided
+        (issue 42): kept with the decision as episodic memory, and compared to
+        rank similar past cases. `correction` is None for the case being asked
+        about. Numbers a pack wants compared go under `gap` (int)."""
+        ...
+
     def check_output(
         self, output: Mapping[str, Any], rules: Sequence[RuleBody], case: Mapping[str, Any]
     ) -> list[str]:
@@ -131,6 +138,11 @@ def entity_literals(condition: str, entity_fields: Mapping[str, str]) -> set[str
         for match in re.finditer(rf'\b{p}\s*==\s*"([^"]+)"|"([^"]+)"\s*==\s*\b{p}\b', condition):
             found.add(f"{entity_type}:{match.group(1) or match.group(2)}")
     return found
+
+
+class NoRuleToLearnError(ValueError):
+    """The outcome confirms what was done: it is remembered as a past case,
+    and no rule is proposed from it (issue 42)."""
 
 
 class UnknownPackError(LookupError):
