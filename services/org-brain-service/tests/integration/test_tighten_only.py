@@ -27,7 +27,7 @@ from app.identity import ConsumerKeyStore
 from app.main import AppServices, create_app, register_tenants
 from app.models import Kind, Status
 from app.seed.tenants import Seed, load_seed
-from app.services import ledger
+from app.services import ledger, review
 from app.services.policy_gate import PolicyGate
 from app.utils.business_dates import business_start
 from tests.fakes.fake_pack import PACK
@@ -150,8 +150,20 @@ def test_a_person_may_propose_a_loosening_default_but_the_owner_is_told(world: W
     assert [w["code"] for w in resp.json()["warnings"]] == ["loosens_inherited_constraint"]
     assert ban in resp.json()["warnings"][0]["detail"]
     with allow_network(), tenant_session(world.tenant) as s:
-        source = ledger.latest(s, resp.json()["record_id"]).source
-    assert source["inherited_conflicts"][0]["code"] == "loosens_inherited_constraint"
+        row = ledger.latest(s, resp.json()["record_id"])
+        shown = review.inherited_conflicts(s, row)
+    assert row.source["inherited_conflicts"][0]["code"] == "loosens_inherited_constraint"
+    assert row.source["inherited_conflicts"][0]["record_id"] == ban
+    assert "text_ja" not in str(row.source)  # the constraint's text is never copied in clear
+    # issue 38: the Decision Desk gets the rule itself, opened when the case is read
+    assert shown == [
+        {
+            "record_id": ban,
+            "enforcement": "prohibition",
+            "text_ja": "ラベルに独自の文言を加えない。",
+            "targets": ["order.label"],
+        }
+    ]
 
 
 def test_a_machine_may_not_loosen_an_inherited_constraint(world: World) -> None:

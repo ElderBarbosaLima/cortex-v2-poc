@@ -139,6 +139,11 @@ def list_records(
     )
 
 
+def _text_of(session: Session, record_id: str) -> str | None:
+    body = review.body_or_none(session, ledger.latest(session, record_id))
+    return str(body["text_ja"])[:200] if body and body.get("text_ja") else None
+
+
 @router.get("/records/expiring", response_model=ExpiringPage, operation_id="list_expiring_records")
 def list_expiring_records(
     request: Request,
@@ -158,19 +163,26 @@ def list_expiring_records(
         for c, rank in SENSITIVITY_RANK.items()
         if rank <= SENSITIVITY_RANK.get(decision.sensitivity_ceiling or "", -1)
     ]
-    rows = session.execute(
-        text(
-            "SELECT record_id::text AS record_id, version, kind, status, scope::text AS scope, "
-            "enforcement, authority, sensitivity_class, valid_to, valid_to <= now() AS expired "
-            "FROM memory_record_current WHERE status = 'approved' AND valid_to IS NOT NULL "
-            "AND valid_to <= now() + make_interval(days => :days) "
-            "AND scope = ANY(CAST(:scopes AS uuid[])) "
-            "AND sensitivity_class = ANY(CAST(:allowed AS text[])) ORDER BY valid_to, record_id"
-        ),
-        {"days": within_days, "scopes": decision.readable_scopes, "allowed": allowed},
-    ).all()
+    rows = (
+        session.execute(
+            text(
+                "SELECT record_id::text AS record_id, version, kind, status, scope::text AS scope, "
+                "enforcement, authority, sensitivity_class, valid_to, valid_to <= now() AS expired "
+                "FROM memory_record_current WHERE status = 'approved' AND valid_to IS NOT NULL "
+                "AND valid_to <= now() + make_interval(days => :days) "
+                "AND scope = ANY(CAST(:scopes AS uuid[])) "
+                "AND sensitivity_class = ANY(CAST(:allowed AS text[])) ORDER BY valid_to, record_id"
+            ),
+            {"days": within_days, "scopes": decision.readable_scopes, "allowed": allowed},
+        )
+        .mappings()
+        .all()
+    )
     return ExpiringPage(
-        items=[ExpiringRecord.model_validate(r, from_attributes=True) for r in rows],
+        items=[
+            ExpiringRecord.model_validate({**r, "title": _text_of(session, str(r["record_id"]))})
+            for r in rows
+        ],
         within_days=within_days,
         policy_revision=decision.policy_revision,
     )

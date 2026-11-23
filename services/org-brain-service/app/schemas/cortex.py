@@ -244,6 +244,16 @@ class ReviewCasePage(BaseModel):
     policy_revision: str | None
 
 
+class InheritedConflict(BaseModel):
+    """An inherited constraint this proposal would loosen (issue 31), resolved
+    when the case is read so the owner sees the rule, not an id (issue 38)."""
+
+    record_id: uuid.UUID
+    enforcement: Enforcement | None
+    text_ja: str | None = Field(description="Null once that record was erased")
+    targets: list[str]
+
+
 class CaseProposal(RecordSummary):
     outcome: Outcome = Field(description="Derived from history: rejected = never approved")
     asserted_by: dict[str, Any]
@@ -257,6 +267,7 @@ class CaseProposal(RecordSummary):
     supersedes: uuid.UUID | None = None
     valid_from: dt.datetime
     valid_to: dt.datetime | None
+    inherited_conflicts: list[InheritedConflict] = Field(default_factory=list[InheritedConflict])
 
 
 class DecisionView(BaseModel):
@@ -373,6 +384,9 @@ class RetireResult(BaseModel):
 
 class ExpiringRecord(RecordSummary):
     valid_to: dt.datetime
+    title: str | None = Field(
+        description="The rule text, read from the sealed body; null once erased"
+    )
     expired: bool = Field(
         description="valid_to has passed: packs for later dates no longer carry it"
     )

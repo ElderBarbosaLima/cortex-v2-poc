@@ -15,6 +15,8 @@ describe('the Cortex home page', () => {
     const page = await mountSuspended(CortexHome)
     await vi.waitFor(() => expect(page.get('[data-test-id="cortex-home-status-text"]').text())
       .toBe('Connected as decision-desk'))
+    // issue 38: the home page leads somewhere
+    expect(page.get('[data-test-id="cortex-home-decision-desk-link"]').attributes('href')).toBe('/cortex/decision-desk')
   })
 
   it('offers a retry when Cortex is unavailable', async () => {

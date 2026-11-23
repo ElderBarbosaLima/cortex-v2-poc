@@ -46,6 +46,7 @@ _cel = CelExprEvaluator()
 class Problem:
     code: str
     detail: str
+    record_id: str | None = None  # the record the problem points at, when there is one
 
 
 @dataclass(frozen=True)
@@ -169,6 +170,7 @@ def inherited_conflicts(
                     "loosens_inherited_constraint",
                     f"{row.enforcement} {record_id} at an ancestor scope governs "
                     f"{sorted(shared)}; a lower scope may only tighten it",
+                    record_id=str(record_id),
                 )
             )
     return problems
@@ -295,4 +297,7 @@ def approved_same_content(
 
 
 def problems_payload(problems: Sequence[Problem]) -> list[dict[str, str]]:
-    return [{"code": p.code, "detail": p.detail} for p in problems]
+    return [
+        {"code": p.code, "detail": p.detail, **({"record_id": p.record_id} if p.record_id else {})}
+        for p in problems
+    ]

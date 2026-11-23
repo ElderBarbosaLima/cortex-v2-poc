@@ -18,6 +18,22 @@ const seed = {
   scopes: [{ key: 'jp/finance/q2c-invoicing', name: 'Q2C 請求書チーム', id: SCOPE, type: 'team', tenantId: 't' }]
 }
 
+function imported(approve: { allowed: boolean, reason: string | null }) {
+  const base = detail(approve)
+  base.proposals[0] = {
+    ...base.proposals[0]!,
+    asserted_by: { type: 'import', id: 'legacy-rule-list', by: CORRECTOR },
+    source: { import: 'legacy-rule-list', requested_authority: 20 },
+    valid_from: '2026-10-31T15:00:00Z',
+    valid_to: '2027-03-30T15:00:00Z',
+    inherited_conflicts: [{
+      record_id: 'ban-1', enforcement: 'prohibition', text_ja: '登録番号を記載しない請求書は発行しない。',
+      targets: ['invoice.registration_number']
+    }]
+  } as typeof base.proposals[0]
+  return base
+}
+
 function detail(approve: { allowed: boolean, reason: string | null }) {
   return {
     case_id: CASE, scope: SCOPE, title: 'CUST-0042 の coupa 請求書では、注文番号を備考に入れる', status: 'open',
@@ -45,7 +61,12 @@ beforeEach(() => {
   routes = [
     [/^\/api\/dev\/seed$/, 200, seed],
     [/^\/api\/cortex\/review-cases\?/, 200, { items: [{ case_id: CASE, scope: SCOPE, title: '注文番号を備考に入れる', status: 'open', opened_at: '2026-12-04T06:00:00Z', proposal_count: 1, sensitivity_class: 'internal', named_owners: null }], next_cursor: null, policy_revision: null }],
-    [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, detail({ allowed: true, reason: null })]
+    [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, detail({ allowed: true, reason: null })],
+    [/^\/api\/cortex\/records\/expiring\?/, 200, { items: [{
+      record_id: 'exp-1', version: 2, kind: 'rule', status: 'approved', scope: SCOPE, enforcement: 'default',
+      authority: 20, sensitivity_class: 'internal', valid_to: '2027-03-30T15:00:00Z', expired: false,
+      title: '備考に注文番号を記載する（全顧客）。'
+    }], within_days: 90, policy_revision: null }]
   ]
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, init })
@@ -127,6 +148,62 @@ describe('the Decision Desk', () => {
 
     await page.get('[data-test-id="cortex-decision-desk-reason-textarea"]').setValue('根拠不足')
     expect(page.get('[data-test-id="cortex-decision-desk-reject-button"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('says in words who proposed an import, what it asked for, and its validity (issue 38)', async () => {
+    routes[2] = [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, imported({ allowed: true, reason: null })]
+    const page = await openCase()
+
+    expect(page.get('[data-test-id="cortex-decision-desk-provenance-text"]').text())
+      .toContain('Imported from legacy-rule-list by 請求書レビュアー 1')
+    expect(page.get('[data-test-id="cortex-decision-desk-provenance-text"]').text())
+      .toContain('Asked for authority 20; an import is capped at 10')
+    expect(page.get('[data-test-id="cortex-decision-desk-validity-text"]').text()).toBe('2026-11-01 → 2027-03-31')
+    expect(page.get('[data-test-id="cortex-decision-desk-loosens-text"]').text())
+      .toContain('inherited prohibition rule, which keeps winning when packs are built: 「登録番号を記載しない請求書は発行しない。」 (invoice.registration_number)')
+  })
+
+  it('names a learned rule\'s model and correctors, and shows no start date as always', async () => {
+    const page = await openCase()
+
+    expect(page.get('[data-test-id="cortex-decision-desk-provenance-text"]').text())
+      .toBe('Drafted by the pack\'s rule from case(s) INV-0007, corrected by 請求書レビュアー 1')
+    expect(page.get('[data-test-id="cortex-decision-desk-validity-text"]').text()).toBe('always → no end date')
+  })
+
+  it('sends validity only when the owner changes it', async () => {
+    routes[2] = [/^\/api\/cortex\/review-cases\/case-uuid\?/, 200, imported({ allowed: true, reason: null })]
+    const page = await openCase()
+    routes.unshift([/\/approve$/, 200, { decision_id: 'd', case_id: CASE, decision: 'approve', records: [], policy_revision: null }])
+
+    expect((page.get('[data-test-id="cortex-decision-desk-valid-to-input"]').element as HTMLInputElement).value).toBe('2027-03-31')
+    await page.get('[data-test-id="cortex-decision-desk-valid-to-input"]').setValue('2027-06-30')
+    await page.get('[data-test-id="cortex-decision-desk-approve-button"]').trigger('click')
+    await flushPromises()
+
+    const post = calls.find(c => c.url.endsWith('/approve'))!
+    expect(JSON.parse(String(post.init?.body))).toEqual({ authority: 20, enforcement: 'default', reason: null, valid_to: '2027-06-30' })
+  })
+
+  it('clears the last notice when you act as someone else', async () => {
+    const page = await openCase()
+    routes.unshift([/\/approve$/, 200, { decision_id: 'd', case_id: CASE, decision: 'approve', records: [], policy_revision: null }])
+    await page.get('[data-test-id="cortex-decision-desk-approve-button"]').trigger('click')
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-notice-text"]').exists()).toBe(true))
+
+    await page.get('[data-test-id="cortex-decision-desk-person-select"]').setValue(CORRECTOR)
+    await flushPromises()
+
+    expect(page.find('[data-test-id="cortex-decision-desk-notice-text"]').exists()).toBe(false)
+  })
+
+  it('lists what expires soon in the scope', async () => {
+    const page = await mountSuspended(DecisionDesk)
+    await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-expiring-item-text"]').exists()).toBe(true))
+
+    expect(page.get('[data-test-id="cortex-decision-desk-expiring-item-text"]').text())
+      .toContain('備考に注文番号を記載する（全顧客）。')
+    expect(page.get('[data-test-id="cortex-decision-desk-expiring-item-text"]').text()).toContain('until 2027-03-31')
   })
 
   it('gives every control a cortex-decision-desk test id', async () => {

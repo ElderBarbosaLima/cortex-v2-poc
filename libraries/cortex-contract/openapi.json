@@ -198,6 +198,13 @@
             "title": "Entities",
             "type": "array"
           },
+          "inherited_conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/InheritedConflict"
+            },
+            "title": "Inherited Conflicts",
+            "type": "array"
+          },
           "kind": {
             "enum": [
               "fact",
@@ -1040,6 +1047,18 @@
             "title": "Status",
             "type": "string"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rule text, read from the sealed body; null once erased",
+            "title": "Title"
+          },
           "valid_to": {
             "format": "date-time",
             "title": "Valid To",
@@ -1061,6 +1080,7 @@
           "authority",
           "sensitivity_class",
           "valid_to",
+          "title",
           "expired"
         ],
         "title": "ExpiringRecord",
@@ -1263,6 +1283,59 @@
           "items"
         ],
         "title": "ImportResult",
+        "type": "object"
+      },
+      "InheritedConflict": {
+        "description": "An inherited constraint this proposal would loosen (issue 31), resolved\nwhen the case is read so the owner sees the rule, not an id (issue 38).",
+        "properties": {
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mandatory",
+                  "prohibition",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "text_ja": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null once that record was erased",
+            "title": "Text Ja"
+          }
+        },
+        "required": [
+          "record_id",
+          "enforcement",
+          "text_ja",
+          "targets"
+        ],
+        "title": "InheritedConflict",
         "type": "object"
       },
       "NamedOwners": {

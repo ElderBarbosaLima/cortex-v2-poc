@@ -297,3 +297,4 @@ def test_a_rule_ending_soon_is_listed_before_it_expires(world: World) -> None:
     assert listed(2) is None
     row = listed(10)
     assert row is not None and row["expired"] is False
+    assert row["title"]  # issue 38: the Desk lists it by its text, not an id

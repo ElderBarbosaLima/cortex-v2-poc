@@ -32,6 +32,14 @@ onMounted(() => session.load())
       >
         {{ t('cortex.home.connected', { consumer: session.whoami.consumer_id }) }}
       </p>
+      <UButton
+        v-if="session.whoami"
+        to="/cortex/decision-desk"
+        class="mt-4"
+        data-test-id="cortex-home-decision-desk-link"
+      >
+        {{ t('cortex.home.openDesk') }}
+      </UButton>
       <div v-else>
         <p
           class="text-body text-error"

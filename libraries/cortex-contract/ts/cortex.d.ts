@@ -436,6 +436,8 @@ export interface components {
             enforcement: ("mandatory" | "prohibition" | "default") | null;
             /** Entities */
             entities: string[];
+            /** Inherited Conflicts */
+            inherited_conflicts?: components["schemas"]["InheritedConflict"][];
             /**
              * Kind
              * @enum {string}
@@ -819,6 +821,11 @@ export interface components {
              */
             status: "proposed" | "approved" | "stale" | "deprecated" | "superseded" | "erased";
             /**
+             * Title
+             * @description The rule text, read from the sealed body; null once erased
+             */
+            title: string | null;
+            /**
              * Valid To
              * Format: date-time
              */
@@ -903,6 +910,27 @@ export interface components {
             items: components["schemas"]["ImportItemResult"][];
             /** Source System */
             source_system: string;
+        };
+        /**
+         * InheritedConflict
+         * @description An inherited constraint this proposal would loosen (issue 31), resolved
+         *     when the case is read so the owner sees the rule, not an id (issue 38).
+         */
+        InheritedConflict: {
+            /** Enforcement */
+            enforcement: ("mandatory" | "prohibition" | "default") | null;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Targets */
+            targets: string[];
+            /**
+             * Text Ja
+             * @description Null once that record was erased
+             */
+            text_ja: string | null;
         };
         /** NamedOwners */
         NamedOwners: {

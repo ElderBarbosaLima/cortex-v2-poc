@@ -12,6 +12,8 @@ export type CortexReviewCaseDetail = Schemas['ReviewCaseDetail']
 export type CortexApproveRequest = Schemas['ApproveRequest']
 export type CortexRejectRequest = Schemas['RejectRequest']
 export type CortexDecisionResult = Schemas['DecisionResult']
+export type CortexExpiringPage = Schemas['ExpiringPage']
+export type CortexCaseProposal = Schemas['CaseProposal']
 
 export const REVIEW_PURPOSE = 'rule_review'
 
@@ -39,4 +41,11 @@ export function approveReviewCase(caseId: string, body: CortexApproveRequest, en
 
 export function rejectReviewCase(caseId: string, body: CortexRejectRequest, endUser: string): Promise<CortexDecisionResult> {
   return cortexRequest('POST', `/review-cases/${encodeURIComponent(caseId)}/reject`, { body, endUser })
+}
+
+export function listExpiringRecords(
+  params: { scope: string, within_days?: number },
+  endUser?: string
+): Promise<CortexExpiringPage> {
+  return cortexRequest('GET', '/records/expiring', { query: { purpose: REVIEW_PURPOSE, ...params }, endUser })
 }

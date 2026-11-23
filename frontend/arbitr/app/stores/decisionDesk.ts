@@ -3,15 +3,19 @@ import { CortexApiError, errorMessage } from '~/utils/api/client'
 import {
   approveReviewCase,
   getReviewCase,
+  listExpiringRecords,
   listReviewCases,
   rejectReviewCase,
   type CortexApproveRequest,
+  type CortexExpiringPage,
   type CortexReviewCaseDetail,
   type CortexReviewCaseSummary
 } from '~/utils/api/cortex'
 
 export interface DevPerson { key: string, label: string, role: string, id: string, tenantId: string }
 export interface DevScope { key: string, name: string, id: string, type: string, tenantId: string }
+
+export const EXPIRING_DAYS = 90
 
 export interface DeskProblem { message: string, code: string, policyRevision: string | null }
 
@@ -40,7 +44,8 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
     loading: false,
     deciding: false,
     problem: null as DeskProblem | null,
-    notice: null as string | null
+    notice: null as string | null,
+    expiring: [] as CortexExpiringPage['items']
   }),
   getters: {
     person: state => state.people.find(p => p.id === state.personId) ?? null,
@@ -68,6 +73,7 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
       try {
         const page = await listReviewCases({ scope: this.scopeId, status: this.status, limit: 100 }, this.personId || undefined)
         this.cases = page.items
+        void this.loadExpiring()
         if (this.selected && !this.cases.some(c => c.case_id === this.selected?.case_id)) this.selected = null
       } catch (error) {
         this.cases = []
@@ -75,6 +81,20 @@ export const useDecisionDeskStore = defineStore('decisionDesk', {
       } finally {
         this.loading = false
       }
+    },
+    async loadExpiring() {
+      try {
+        const page = await listExpiringRecords({ scope: this.scopeId, within_days: EXPIRING_DAYS }, this.personId || undefined)
+        this.expiring = page.items
+      } catch {
+        this.expiring = [] // the case list shows the problem; this panel stays quiet
+      }
+    },
+    /** A new person, scope or status: what was said about the last one no longer applies. */
+    resetView() {
+      this.selected = null
+      this.notice = null
+      this.problem = null
     },
     async select(caseId: string) {
       this.problem = null

@@ -6,7 +6,8 @@
       "connecting": "Connecting to Cortex…",
       "connected": "Connected as {consumer}",
       "unavailable": "Cortex is unavailable: {reason}",
-      "retry": "Try again"
+      "retry": "Try again",
+      "openDesk": "Open the Decision Desk"
     },
     "desk": {
       "title": "Decision Desk",
@@ -40,11 +41,24 @@
         "proposed": "Proposed as",
         "authority": "authority {authority}",
         "source": "Came from",
-        "sourceText": "{asserted} suggestion from cases {cases}, corrected by {correctors}",
         "affected": "Affected cases",
         "decisions": "Decisions",
         "erased": "This proposal was erased: its text can no longer be read.",
-        "loosens": "This rule would loosen an inherited constraint, which keeps winning when packs are built: {detail}"
+        "loosens": "This rule would loosen an inherited {enforcement} rule, which keeps winning when packs are built: 「{text}」 ({targets})",
+        "loosensErased": "This rule would loosen an inherited {enforcement} rule whose text was erased ({targets})",
+        "validity": "Valid",
+        "validityRange": "{from} → {to}",
+        "noStart": "always",
+        "noEnd": "no end date",
+        "provenance": {
+          "model": "Drafted by the model {model} from case(s) {cases}, corrected by {correctors}",
+          "policy": "Drafted by the pack's rule from case(s) {cases}, corrected by {correctors}",
+          "user": "Proposed directly by {person}",
+          "import": "Imported from {system} by {person}",
+          "importAuthority": "Asked for authority {requested}; an import is capped at {cap} until you decide",
+          "replication": "Replicated from {region}",
+          "other": "{type} {id}"
+        }
       },
       "outcome": {
         "pending": "Pending",
@@ -67,11 +81,21 @@
         "reject": "Reject",
         "approveDenied": "You cannot approve: {reason}",
         "rejectDenied": "You cannot reject: {reason}",
-        "reasonNeeded": "Write a reason to reject."
+        "reasonNeeded": "Write a reason to reject.",
+        "validFrom": "Valid from (JST)",
+        "validTo": "Valid until (JST, empty = no end)",
+        "validityHint": "Dates are business dates in Japan. Change them only if this rule should apply for a different period."
       },
       "notice": {
         "approved": "Approved. The rule now applies to the next matching case.",
         "rejected": "Rejected."
+      },
+      "expiring": {
+        "title": "Expiring soon",
+        "intro": "Approved rules in this scope whose validity ends within {days} days.",
+        "empty": "Nothing expires in the next {days} days.",
+        "until": "until {date}",
+        "expired": "expired {date}"
       }
     }
   }
