@@ -37,6 +37,7 @@ class AppServices:
     policy_gate: PolicyGate
     search: SearchProjection = field(default_factory=default_projection)
     rule_suggestion: RuleSuggestionPolicy = field(default_factory=RuleSuggestionPolicy)
+    evidence_bucket: str = "cortex-poc-evidence"
 
 
 def register_tenants(seed: Seed) -> None:
@@ -62,6 +63,7 @@ def build_services(cfg: OrgBrainConfig) -> AppServices:
         consumer_keys=keys,
         policy_gate=gate,
         rule_suggestion=RuleSuggestionPolicy.from_spec(cfg.rule_suggestion),
+        evidence_bucket=cfg.evidence_bucket,
     )
 
 
@@ -72,6 +74,7 @@ def _install(app: FastAPI, services: AppServices) -> None:
     app.state.seed = services.seed
     app.state.search = services.search
     app.state.rule_suggestion = services.rule_suggestion
+    app.state.evidence_bucket = services.evidence_bucket
 
 
 def create_app(

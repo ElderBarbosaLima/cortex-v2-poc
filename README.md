@@ -114,6 +114,14 @@ When a reviewer corrects an output, the client sends it to **`POST /v1/cortex/co
 
 Once the named owner approves it, the rule appears in the next applicable case's pack.
 
+For audit, **`POST /v1/cortex/context-packs/{id}/export`** archives a pack's evidence manifest to
+the Object Lock bucket `cortex-poc-evidence`. The manifest holds the pack as served, each record
+version with who asserted and approved it, the policy revision and every verification. It is
+canonical JSON, encrypted under the tenant's KMS key, with a deterministic object key. The outbox
+worker does the upload and asking again returns the same export. Retention is per object
+(`EVIDENCE_RETENTION_MODE`, `EVIDENCE_RETENTION_DAYS`; default COMPLIANCE, 1 day locally).
+`GET …/export` shows the status, object key, version and manifest sha256.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

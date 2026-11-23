@@ -11,7 +11,13 @@ from app.models.ledger import (
     Status,
 )
 from app.models.review import ReviewCase, ReviewCaseItem, ReviewDecision
-from app.models.served_pack import Correction, ServedPack, ServedPackItem, Verification
+from app.models.served_pack import (
+    Correction,
+    EvidenceExport,
+    ServedPack,
+    ServedPackItem,
+    Verification,
+)
 from app.models.tenant import Tenant
 
 enforce_append_only(MemoryRecord)
@@ -26,6 +32,7 @@ __all__ = [
     "Base",
     "Correction",
     "Enforcement",
+    "EvidenceExport",
     "Kind",
     "LedgerImmutableError",
     "MemoryRecord",
