@@ -154,6 +154,17 @@ deducted transfer fee (≤ ¥880) as 支払手数料.
 (`tests/integration/test_golden_*.py`, one per pack) replay the whole timeline
 through the API: 40 packs, corrections, approval, retirement, verify.
 
+**Frontend** (`frontend/arbitr/`, the same stack as the monorepo):
+- **Stack:** Nuxt 4 (`ssr: false`), Nuxt UI 4.6, Tailwind 4.2, Pinia 3, i18n (`en`), Zod, ESLint with
+  the accessibility rules, the brand v2 tokens and the `check-v2-styles` guard.
+- **Where:** `make dev` serves it at <http://localhost:5001/cortex>.
+- **The API key never reaches the browser.** The browser talks only to a same-origin proxy
+  (`/api/cortex`), which adds the Decision Desk's API key on the server, read at runtime from
+  `CORTEX_DESK_API_KEY`. `make test` builds the bundle with a canary key and fails if it shows up in any
+  output.
+- **Typed API:** the Cortex API types come only from `libraries/cortex-contract/ts`.
+- **Checks:** `make lint`, `make typecheck` (vue-tsc) and `make test` (Vitest) include the frontend.
+
 Every read asks OPA first and **fails closed**: if OPA is down, the answer is
 `503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
 and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and

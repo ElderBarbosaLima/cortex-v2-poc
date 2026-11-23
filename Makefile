@@ -5,6 +5,7 @@ COMPOSE   ?= docker compose
 TEST_COMPOSE = docker compose -p cortex-poc-test -f docker-compose.test.yml
 SVC       ?= org-brain-service
 DEV_TOOLS  = $(COMPOSE) run --rm --no-deps org-brain-dev
+FRONTEND   = $(COMPOSE) run --rm --no-deps frontend-tools
 PLATFORMS ?= linux/arm64,linux/amd64
 BUILDER   ?= cortex-poc-multiarch
 
@@ -35,7 +36,7 @@ dev: init-env ## Build and start the whole stack, wait until healthy
 	$(COMPOSE) up -d --build --wait aws-emulator postgres opa
 	@$(MAKE) --no-print-directory provision
 	$(COMPOSE) up -d --build --wait
-	@echo "$(GREEN)Stack up — org-brain-service: http://127.0.0.1:$${ORG_BRAIN_SERVICE_PORT:-5008}/health$(RESET)"
+	@echo "$(GREEN)Stack up — org-brain-service: http://127.0.0.1:$${ORG_BRAIN_SERVICE_PORT:-5008}/health · Cortex: http://localhost:$${FRONTEND_PORT:-5001}/cortex$(RESET)"
 
 stop: ## Stop the stack and DELETE its volumes (the stack is ephemeral)
 	$(COMPOSE) --profile tools down -v --remove-orphans
@@ -54,8 +55,8 @@ shell: ## Open a shell in a running service (SVC=<name>)
 build: ## Build the stack images for the host architecture
 	$(COMPOSE) build
 
-build-tools: init-env ## Build the test/lint image
-	$(COMPOSE) --profile tools build org-brain-dev
+build-tools: init-env ## Build the test/lint images (backend and frontend)
+	$(COMPOSE) --profile tools build org-brain-dev frontend-tools
 
 build-multiarch: ## Build every image for linux/arm64 and linux/amd64 (no push, no load)
 	@docker buildx inspect $(BUILDER) >/dev/null 2>&1 || docker buildx create --name $(BUILDER) --driver docker-container >/dev/null
@@ -119,8 +120,10 @@ lock: init-env ## Regenerate Pipfile.lock (SVC=<service>, default org-brain-serv
 
 # ── Checks (all in containers) ───────────────────────────────────────────────
 
-test: build-tools ## Hermetic unit tests (no network, no stack)
+test: build-tools ## Hermetic unit tests (no network): backend, then frontend Vitest + bundle check
 	$(DEV_TOOLS) pipenv run pytest -q $(ARGS)
+	$(FRONTEND) npm run test:run
+	$(FRONTEND) npm run check:bundle
 
 test-integration: ## Integration tests on an ephemeral stack (own project, no host ports, wiped after)
 	@$(TEST_COMPOSE) build --quiet
@@ -137,16 +140,18 @@ opa-reload: ## Rebuild the policy bundle and restart OPA (after editing policies
 	$(COMPOSE) run --rm opa-bundle
 	$(COMPOSE) restart opa
 
-lint: build-tools ## Ruff + migrate-check (Python), opa check --strict + Regal (Rego), terraform fmt -check
+lint: build-tools ## Ruff + migrate-check (Python), opa check --strict + Regal (Rego), terraform fmt -check, ESLint + v2 style guard (frontend)
 	$(DEV_TOOLS) sh -c "pipenv run ruff check app tests scripts alembic && pipenv run ruff format --check app tests scripts alembic"
 	$(DEV_TOOLS) pipenv run python scripts/check_migrations.py
 	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -check -recursive -diff /workspace/infra/terraform
 	$(COMPOSE) run --rm opa-tools check --strict /policies
 	$(COMPOSE) run --rm regal lint /policies
+	$(FRONTEND) npm run lint
 
 format: build-tools ## Ruff format + autofix, terraform fmt (writes to the working tree)
 	$(COMPOSE) run --rm --no-deps --entrypoint terraform terraform-lock fmt -recursive /workspace/infra/terraform
 	$(DEV_TOOLS) sh -c "pipenv run ruff format app tests scripts alembic && pipenv run ruff check --fix app tests scripts alembic"
 
-typecheck: build-tools ## Pyright (strict on app/)
+typecheck: build-tools ## Pyright (strict on app/), vue-tsc (frontend)
 	$(DEV_TOOLS) pipenv run pyright
+	$(FRONTEND) npm run typecheck

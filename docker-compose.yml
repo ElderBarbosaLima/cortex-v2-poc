@@ -193,6 +193,38 @@ services:
       timeout: 3s
       retries: 10
 
+  # The Cortex frontend (Nuxt dev server). The browser talks only to its
+  # same-origin proxy (/api/cortex); the proxy adds the Decision Desk's API key
+  # on the server, read at runtime from CORTEX_DESK_API_KEY (.env).
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/arbitr/Dockerfile
+      target: app
+    image: cortex-poc/frontend:dev
+    environment:
+      NUXT_CORTEX_API_URL: http://aws-emulator:5008
+      NUXT_CORTEX_API_KEY: ${CORTEX_DESK_API_KEY:?set it in .env (make init-env)}
+      NUXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5001}:5001"
+    volumes:
+      # Hot reload of the app's own sources; dependencies stay in the image.
+      - ./frontend/arbitr/app:/workspace/frontend/arbitr/app:ro
+      - ./frontend/arbitr/server:/workspace/frontend/arbitr/server:ro
+      - ./frontend/arbitr/i18n:/workspace/frontend/arbitr/i18n:ro
+    networks:
+      - cortex
+    depends_on:
+      org-brain-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5001/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+
   # ── tools (profile "tools": never started by `make dev`) ──────────────────
 
   # Unit tests, lint and typecheck. No network at all: the hermetic rule is
@@ -304,6 +336,18 @@ services:
       NPM_CONFIG_UPDATE_NOTIFIER: "false"
     volumes:
       - ./libraries/cortex-contract:/contract
+
+  # Frontend lint, typecheck, Vitest and the bundle check (same image as `frontend`).
+  frontend-tools:
+    profiles: ["tools"]
+    image: cortex-poc/frontend:dev
+    build:
+      context: .
+      dockerfile: frontend/arbitr/Dockerfile
+      target: app
+    environment:
+      NUXT_TELEMETRY_DISABLED: "1"
+    network_mode: none
 
   # `make lock SVC=<service>`: regenerates Pipfile.lock with the pinned pipenv.
   pipenv-lock:

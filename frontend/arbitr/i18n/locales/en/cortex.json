@@ -1,0 +1,12 @@
+{
+  "cortex": {
+    "home": {
+      "title": "Cortex",
+      "intro": "Governed memory for the work your agents do. Review what they learn before it becomes a rule.",
+      "connecting": "Connecting to Cortex…",
+      "connected": "Connected as {consumer}",
+      "unavailable": "Cortex is unavailable: {reason}",
+      "retry": "Try again"
+    }
+  }
+}

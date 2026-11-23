@@ -1,0 +1,201 @@
+@layer components {
+
+  /* ─── Scroll containers ─── */
+
+  /* Thin scrollbar that's transparent at rest and tints in on hover or while
+     scrolling. Use on any clipped/overflow-y-auto container where the chunky
+     default scrollbar would compete with content (e.g. doc rails, dropdowns).
+     `scrollbar-gutter: stable` reserves the track width so the layout doesn't
+     jump as the thumb fades in. */
+  .scroll-thin-hover {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    scrollbar-gutter: stable;
+  }
+  .scroll-thin-hover::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-thin-hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-thin-hover::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background-color 150ms ease;
+  }
+  .scroll-thin-hover:hover {
+    scrollbar-color: color-mix(in srgb, var(--color-night-900) 18%, transparent) transparent;
+  }
+  .scroll-thin-hover:hover::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-night-900) 18%, transparent);
+  }
+  .scroll-thin-hover::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-night-900) 32%, transparent);
+  }
+
+  /* ─── Buttons ───
+     Buttons, inputs and cards are 8px (`rounded-lg`); badges are pills. Focus
+     uses the global 2px brand outline from main.css. */
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-primary text-white
+           px-4 py-2 rounded-lg
+           text-body font-semibold
+           transition-colors
+           hover:bg-brand-600
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary;
+  }
+
+  /* The Midnight secondary: a night-900 solid button. */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-inverted text-white
+           px-4 py-2 rounded-lg
+           text-body font-semibold
+           transition-colors
+           hover:bg-night-800
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-inverted;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           bg-transparent text-highlighted
+           px-3 py-2 rounded-lg
+           text-body font-medium
+           transition-colors
+           hover:bg-muted
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-default border border-ember-500 text-error
+           px-4 py-2 rounded-lg
+           text-body font-semibold
+           transition-colors
+           hover:bg-ember-50
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ─── Surfaces ───
+     Light cards are white with a hairline border and no shadow. */
+  .card {
+    @apply bg-default border border-default rounded-lg;
+  }
+
+  .card-elevated {
+    @apply bg-default border border-default rounded-lg;
+  }
+
+  .surface-elevated {
+    @apply bg-elevated;
+  }
+
+  .surface-inverted {
+    @apply bg-inverted text-white;
+  }
+
+  /* ─── Inputs ─── */
+
+  .input {
+    @apply block w-full
+           bg-default border border-accented
+           rounded-lg px-3 py-2
+           text-body text-highlighted placeholder:text-muted
+           transition-colors
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input-error {
+    @apply border-error focus:ring-error focus:border-error;
+  }
+
+  .input-label {
+    @apply block text-caption font-semibold uppercase tracking-widest text-muted mb-1;
+  }
+
+  /* ─── Badges ───
+     Pills with a solid tint, 500-step text and a 500-step edge. */
+
+  .badge-verified,
+  .badge-warning,
+  .badge-error,
+  .badge-info {
+    @apply inline-flex items-center gap-1 border px-2 py-0.5 rounded-full text-caption font-medium;
+  }
+
+  .badge-verified {
+    @apply bg-mint-50 border-mint-500 text-mint-500;
+  }
+
+  .badge-warning {
+    @apply bg-honey-50 border-honey-500 text-honey-500;
+  }
+
+  .badge-error {
+    @apply bg-ember-50 border-ember-500 text-ember-500;
+  }
+
+  .badge-info {
+    @apply bg-azure-50 border-azure-500 text-azure-500;
+  }
+
+  /* ─── Tables ───
+     The v2 table: 12px body, a mono header row on a muted band, ~50px rows
+     with hairline dividers. Wrap it in `.table-v2-wrap` for the card frame and
+     horizontal scroll. Mark a selected row with `aria-selected="true"`. */
+
+  .table-v2-wrap {
+    @apply bg-default border border-default rounded-lg overflow-x-auto;
+  }
+
+  .table-v2 {
+    @apply w-full border-collapse text-xs text-default;
+  }
+
+  .table-v2 thead tr {
+    @apply bg-muted/60 border-b border-default;
+  }
+
+  .table-v2 th {
+    @apply px-4 py-2.5 text-left font-mono text-2xs font-semibold uppercase tracking-wider text-muted;
+  }
+
+  .table-v2 td {
+    @apply px-4 py-3 border-b border-default/60;
+  }
+
+  .table-v2 tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table-v2 tbody tr:hover {
+    @apply bg-muted/60;
+  }
+
+  .table-v2 tbody tr[aria-selected="true"] {
+    @apply bg-primary/4;
+  }
+
+  /* One centred row when the table has no results. */
+  .table-v2 .table-v2-empty td {
+    @apply py-8 text-center text-body text-muted;
+  }
+
+  /* ─── Navigation & misc ─── */
+
+  .nav-link {
+    @apply text-muted transition-colors hover:text-primary;
+  }
+
+  .doc-rule {
+    @apply border-0 border-t border-default;
+  }
+
+  .row-baseline {
+    @apply flex items-baseline gap-5 py-3 border-b border-default last:border-b-0;
+  }
+}

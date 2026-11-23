@@ -1,0 +1,37 @@
+{
+  "name": "arbitr-frontend-cortex-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint . && node scripts/check-v2-styles.mjs",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "check:bundle": "node scripts/check-bundle-secrets.mjs"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "1.2.102",
+    "@nuxt/ui": "4.6.1",
+    "@nuxtjs/i18n": "10.2.4",
+    "@pinia/nuxt": "0.11.3",
+    "nuxt": "4.4.2",
+    "pinia": "3.0.4",
+    "tailwindcss": "4.2.2",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "1.15.2",
+    "@nuxt/test-utils": "4.0.2",
+    "@vue/test-utils": "2.4.6",
+    "eslint": "10.2.0",
+    "eslint-plugin-vuejs-accessibility": "2.5.0",
+    "happy-dom": "20.9.0",
+    "typescript": "6.0.2",
+    "vitest": "4.1.4",
+    "vue-tsc": "3.2.6"
+  }
+}
