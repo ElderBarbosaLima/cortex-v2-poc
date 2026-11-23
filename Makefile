@@ -15,7 +15,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock erase-record erase-tenant \
-        test test-integration test-e2e-ui e2e test-policies test-all opa-reload probe-emulator \
+        test test-integration test-llm test-e2e-ui e2e test-policies test-all opa-reload probe-emulator \
         tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
 help: ## List the targets
@@ -143,6 +143,9 @@ e2e: init-env ## End to end on a FRESH running stack (make dev), both workflows,
 	done < .e2e/erase.txt
 	@set -a && . ./.env && set +a && $(E2E) --phase after-erasure
 	@set -a && . ./.env && set +a && $(E2E) --phase report
+
+test-llm: build-tools ## The real LiteLLM, opt-in (needs LITELLM_API_KEY in .env): chat drafts an admissible rule, embeddings have meaning
+	$(COMPOSE) --profile tools run --rm --no-deps org-brain-llm-check pipenv run pytest -q -s -m llm tests/llm $(ARGS)
 
 test-e2e-ui: ## Playwright (Decision Desk) against the running stack: run `make dev && make seed` first
 	@$(COMPOSE) ps --status running --services | grep -qx frontend || { echo "the stack is not up: run make dev && make seed"; exit 1; }

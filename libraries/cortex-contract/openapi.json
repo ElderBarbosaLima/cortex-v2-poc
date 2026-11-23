@@ -463,6 +463,22 @@
               }
             ],
             "description": "Null on a replay"
+          },
+          "suggested_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "policy",
+                  "model"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who drafted the proposed rule: the domain pack (policy) or a model through LiteLLM; null when nothing was proposed",
+            "title": "Suggested By"
           }
         },
         "required": [

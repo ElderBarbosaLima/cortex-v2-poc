@@ -77,12 +77,13 @@ data "aws_iam_policy_document" "org_brain" {
   }
 
   statement {
-    sid     = "ReadConsumerKeyHashes"
+    sid     = "ReadServiceSecrets"
     actions = ["secretsmanager:GetSecretValue"]
     # Name + "-??????" (AWS's documented pattern for the random ARN suffix), so
     # the rendered policy does not change every time the secret is recreated.
     resources = [
       "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${aws_secretsmanager_secret.consumer_api_keys.name}-??????",
+      "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${aws_secretsmanager_secret.litellm_api_key.name}-??????",
     ]
   }
 }

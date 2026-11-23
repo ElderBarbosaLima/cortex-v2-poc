@@ -68,10 +68,13 @@
       }
     },
     {
-      "Sid": "ReadConsumerKeyHashes",
+      "Sid": "ReadServiceSecrets",
       "Effect": "Allow",
       "Action": "secretsmanager:GetSecretValue",
-      "Resource": "arn:aws:secretsmanager:us-east-1:000000000000:secret:cortex-poc/consumer-api-keys-??????"
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:cortex-poc/litellm-api-key-??????",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:cortex-poc/consumer-api-keys-??????"
+      ]
     }
   ]
 }

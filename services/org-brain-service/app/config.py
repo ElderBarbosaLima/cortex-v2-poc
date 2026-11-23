@@ -29,6 +29,15 @@ class OrgBrainConfig(BaseSettings):
     # D17: a rule is proposed from corrections once there are
     # min_distinct_cases / min_distinct_correctors / within window_days.
     rule_suggestion: str = "1/1/30"
+    # Every model call goes through LiteLLM (issue 30). The key is never here:
+    # it is read from Secrets Manager (`litellm_key_secret`). Each use has its
+    # own switch, and with no key both stay off.
+    litellm_base_url: str = "https://devs-ai.straker.ai"
+    litellm_chat_model: str = "anthropic/claude-sonnet-5-5"
+    litellm_embedding_model: str = "azure/text-embedding-ada-002"
+    litellm_key_secret: str = "cortex-poc/litellm-api-key"
+    llm_rule_suggestion: bool = False
+    llm_embeddings: bool = False
     # Evidence archive (issue 23): bucket from Terraform, Object Lock retention per object.
     evidence_bucket: str = "cortex-poc-evidence"
     evidence_retention_mode: str = "COMPLIANCE"

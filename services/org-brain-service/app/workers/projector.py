@@ -17,6 +17,7 @@ from types import FrameType
 
 import structlog
 
+from app.clients.llm import configure as configure_llm
 from app.config import OrgBrainConfig
 from app.db import app_engine
 from app.keys import install as install_keys
@@ -48,6 +49,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _stop)
     engine = app_engine()
     install_keys(tenant_ids(engine))  # the projection opens sealed bodies
+    configure_llm(OrgBrainConfig())  # embeddings through LiteLLM, when on (issue 30)
     _logger.info("projector.started", table=Outbox.__tablename__)
     while _running:
         for tenant, result in drain_all(engine).items():

@@ -148,6 +148,11 @@ class CorrectionAccepted(BaseModel):
     )
     review_case_id: uuid.UUID | None
     replayed: bool = Field(description="True when this idempotency key was seen before")
+    suggested_by: Literal["policy", "model"] | None = Field(
+        default=None,
+        description="Who drafted the proposed rule: the domain pack (policy) or a model "
+        "through LiteLLM; null when nothing was proposed",
+    )
     rule_suggestion: RuleSuggestion | None = Field(description="Null on a replay")
     proposal_problems: list[dict[str, str]] = Field(
         default_factory=list[dict[str, str]],

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -27,6 +28,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.clients.llm import LlmUnavailable, rule_suggester
 from app.domain_packs.base import DomainPack
 from app.models import Correction, Kind, Status
 from app.services import admission, ledger
@@ -78,6 +80,7 @@ class Outcome:
     evidence: Evidence | None  # None on an idempotent replay
     problems: tuple[admission.Problem, ...] = ()
     replayed: bool = False
+    suggested_by: str | None = None  # "policy" (the pack's draft) or "model" (LiteLLM)
 
 
 def request_hash(payload: Mapping[str, Any]) -> str:
@@ -160,6 +163,70 @@ def _decision(
     return decision_id
 
 
+_LLM_SYSTEM = """You turn a reviewer's correction into ONE rule for a governed memory.
+Answer with ONLY a JSON object:
+{"text_ja": str, "targets": [str], "condition": str, "entities": [str]}.
+- text_ja: one sentence in Japanese saying what must be done, for whom.
+- condition: a CEL boolean over the variables and fields listed; integers only, dates as
+  date("YYYY-MM-DD"); it must hold for the corrected case and stay as narrow as the correction.
+- targets: only from the list given.
+- entities: canonical keys only (e.g. customer:CUST-0042), never a name. If the condition compares
+  an entity field to a literal, that entity must be listed.
+A baseline draft is given; keep its meaning, improve it only where the correction says more."""
+
+
+def _llm_proposal(
+    proposal: admission.Proposal,
+    *,
+    pack: DomainPack,
+    correction: BaseModel,
+    case: Mapping[str, Any],
+) -> tuple[admission.Proposal | None, tuple[admission.Problem, ...], str | None]:
+    """The model's draft through LiteLLM, admitted only if the gate accepts it.
+    Returns (proposal or None, problems, model). Off or failing: (None, …)."""
+    client = rule_suggester()
+    if client is None:
+        return None, (), None
+    brief = {
+        "domain": pack.name,
+        "condition_variables": {v: sorted(f) for v, f in pack.condition_fields.items()},
+        "entity_fields": dict(pack.entity_fields),
+        "targets": sorted(pack.targets),
+        "correction": correction.model_dump(mode="json"),
+        "case": dict(case),
+        "baseline": {
+            "text_ja": proposal.body.get("text_ja"),
+            "targets": proposal.body.get("targets"),
+            "condition": proposal.body.get("condition"),
+            "entities": list(proposal.entities),
+        },
+    }
+    try:
+        answer = client.chat_json(
+            system=_LLM_SYSTEM, user=json.dumps(brief, ensure_ascii=False, default=str)
+        )
+        body = {
+            **proposal.body,
+            "text_ja": str(answer["text_ja"]),
+            "targets": [str(t) for t in answer["targets"]],
+            "condition": str(answer["condition"]),
+        }
+        entities = tuple(sorted({str(e) for e in answer.get("entities", [])}))
+    except LlmUnavailable as exc:
+        return None, (admission.Problem("llm_unavailable", str(exc)),), client.chat_model
+    except (KeyError, TypeError) as exc:
+        return None, (admission.Problem("llm_malformed", f"missing {exc}"),), client.chat_model
+    drafted = dataclasses.replace(proposal, body=body, entities=entities)
+    _, problems = admission.validate_proposal(drafted)
+    if problems:
+        return (
+            None,
+            tuple(admission.Problem(f"llm_{p.code}", p.detail) for p in problems),
+            client.chat_model,
+        )
+    return drafted, (), client.chat_model
+
+
 def submit(
     session: Session,
     *,
@@ -206,6 +273,7 @@ def submit(
     evidence = _evidence(session, key=key, policy=policy, case_ref=case_ref, corrector=corrector)
     proposed_id: str | None = None
     case_id: str | None = None
+    suggested_by: str | None = None
     problems: tuple[admission.Problem, ...] = ()
     if evidence.met:
         proposal = dataclasses.replace(
@@ -219,13 +287,23 @@ def submit(
             },
             derived_from=(decision_id,),
         )
+        drafted, llm_problems, model = _llm_proposal(
+            proposal, pack=pack, correction=correction, case=case
+        )
+        asserted_by: dict[str, Any] = SUGGESTER
+        if drafted is not None:
+            proposal = dataclasses.replace(
+                drafted, source={**proposal.source, "suggested_by": "model", "model": model}
+            )
+            asserted_by = {"type": "model", "id": str(model)}
         _, found = admission.validate_proposal(proposal)
-        problems = tuple(found)
-        if not problems:
+        problems = (*llm_problems, *found)
+        if not found:
             admitted = admission.admit(
-                session, tenant_id=stored.pack.tenant_id, proposal=proposal, asserted_by=SUGGESTER
+                session, tenant_id=stored.pack.tenant_id, proposal=proposal, asserted_by=asserted_by
             )
             proposed_id, case_id = admitted.record.record_id, admitted.review_case_id
+            suggested_by = "model" if drafted is not None else "policy"
     row = Correction(
         correction_id=new_record_id(),
         tenant_id=stored.pack.tenant_id,
@@ -241,4 +319,4 @@ def submit(
     )
     session.add(row)
     session.flush()
-    return Outcome(row, evidence, problems)
+    return Outcome(row, evidence, problems, suggested_by=suggested_by)

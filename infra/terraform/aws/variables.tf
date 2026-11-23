@@ -25,3 +25,10 @@ variable "iam_policy_dir" {
   type        = string
   default     = "/workspace/infra/iam"
 }
+
+variable "litellm_api_key" {
+  description = "LiteLLM API key, from the git-ignored .env (TF_VAR_litellm_api_key). Empty: AI stays off."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
