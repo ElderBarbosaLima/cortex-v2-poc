@@ -12,7 +12,7 @@ import json
 import random
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -220,6 +220,8 @@ class RuleSpec:
     predicate: Callable[[Context], bool]
     entities: tuple[str, ...] = ()
     tenant: str = "jp"
+    # More body fields a pack's rule carries (issue 40: `exception`, `engine`).
+    body_extra: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
 
 def rule_document(rule: RuleSpec, workflow: str, *, status: str = "approved") -> JsonObj:
@@ -245,6 +247,7 @@ def rule_document(rule: RuleSpec, workflow: str, *, status: str = "approved") ->
             "text_ja": rule.text_ja,
             "targets": list(rule.targets),
             "condition": rule.condition,
+            **rule.body_extra,
         },
     }
 

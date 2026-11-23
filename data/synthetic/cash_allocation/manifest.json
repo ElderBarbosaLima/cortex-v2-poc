@@ -1,0 +1,16 @@
+{
+  "workflow": "cash_allocation",
+  "seed": 20261120,
+  "generator_version": "1",
+  "counts": {
+    "customers": 5,
+    "cases": 10,
+    "rules": 6
+  },
+  "sha256": {
+    "cases.jsonl": "1897fb60ac37209f41d14b18c9bb9d9d01b00eb23cb34046f8b4346711157b26",
+    "customers.json": "7d0b4ca3dec7ce24b075e9b73b6c5e462f7c23decfa17c8cb14b8e66e52b1881",
+    "expected.json": "c7a09b05ee3884c5c83068143ad3abbee4836fca7cca66e48d249ecdd140415b",
+    "rules.json": "a58b09ffd1c2a138add861955683d7e560544919d30b4a47b93547f87b146c8f"
+  }
+}

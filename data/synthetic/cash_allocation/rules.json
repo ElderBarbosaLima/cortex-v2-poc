@@ -1,0 +1,275 @@
+[
+  {
+    "key": "AL-G-TAX-ROUNDING",
+    "record_id": "691741b8-bc28-5d86-8b56-0cf0bae13d02",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-G-TAX-ROUNDING"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "合計が消費税の端数処理で ±1 円ずれる場合は、端数として処理してよい（切り捨て）。",
+      "targets": [
+        "allocation.tax_difference"
+      ],
+      "condition": "payment.gap != 0 && payment.gap >= -1 && payment.gap <= 1",
+      "exception": "tax_difference",
+      "engine": {
+        "rounding": "floor",
+        "tolerance": 1,
+        "treatment": "writeoff"
+      }
+    }
+  },
+  {
+    "key": "AL-G-DUPLICATE-HOLD",
+    "record_id": "3ea8b9c1-af69-5c37-a0e8-11c04f97ad44",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance",
+    "entities": [],
+    "enforcement": "mandatory",
+    "authority": 30,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-G-DUPLICATE-HOLD"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "同じ請求書への二重入金は自動で消し込まず、保留して担当者が返金か次回請求への充当を決める。",
+      "targets": [
+        "allocation.duplicate_payment"
+      ],
+      "condition": "payment.candidates_total > 0 && payment.amount >= 2 * payment.candidates_total",
+      "exception": "duplicate_payment",
+      "engine": {
+        "action": "hold"
+      }
+    }
+  },
+  {
+    "key": "AL-C-0101-FEE",
+    "record_id": "e0c55232-bd99-5089-92e0-02d6f8a906e0",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0101"
+    ],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-C-0101-FEE"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "山田商事は振込手数料を差し引いて支払う。通常は 660 円不足。880 円を超える不足は手数料ではない可能性があるため、消費税の差額を確認し、不明なら担当者へ回す。",
+      "targets": [
+        "allocation.bank_fee"
+      ],
+      "condition": "payment.customer_id == \"CUST-0101\" && payment.gap > 0 && payment.gap <= 880",
+      "exception": "bank_fee",
+      "engine": {
+        "expected_fee": 660,
+        "max_fee": 880,
+        "treatment": "fee_expense"
+      }
+    }
+  },
+  {
+    "key": "AL-C-0102-COMBINED",
+    "record_id": "93ac6191-f485-575d-9cd5-50c252854a82",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0102"
+    ],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-C-0102-COMBINED"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "サンプル電機は複数の請求書を一括で支払う。送金明細の注文番号（PO）で請求書を選ぶ。",
+      "targets": [
+        "allocation.combined_payment"
+      ],
+      "condition": "payment.customer_id == \"CUST-0102\" && payment.candidate_count > 1",
+      "exception": "combined_payment",
+      "engine": {
+        "pick": "po_number"
+      }
+    }
+  },
+  {
+    "key": "AL-C-0103-PARTIAL",
+    "record_id": "465ee4d6-57cb-584c-99d9-ce43a8b9e6bb",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0103"
+    ],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-C-0103-PARTIAL"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "テスト工業は大口請求を 3 回の分割で支払う契約。不足分は残高として残し、督促しない。",
+      "targets": [
+        "allocation.partial_payment"
+      ],
+      "condition": "payment.customer_id == \"CUST-0103\" && payment.gap > 0",
+      "exception": "partial_payment",
+      "engine": {
+        "action": "instalments",
+        "instalments": 3
+      }
+    }
+  },
+  {
+    "key": "AL-C-0104-FEE-HOLD",
+    "record_id": "c68338bb-5649-52c0-a93a-ef4dba528dd8",
+    "tenant": "jp",
+    "kind": "rule",
+    "schema_version": "cash_allocation.rule/1",
+    "scope": "jp/finance/q2c-cash-application",
+    "entities": [
+      "customer:CUST-0104"
+    ],
+    "enforcement": "default",
+    "authority": 20,
+    "status": "approved",
+    "valid_from": "2026-11-01",
+    "valid_to": null,
+    "source": {
+      "system": "synthetic",
+      "document": "初期ルール一覧",
+      "location": "AL-C-0104-FEE-HOLD"
+    },
+    "asserted_by": {
+      "type": "import",
+      "id": "synthetic-seed"
+    },
+    "approved_by": {
+      "approver_type": "user",
+      "user": "OWN-001"
+    },
+    "sensitivity": {
+      "class": "internal",
+      "personal_data": false,
+      "retention_days": 3650
+    },
+    "body": {
+      "text_ja": "架空物産の不足額は手数料として処理せず、担当者が確認する（過去に手数料と誤認した例がある）。",
+      "targets": [
+        "allocation.bank_fee"
+      ],
+      "condition": "payment.customer_id == \"CUST-0104\" && payment.gap > 0 && payment.gap <= 880",
+      "exception": "bank_fee",
+      "engine": {
+        "expected_fee": 440,
+        "max_fee": 880,
+        "treatment": "hold_for_review"
+      }
+    }
+  }
+]
