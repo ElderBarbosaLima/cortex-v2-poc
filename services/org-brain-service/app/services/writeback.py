@@ -20,7 +20,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -240,6 +240,7 @@ def submit(
     idempotency_key: str,
     payload_hash: str,
     policy: RuleSuggestionPolicy,
+    ancestors: Sequence[str] = (),
 ) -> Outcome:
     try:
         correction = pack.correction_schema.model_validate(raw_correction)
@@ -297,6 +298,8 @@ def submit(
             )
             asserted_by = {"type": "model", "id": str(model)}
         _, found = admission.validate_proposal(proposal)
+        # A suggestion is a machine's: it may not loosen an inherited constraint (issue 31).
+        found += admission.inherited_conflicts(session, proposal, ancestors)
         problems = (*llm_problems, *found)
         if not found:
             admitted = admission.admit(

@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.conditions import ConditionCompileError
@@ -34,6 +34,7 @@ from app.domain_packs.base import (
 )
 from app.models import Kind, ReviewCase, ReviewCaseItem
 from app.services import ledger
+from app.services.body_codec import BodyUnreadableError
 from app.utils.ids import new_record_id
 
 SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
@@ -121,6 +122,55 @@ def validate_proposal(proposal: Proposal) -> tuple[DomainPack | None, list[Probl
     if proposal.kind is Kind.RULE:
         problems += _rule_problems(pack, proposal)
     return pack, problems
+
+
+_ANCESTOR_CONSTRAINTS = text(
+    "SELECT record_id::text FROM memory_record_current "
+    "WHERE kind = 'rule' AND status = 'approved' "
+    "AND enforcement IN ('mandatory', 'prohibition') "
+    "AND schema_version = :schema AND scope = ANY(CAST(:ancestors AS uuid[])) "
+    "AND (cardinality(entities) = 0 OR cardinality(CAST(:entities AS text[])) = 0 "
+    "     OR entities && CAST(:entities AS text[])) "
+    "AND (valid_to IS NULL OR valid_to > now()) "
+    "ORDER BY record_id"
+)
+
+
+def inherited_conflicts(
+    session: Session, proposal: Proposal, ancestors: Sequence[str]
+) -> list[Problem]:
+    """Scopes only tighten (issue 31): a `default` rule at a lower scope that
+    shares a target with an approved constraint (mandatory or prohibition) at
+    an ancestor scope, for compatible entities, would loosen it. Read-time
+    resolution would still make the constraint win; this says so at intake.
+    A constraint proposed below an ancestor constraint tightens: no problem."""
+    if proposal.kind is not Kind.RULE or proposal.enforcement != "default" or not ancestors:
+        return []
+    targets = set(proposal.body.get("targets") or [])
+    ids = session.execute(
+        _ANCESTOR_CONSTRAINTS,
+        {
+            "schema": proposal.schema_version,
+            "ancestors": list(ancestors),
+            "entities": list(proposal.entities),
+        },
+    ).scalars()
+    problems: list[Problem] = []
+    for record_id in ids:
+        row = ledger.latest(session, record_id)
+        try:
+            shared = targets & set(ledger.open_body(session, row).get("targets") or [])
+        except BodyUnreadableError:
+            continue  # an erased constraint constrains nothing
+        if shared:
+            problems.append(
+                Problem(
+                    "loosens_inherited_constraint",
+                    f"{row.enforcement} {record_id} at an ancestor scope governs "
+                    f"{sorted(shared)}; a lower scope may only tighten it",
+                )
+            )
+    return problems
 
 
 def conflict_key(proposal: Proposal) -> str:

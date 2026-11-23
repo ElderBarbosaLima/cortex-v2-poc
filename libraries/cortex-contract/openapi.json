@@ -1101,6 +1101,17 @@
           "version": {
             "title": "Version",
             "type": "integer"
+          },
+          "warnings": {
+            "description": "Admitted, but the owner is told: e.g. loosens_inherited_constraint",
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
