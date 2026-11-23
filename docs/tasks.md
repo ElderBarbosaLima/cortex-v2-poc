@@ -460,5 +460,96 @@ make dev && make e2e && make test-all && make lint && make typecheck
 
 ---
 
+## Revisão do Nake e resposta do Lee (2026-11-22)
+
+O que já está coberto e **não** vira issue:
+- **Busca de regras por escopo e precedência:** issue 19 (`access_gate/applicability.py`, `resolve.py`), mais os golden sets e o e2e. As regras mandatórias nunca vêm da busca (cenário 3).
+- **Normalizador de nome do pagador dentro do entity match:** issue 26. Ele é parte de `cash_application.resolve_entities`, não um passo próprio do gate.
+- **Export:** issue 23.
+
+As issues abaixo cobrem o que falta.
+
+## 31. Escopo só aperta: checagem na entrada
+**Contexto.** Nake: "lower levels can only tighten mandatory rules has to be checked when records come in, and precedence applied when they're read". A leitura já resolve (issue 19: uma restrição nunca perde). A entrada não checa nada: uma regra `default` local que contradiz uma proibição herdada (cenário 2) é admitida e só perde na hora de ler.
+**Inclui.**
+- Na admissão (`admission.validate_proposal`, com acesso ao ledger), procurar as **restrições aprovadas e vigentes nos escopos ancestrais** que compartilham um `target` com a proposta e são compatíveis em entidades (o mesmo filtro da aplicabilidade, sem avaliar CEL).
+- Uma proposta num escopo mais baixo que **afrouxa** uma delas (`default`, ou polaridade oposta à da restrição) gera o problema `loosens_inherited_constraint`, com o `record_id` da restrição.
+- Uma proposta que **aperta** (uma restrição igual ou mais estrita) passa.
+- Decidir na abertura da issue: **bloquear** (422) ou **admitir com aviso** no caso de revisão, mostrado no Decision Desk como "esta regra local não pode vencer X". O padrão proposto é bloquear em admissões vindas de modelo ou de policy e avisar em admissões de pessoas.
+- O seed `CI-L-SMALL-OMIT-REGNO` (cenário 2) passa a exigir a marcação explícita `exception_of: <record_id>`. Sem ela, o seed é recusado.
+**Critérios de aceite.**
+1. Uma `default` local contra uma `prohibition` global no mesmo target → `loosens_inherited_constraint`.
+2. Uma `mandatory` local mais estrita → admitida.
+3. A precedência na leitura continua igual (cenário 2 do golden set).
+**Dependências.** 17, 19. **Dono sugerido.** WS3 (entrada) com WS2 (leitura).
+
+## 32. Regiões: como registros Global chegam ao Japão (ADR + protótipo)
+**Contexto.** Nake: "If each region is its own deployment, how do Global records reach Japan?" O PoC tem uma deployment só, e "Japan region for APPI" está em aberto (doc 12).
+**Inclui.**
+- `docs/adr/0002-regions.md` com três opções, cada uma com prós e contras (residência, latência, erasure, lineage):
+  - (a) uma deployment global no Japão;
+  - (b) deployments por região, com um **escopo Global publicado** que replica só registros aprovados e não pessoais, de leitura, com proveniência, `record_id` estável, e supersede e retire propagados;
+  - (c) federação na leitura.
+- Protótipo da opção escolhida no compose. Se for a (b): um job de replicação entre dois ledgers (dois bancos), idempotente; erasure na origem propaga; registro pessoal nunca sai da região.
+**Critérios de aceite.**
+1. ADR aprovado.
+2. Com a (b): uma regra Global aprovada na região A aparece no pack da região B; retirada em A, o verify segura o pack em B; um registro pessoal não replica.
+**Dependências.** decisão (WS6 + Legal/IBM). **Dono sugerido.** WS6 com WS1.
+
+## 33. Supersede e expiração pela fila de revisão
+**Contexto.** Nake: "Every record needs validity, supersedes and derived_from from day one." Os campos existem desde a issue 8 (envelope de 19 campos: `valid_from`/`valid_to`, `supersedes`, `derived_from`), e a vigência é aplicada na aplicabilidade e no verify. Faltam os fluxos.
+**Inclui.**
+- Uma proposta pode declarar `supersedes: <record_id>`. Aprovada, o antigo vira `superseded` (`ledger.supersede`, que já existe) e os packs que dependiam dele são segurados pelo verify.
+- O dono pode definir `valid_to` (e `valid_from`) na aprovação.
+- **Expiração básica (estágio 1):** um job marca como `stale` os registros aprovados depois de `valid_to`, a fila mostra o que expira em N dias, e a lineage é preservada.
+**Critérios de aceite.**
+1. Supersede pelo Decision Desk; o verify segura com `rule_no_longer_approved` e o novo registro aparece no próximo pack.
+2. Uma regra expirada sai dos packs na data de negócio, e o verify segura o pack antigo.
+3. Lineage: `derived_from` e `supersedes` aparecem no detalhe e no export.
+**Dependências.** 18, 21. **Dono sugerido.** WS1.
+
+## 34. Propostas de modelo: decidir se ficam fora do ledger até aprovar
+**Contexto.** Nake: "model-proposed rules go through the review queue like everything else. They never write to the ledger directly." No PoC, toda proposta (de pessoa, policy ou modelo, issues 22 e 30) já passa pela fila e nunca é aprovada sozinha. Ela entra no ledger como `proposed`, invisível aos packs, que só leem `approved`.
+**Inclui.**
+- Decidir:
+  - (a) manter assim, porque o ledger guarda o histórico inteiro, inclusive o rejeitado, como Rev. B regra 3 e Q5;
+  - (b) propostas vivem só na fila de revisão (`review_proposal`, selado por registro), e o ledger recebe o registro **só na aprovação**.
+- Se for a (b): migrar a admissão e o writeback, garantir que a rejeição continue auditável (decisão no ledger, proposta na fila), e ajustar erasure e export.
+**Critérios de aceite.** Decisão registrada. Se for a (b): nenhuma linha em `memory_record` antes da aprovação, e os golden sets continuam 100%.
+**Dependências.** decisão (Nake / WS3). **Dono sugerido.** WS3.
+
+## 35. Workflow da Fase 1: subconjunto de Payment Reconciliation
+**Contexto.** Lee (2026-11-22): o workflow da Fase 1 do PoC IBM **não é AskQ2C**. É um subconjunto pequeno de **Payment Reconciliation**, definido por Lee e Erika do Pre-Workshop ao Full Workshop, em dezembro. O AskQ2C foi a proposta original da IBM. O pack `cash_application` é o mais próximo: casar pagamento com fatura, nome do pagador, tarifa, 差押.
+**Inclui.**
+- Quando o workshop entregar o subconjunto:
+  - ajustar o pack (renomear para `payment_reconciliation` ou estender `cash_application`) e os dados sintéticos;
+  - montar o golden set do subconjunto;
+  - definir o consumidor (hoje `askq2c-agent`) e o propósito;
+  - definir os **revisores e donos reais por escopo** (hoje OWN-001/OWN-002 no seed).
+- `custom_invoices` fica como o segundo pack que prova o D18.
+- Renomear as referências "AskQ2C" na documentação.
+**Critérios de aceite.** O golden set do subconjunto fecha 100%, e o `make e2e` roda nele.
+**Dependências.** entregáveis do workshop (Lee, Erika). **Dono sugerido.** WS5.
+
+## 36. Integração da Fase 1: um endpoint que devolve o context pack
+**Contexto.** Nake: "Are MCP + REST and the release check in Phase 1 because of the IBM integration? If so, keep it to one endpoint that returns a context pack." O PoC expõe a API inteira, com três operações marcadas `x-mcp-tool`, mas não tem servidor MCP.
+**Inclui.**
+- Um **perfil de consumidor** com escopo `cortex:pack`, que só permite `request_context_pack` e `get_context_pack`, aplicado ao consumidor da IBM.
+- Verify, corrections e as demais rotas ficam fora desse perfil (403), sem mudar o contrato.
+- Decidir se verify (D3) entra na Fase 1. Sem ele, as regras mandatórias são consultivas.
+**Critérios de aceite.** O consumidor da IBM recebe 403 em tudo que não é pack, e o contrato documenta o perfil.
+**Dependências.** 16, 20. **Dono sugerido.** WS2.
+
+## 37. Os seis cenários de falha como os primeiros testes do golden set (WS7)
+**Contexto.** Nake: "Make the six failure scenarios the first tests in the WS7 golden set." Os cenários 2, 3 e 4 já são testes nomeados (golden sets e `make e2e`). Os cenários 1, 5 e 6 não têm teste próprio.
+**Inclui.** Uma suíte `scenarios`, com um teste por cenário da Rev. B e a mesma numeração, rodando primeiro nos dois packs:
+- **Cenário 1:** importar um TM com uma oferta expirada não renova aprovação nem torna a oferta publicável. Precisa de import pela admissão; hoje não há import.
+- **Cenário 5:** pedir o pack depois de trocar o modelo de embedding ou rodar `make reindex` devolve o pack armazenado, e um pack novo diz que é novo. Gravar no `served_pack` a versão da projeção e do modelo de embedding.
+- **Cenário 6:** um conflito encontrado por centenas de jobs, por exemplo 200 correções, gera **um** caso de revisão, com o trabalho afetado (`affected_cases`) inteiro visível no Decision Desk, paginado.
+**Critérios de aceite.** `make scenarios` mostra os seis cenários nomeados, todos passando, nos dois workflows.
+**Dependências.** 33 (expiração), import pela admissão (cenário 1). **Dono sugerido.** WS7.
+
+---
+
 ## Fora do plano (pelo brief)
 MCP server (só o contrato já marca as ferramentas), selos Merkle, replay completo, recertificação, consolidação, evolução de schema, migração v1, Elasticsearch, Redis Streams, SSO, UI em japonês, CI/CD, deploy real. Cenários 1, 5 e 6 da Rev. B não têm teste dedicado (o 5 é coberto em parte pela issue 20; o 6, pelo agrupamento da issue 17).
