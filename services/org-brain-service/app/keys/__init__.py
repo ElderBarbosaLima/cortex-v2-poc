@@ -20,7 +20,16 @@ def install(tenant_ids: Iterable[str] = (), kms: Any | None = None) -> KmsKeySer
     for tenant_id in tenant_ids:
         keys.ensure_tenant_key(tenant_id)
     install_codec(AesGcmCodec(keys), default=True)
+    _installed[:] = [keys]
     return keys
+
+
+_installed: list[KmsKeyService] = []
+
+
+def installed() -> KmsKeyService | None:
+    """The key service this process installed, if any (erasure drops its cache)."""
+    return _installed[0] if _installed else None
 
 
 __all__ = [
@@ -29,5 +38,6 @@ __all__ = [
     "KeyService",
     "KmsKeyService",
     "install",
+    "installed",
     "tenant_alias",
 ]

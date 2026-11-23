@@ -104,7 +104,7 @@ def _output_problems(
 ) -> list[Hold]:
     rules: list[RuleBody] = []
     for item, body in stored.items:
-        if item.kind == "rule" and item.role in ("constraint", "applied"):
+        if body is not None and item.kind == "rule" and item.role in ("constraint", "applied"):
             try:
                 rules.append(pack.rule_body_schema.model_validate(body))
             except ValidationError:

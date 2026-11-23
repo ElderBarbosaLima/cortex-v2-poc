@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models import MemoryRecord
 from app.projections.base import Candidate, SearchQuery
 from app.services import ledger
+from app.services.body_codec import BodyUnreadableError
 
 _UPSERT = text(
     """
@@ -73,8 +74,24 @@ def _vector_literal(values: Any) -> str | None:
 
 
 class PostgresSearchProjection:
+    def _drop(self, session: Session, row: MemoryRecord) -> None:
+        session.execute(
+            text("DELETE FROM search_doc WHERE tenant_id = :t AND record_id = :r"),
+            {"t": row.tenant_id, "r": row.record_id},
+        )
+
     def _upsert(self, session: Session, row: MemoryRecord) -> None:
-        body = ledger.open_body(session, row)
+        """Index the current version, or drop it: an erased record, or one whose
+        key is gone, never has searchable text (issue 24: reindex must not bring
+        erased text back)."""
+        if row.status == "erased":
+            self._drop(session, row)
+            return
+        try:
+            body = ledger.open_body(session, row)
+        except BodyUnreadableError:
+            self._drop(session, row)
+            return
         session.execute(
             _UPSERT,
             {

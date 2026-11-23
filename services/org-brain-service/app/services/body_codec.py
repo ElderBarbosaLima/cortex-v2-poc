@@ -1,9 +1,9 @@
 """How a record's body is sealed into `memory_record.body_sealed`.
 
 Every row names its codec (`body_codec`) and its key reference (`key_ref`, the
-record's lineage root), so any process holding the codecs can open it:
+record's own data key since issue 24), so any process holding the codecs can open it:
 - `plain-json/1`: no encryption (unit tests, and rows written before issue 14);
-- `aes-gcm/1`: AES-256-GCM with the lineage root's data key (app/keys).
+- `aes-gcm/1`: AES-256-GCM with the record's data key (app/keys).
 `body_hash` is the sha256 of the canonical JSON, the same for every codec, so a
 pack can prove which body it served without holding the plaintext.
 

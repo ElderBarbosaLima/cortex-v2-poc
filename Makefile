@@ -13,7 +13,7 @@ GREEN  := \033[32m
 RESET  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock \
+.PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock erase-record erase-tenant \
         test test-integration test-policies test-all opa-reload probe-emulator \
         tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
@@ -92,6 +92,14 @@ seed: ## Register the seed's tenants and (re)load their scope tree and grants in
 
 reindex: ## Delete and rebuild every tenant's search projection from the ledger (stack must be up)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.reindex
+
+erase-record: ## Crypto-shred a record and its descendants: TENANT= RECORD= BY= REASON=
+	$(COMPOSE) exec org-brain-service pipenv run python -m app.cli.erase record \
+		--tenant "$(TENANT)" --record "$(RECORD)" --by "$(BY)" --reason "$(REASON)"
+
+erase-tenant: ## Crypto-shred a whole tenant (cannot be undone): TENANT= BY= REASON= CONFIRM=yes
+	$(COMPOSE) exec org-brain-service pipenv run python -m app.cli.erase tenant \
+		--tenant "$(TENANT)" --by "$(BY)" --reason "$(REASON)" $(if $(filter yes,$(CONFIRM)),--yes,)
 
 OPENAPI_TS = npx --yes openapi-typescript@7.13.0
 

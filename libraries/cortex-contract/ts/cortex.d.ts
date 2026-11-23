@@ -694,11 +694,22 @@ export interface components {
         };
         /** PackRecord */
         PackRecord: {
-            /** Body */
+            /**
+             * Body
+             * @description Null when the record was erased after the pack was served
+             */
             body: {
                 [key: string]: unknown;
-            };
-            /** Body Hash */
+            } | null;
+            /**
+             * Body Erased
+             * @default false
+             */
+            body_erased: boolean;
+            /**
+             * Body Hash
+             * @description sha256 of the body as served; survives erasure
+             */
             body_hash: string;
             /** Enforcement */
             enforcement: string | null;

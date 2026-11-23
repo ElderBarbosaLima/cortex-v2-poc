@@ -100,7 +100,7 @@ def test_bodies_are_sealed_and_open_back(sqlite_session: Session, keys: KmsKeySe
     assert row.key_ref == row.record_id  # its own lineage root
 
 
-def test_each_record_gets_its_own_data_key_and_derived_records_share_the_roots(
+def test_every_record_gets_its_own_data_key_derived_ones_too(
     sqlite_session: Session, keys: KmsKeyService
 ) -> None:
     codec = AesGcmCodec(keys)
@@ -117,9 +117,12 @@ def test_each_record_gets_its_own_data_key_and_derived_records_share_the_roots(
     )
     wrapped = {k.key_ref: k.wrapped_dek for k in sqlite_session.scalars(select(RecordKey))}
 
-    assert set(wrapped) == {a.record_id, b.record_id}  # no key of its own for derived records
-    assert wrapped[a.record_id] != wrapped[b.record_id]
-    assert child.key_ref == grandchild.key_ref == a.record_id
+    # Issue 24: a key per record (Q10), so a derived record can be erased on
+    # its own; erasing a parent follows derived_from (app/services/erasure.py).
+    ids = {a.record_id, b.record_id, child.record_id, grandchild.record_id}
+    assert set(wrapped) == ids
+    assert len(set(wrapped.values())) == 4
+    assert all(r.key_ref == r.record_id for r in (a, b, child, grandchild))
     assert ledger.open_body(sqlite_session, grandchild, codec) == draft().body
 
 
@@ -162,3 +165,19 @@ def test_deleting_the_data_key_shreds_the_body(
 
     with pytest.raises(KeyErasedError):
         ledger.open_body(sqlite_session, sqlite_session.get(MemoryRecord, row.id) or row, codec)
+
+
+def test_a_warm_cache_does_not_outlive_an_erasure_done_elsewhere(
+    sqlite_session: Session, keys: KmsKeyService
+) -> None:
+    codec = AesGcmCodec(keys)
+    row = ledger.append_new(sqlite_session, tenant_id=TENANT_A, draft=draft(), codec=codec)
+    assert ledger.open_body(sqlite_session, row, codec) == draft().body  # key now cached
+
+    # Another process erases the record: its wrapped key row disappears.
+    for key in sqlite_session.scalars(select(RecordKey).where(RecordKey.key_ref == row.record_id)):
+        sqlite_session.delete(key)
+    sqlite_session.flush()
+
+    with pytest.raises(KeyErasedError):
+        ledger.open_body(sqlite_session, row, codec)

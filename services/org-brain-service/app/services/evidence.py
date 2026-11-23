@@ -1,8 +1,10 @@
 """Evidence export (issue 23, doc 12 flow 5; Rev. C: COS → S3).
 
 A served pack becomes an archived manifest an auditor can open years later:
-- the pack exactly as served (same content as `GET /context-packs/{id}`) and
-  its sha256;
+- the pack as served (same content as `GET /context-packs/{id}`) and its
+  sha256, with each body kept sealed under its record's own data key (so a
+  record erased later is unreadable in the archive too; `open_pack` rebuilds
+  the plaintext pack while the keys exist);
 - for each `(record_id, version)` in it, that version's governance: status,
   who asserted it, who approved it (`approved_by`, with the decision id),
   authority, validity;
@@ -96,6 +98,48 @@ def pack_view(stored: StoredPack) -> dict[str, Any]:
     return context_pack.render(stored).model_dump(mode="json")
 
 
+def _sealed_view(stored: StoredPack, view: dict[str, Any]) -> dict[str, Any]:
+    """The pack with each body replaced by its sealed snapshot (the record's
+    own data key): erasing that record later makes the archived copy
+    unreadable too, although the object itself is under retention (Q10)."""
+    sealed = dict(view)
+    sealed["records"] = [
+        {
+            **record,
+            "body": None,
+            "body_sealed": {
+                "codec": item.body_codec,
+                "key_ref": item.key_ref,
+                "sealed": base64.b64encode(item.body_sealed).decode(),
+            },
+        }
+        for record, (item, _) in zip(view["records"], stored.items, strict=True)
+    ]
+    return sealed
+
+
+def open_pack(session: Session, manifest: dict[str, Any]) -> dict[str, Any]:
+    """The pack as served, rebuilt from a manifest: each sealed body opened
+    with its record's key. An erased record comes back with `body: null`."""
+    from app.services.body_codec import BodyUnreadableError, codec_for
+
+    records: list[dict[str, Any]] = []
+    for record in manifest["pack"]["records"]:
+        snap = record["body_sealed"]
+        try:
+            body: dict[str, Any] | None = codec_for(snap["codec"]).open(
+                session,
+                tenant_id=manifest["tenant_id"],
+                key_ref=snap["key_ref"],
+                sealed=base64.b64decode(snap["sealed"]),
+            )
+        except BodyUnreadableError:
+            body = None
+        rest = {k: v for k, v in record.items() if k != "body_sealed"}
+        records.append({**rest, "body": body, "body_erased": body is None})
+    return {**manifest["pack"], "records": records}
+
+
 def build_manifest(session: Session, stored: StoredPack, pack_view: dict[str, Any]) -> bytes:
     """Canonical JSON bytes. `pack_view` is the pack as the API serves it."""
     records: list[dict[str, Any]] = []
@@ -142,8 +186,8 @@ def build_manifest(session: Session, stored: StoredPack, pack_view: dict[str, An
             "schema": MANIFEST_SCHEMA,
             "tenant_id": stored.pack.tenant_id,
             "pack_id": stored.pack.pack_id,
-            "pack_sha256": sha256(pack_bytes),
-            "pack": pack_view,
+            "pack_sha256": sha256(pack_bytes),  # of the pack as served, bodies in clear
+            "pack": _sealed_view(stored, pack_view),
             "policy_revision": stored.pack.policy_revision,
             "case_hash": stored.pack.case_hash,
             "records": records,

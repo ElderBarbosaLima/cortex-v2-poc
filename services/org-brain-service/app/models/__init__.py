@@ -13,6 +13,7 @@ from app.models.ledger import (
 from app.models.review import ReviewCase, ReviewCaseItem, ReviewDecision
 from app.models.served_pack import (
     Correction,
+    Erasure,
     EvidenceExport,
     ServedPack,
     ServedPackItem,
@@ -26,12 +27,14 @@ enforce_append_only(ServedPack)
 enforce_append_only(ServedPackItem)
 enforce_append_only(Verification)
 enforce_append_only(Correction)
+enforce_append_only(Erasure)
 
 __all__ = [
     "AssuranceLevel",
     "Base",
     "Correction",
     "Enforcement",
+    "Erasure",
     "EvidenceExport",
     "Kind",
     "LedgerImmutableError",
