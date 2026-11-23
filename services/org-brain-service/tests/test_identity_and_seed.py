@@ -62,7 +62,9 @@ def test_seed_builds_one_opa_document_per_tenant() -> None:
     assert set(jp.opa_data["consumers"]["askq2c-agent"]["purposes"]) == {
         "invoice_drafting",
         "cash_matching",
+        "payment_reconciliation",  # the release check on Phase 1 packs (issue 35)
     }
+    assert jp.opa_data["consumers"]["ibm-pr-agent"]["purposes"].keys() == {"payment_reconciliation"}
 
 
 def test_key_hashes_load_from_secrets_manager() -> None:

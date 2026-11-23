@@ -28,6 +28,7 @@ from app.seed.tenants import Seed
 from app.services import ledger
 
 AGENT_KEY, DESK_KEY = "golden-agent-key", "golden-desk-key"
+IBM_KEY = "golden-ibm-pr-key"  # issue 35: the Phase 1 consumer, pack-only
 
 
 def _jsonl(path: Path) -> list[dict[str, Any]]:
@@ -45,6 +46,8 @@ class GoldenRun:
     extra_check: (
         Callable[[str, dict[str, Any], dict[str, Any], dict[str, Any]], list[str]] | None
     ) = None
+    pack_key: str = AGENT_KEY  # who asks for the packs: the IBM consumer for Phase 1
+    pack_purpose: str | None = None  # None: the timeline's
     mismatches: list[str] = field(default_factory=list[str])
     checked: dict[str, int] = field(default_factory=dict[str, int])
     packs: dict[str, str] = field(default_factory=dict[str, str])  # case_id -> pack_id
@@ -111,9 +114,10 @@ class GoldenRun:
                     "domain": self.workflow,
                     "case": self.cases[case_id],
                     "scope": self.scope,
-                    "purpose": self.timeline["purpose"],
+                    "purpose": self.pack_purpose or self.timeline["purpose"],
                     "as_of": exp["as_of"],
                 },
+                key=self.pack_key,
             )
             if resp.status_code != 201:
                 self._miss(f"{case_id}: pack {resp.status_code} {resp.text[:200]}")

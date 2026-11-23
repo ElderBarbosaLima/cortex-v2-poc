@@ -37,6 +37,8 @@ DATA = Path(os.environ.get("CORTEX_E2E_DATA_DIR", "/data/synthetic"))
 STATE = Path(os.environ.get("CORTEX_E2E_STATE_DIR", "/state"))
 AGENT_KEY = os.environ["CORTEX_E2E_AGENT_KEY"]
 DESK_KEY = os.environ["CORTEX_DESK_API_KEY"]
+IBM_KEY = os.environ.get("CORTEX_E2E_IBM_KEY", "")
+PHASE1 = ("cash_application", "payment_reconciliation")  # issue 35: the Phase 1 pack and the IBM purpose
 WORKFLOWS = ("custom_invoices", "cash_application")
 REVIEW = "rule_review"
 
@@ -117,6 +119,7 @@ class Run:
         self.checks: list[Json] = state.setdefault("checks", [])
         self.agent = httpx.Client(base_url=API, headers={"authorization": f"Bearer {AGENT_KEY}"}, timeout=30)
         self.desk = httpx.Client(base_url=API, headers={"authorization": f"Bearer {DESK_KEY}"}, timeout=30)
+        self.ibm = httpx.Client(base_url=API, headers={"authorization": f"Bearer {IBM_KEY}"}, timeout=30)
 
     # ── plumbing ────────────────────────────────────────────────────────────
 
@@ -192,6 +195,8 @@ class Run:
         self.check("happy case: the pack holds exactly the expected rules", self.kept(pack) == sorted(wf.expected[happy]["expected_rules"]), f"{self.kept(pack)}")
         self.check("happy case: verify passes", self.verify(pack["pack_id"], happy)["result"] == "pass")
         self.state["reindex"] = {happy: self.roles(pack)}
+        if wf.name == PHASE1[0]:
+            self.phase1(happy)
 
         s2 = wf.first(group="scenario_2", batch="A")
         pack = self.pack(s2)
@@ -281,6 +286,23 @@ class Run:
             exported["status"] == "exported" and exported["retention_mode"] == "COMPLIANCE" and bool(exported["manifest_sha256"]),
             json.dumps({k: exported.get(k) for k in ("status", "retention_mode")}),
         )
+
+    def phase1(self, happy: str) -> None:
+        """Phase 1 (issues 35, 36): IBM's agent calls Cortex for the pack and nothing else."""
+        if not IBM_KEY:
+            raise RuntimeError("CORTEX_E2E_IBM_KEY is not set: run make init-env")
+        body = {"domain": self.wf.name, "case": self.wf.cases[happy], "scope": self.wf.scope,
+                "purpose": PHASE1[1], "as_of": self.wf.expected[happy]["as_of"]}
+        resp = self.ibm.post("/v1/cortex/context-packs", json=body)
+        got = self.kept(resp.json()) if resp.status_code == 201 else []
+        self.check("phase 1: the IBM consumer gets the expected pack (payment_reconciliation)",
+                   resp.status_code == 201 and got == sorted(self.wf.expected[happy]["expected_rules"]), f"{resp.status_code} {got}")
+        denied = [
+            self.ibm.post("/v1/cortex/verify", json={"pack_id": resp.json().get("pack_id", ""), "case": {}, "output": {}}).status_code,
+            self.ibm.post("/v1/cortex/corrections", json={}).status_code,
+            self.ibm.get("/v1/cortex/records", params={"purpose": REVIEW}).status_code,
+        ]
+        self.check("phase 1: everything else answers 403 to the IBM consumer", denied == [403, 403, 403], f"{denied}")
 
     def after_reindex(self) -> None:
         wf = self.wf
