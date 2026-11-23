@@ -2579,6 +2579,60 @@
         "title": "Sensitivity",
         "type": "object"
       },
+      "SuggestionMetrics": {
+        "description": "Slide 26: suggested rules owners accept (target 70%).",
+        "properties": {
+          "acceptance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "accepted / decided; null when none decided yet",
+            "title": "Acceptance"
+          },
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "policy_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Revision"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "integer"
+          },
+          "suggested": {
+            "title": "Suggested",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "suggested",
+          "accepted",
+          "rejected",
+          "pending",
+          "acceptance",
+          "policy_revision"
+        ],
+        "title": "SuggestionMetrics",
+        "type": "object"
+      },
       "SyncedRule": {
         "properties": {
           "approved_by": {
@@ -3346,6 +3400,90 @@
           }
         },
         "summary": "Import Records",
+        "tags": [
+          "cortex"
+        ]
+      }
+    },
+    "/v1/cortex/metrics/suggestions": {
+      "get": {
+        "description": "Slide 26 (issue 49): of the rules Cortex suggested (asserted by a model or a policy), how many owners accepted, rejected, or still have to decide, in this scope.",
+        "operationId": "suggestion_metrics",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionMetrics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Suggestion Metrics",
         "tags": [
           "cortex"
         ]

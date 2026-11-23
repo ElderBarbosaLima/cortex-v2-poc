@@ -519,3 +519,14 @@ class RenewItemResult(BaseModel):
 
 class RenewResult(BaseModel):
     items: list[RenewItemResult]
+
+
+class SuggestionMetrics(BaseModel):
+    """Slide 26: suggested rules owners accept (target 70%)."""
+
+    suggested: int
+    accepted: int
+    rejected: int
+    pending: int
+    acceptance: float | None = Field(description="accepted / decided; null when none decided yet")
+    policy_revision: str | None

@@ -59,6 +59,7 @@ from app.schemas.cortex import (
     RuleAlertPage,
     RuleSuggestion,
     RuleSyncPage,
+    SuggestionMetrics,
     SyncedRule,
     VerifyRequest,
     VerifyResult,
@@ -1229,3 +1230,41 @@ def renew_rules(
             )
         )
     return RenewResult(items=results)
+
+
+@router.get(
+    "/metrics/suggestions",
+    response_model=SuggestionMetrics,
+    operation_id="suggestion_metrics",
+    description="Slide 26 (issue 49): of the rules Cortex suggested (asserted by a model or a "
+    "policy), how many owners accepted, rejected, or still have to decide, in this scope.",
+)
+def suggestion_metrics(
+    request: Request,
+    scope: uuid.UUID = Query(),
+    purpose: str = Query(min_length=1),
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> SuggestionMetrics:
+    decision = authorise(request, caller, purpose=purpose, scope=str(scope))
+    rows = session.execute(
+        text(
+            "SELECT record_id::text, status FROM memory_record_current WHERE kind = 'rule' "
+            "AND asserted_by->>'type' IN ('model', 'policy') "
+            "AND scope = ANY(CAST(:scopes AS uuid[]))"
+        ),
+        {"scopes": decision.readable_scopes},
+    ).all()
+    approved_ever = review.ever_approved(session, [r[0] for r in rows])
+    accepted = sum(1 for r in rows if r[0] in approved_ever)
+    pending = sum(1 for r in rows if r[1] == "proposed")
+    rejected = len(rows) - accepted - pending
+    decided = accepted + rejected
+    return SuggestionMetrics(
+        suggested=len(rows),
+        accepted=accepted,
+        rejected=rejected,
+        pending=pending,
+        acceptance=round(accepted / decided, 3) if decided else None,
+        policy_revision=decision.policy_revision,
+    )

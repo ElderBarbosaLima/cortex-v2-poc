@@ -100,6 +100,11 @@ migrate-hq: ## The regions prototype (ADR 0002): migrate the HQ region's ledger 
 replicate: migrate-hq ## Copy HQ's published Global records into this region's ledger (idempotent; ADR 0002, issue 32)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.replicate --from-db org_brain_hq --region hq
 
+replay: init-env ## Replay resolved payments and score them against slide 26's targets (issue 49): FILE=
+	@set -a && . ./.env && set +a && $(COMPOSE) run --rm --no-deps -e CORTEX_E2E_IBM_KEY -e CORTEX_DESK_API_KEY \
+		org-brain-service pipenv run python -m app.cli.replay \
+		--file $(or $(FILE),/data/synthetic/cash_allocation/replay.jsonl) --api http://aws-emulator:5008
+
 load-rules: init-env ## Load customer rules from a spreadsheet (issue 47): SHEET= GUIDE= (default: the sample in data/examples/rule-sheet)
 	@set -a && . ./.env && set +a && $(COMPOSE) run --rm --no-deps -e CORTEX_E2E_AGENT_KEY org-brain-service \
 		pipenv run python -m app.cli.load_rules --sheet $(or $(SHEET),/data/examples/rule-sheet/rules.csv) \
