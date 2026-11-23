@@ -217,20 +217,22 @@ services:
       NUXT_CORTEX_API_KEY_EN: ${CORTEX_DESK_API_KEY_EN:-}
       NUXT_CORTEX_EXAMPLES_AGENT_KEY_JA: ${CORTEX_E2E_AGENT_KEY:-}
       NUXT_CORTEX_EXAMPLES_AGENT_KEY_EN: ${CORTEX_EXAMPLES_AGENT_KEY_EN:-}
-      NUXT_DEV_EXAMPLES_DIR: /examples
+      NUXT_DEV_EXAMPLES_DIR: /data/examples
       # Dev-only: the Decision Desk's user selector reads the seed's people.
-      NUXT_DEV_SEED_FILE: /data/tenant.json
+      NUXT_DEV_SEED_FILE: /data/synthetic/tenant.json
       NUXT_DEV_POLL: "true"
       NUXT_TELEMETRY_DISABLED: "1"
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5001}:5001"
     volumes:
-      - ./data/examples:/examples:ro
+      # The whole data/ folder, never a single file or a folder git may delete on a
+      # branch switch: a bind mount pins what it was given, and kept serving a
+      # deleted tenant.json and an empty examples folder after one (issue 39).
+      - ./data:/data:ro
       # Hot reload of the app's own sources; dependencies stay in the image.
       - ./frontend/arbitr/app:/workspace/frontend/arbitr/app:ro
       - ./frontend/arbitr/server:/workspace/frontend/arbitr/server:ro
       - ./frontend/arbitr/i18n:/workspace/frontend/arbitr/i18n:ro
-      - ./data/synthetic/tenant.json:/data/tenant.json:ro
     networks:
       - cortex
     depends_on:

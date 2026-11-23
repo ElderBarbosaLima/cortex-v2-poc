@@ -52,3 +52,12 @@ $ make lint · make typecheck · make contract-check → clean
 - **A new tenant or new keys need `make dev`** (re-provision and restart). Your stack is fresh, with both sets loaded.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Fix after merge: stale mounts (`poc/039b-stable-mounts`)
+**What you saw (2026-11-23):** "Cortex said no (dev_seed_unavailable)", empty selectors, no Examples control.
+
+**Cause:** the front end bind-mounted a single file (`tenant.json`) and a folder (`data/examples`). I started the stack on the issue branch, then switched to `main` to merge. The switch deleted `data/examples` and rewrote `tenant.json`, and the container kept the deleted copies: the file with 0 links, and an empty folder.
+
+**Fix:** the front end mounts the whole `data/` folder, which git never deletes. Seed: `/data/synthetic/tenant.json`; examples: `/data/examples`.
+
+**Checked:** switched to `poc/038` (which has no `data/examples`) and back with the stack running. `/api/dev/seed` → 200, `/api/dev/examples` → `ja`, `en`. The Desk loads in the browser.
