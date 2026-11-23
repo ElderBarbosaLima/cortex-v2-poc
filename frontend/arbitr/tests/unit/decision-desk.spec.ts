@@ -292,7 +292,7 @@ describe('the Decision Desk', () => {
     await vi.waitFor(() => expect(page.find('[data-test-id="cortex-decision-desk-bulk-result-text"]').exists()).toBe(true))
 
     const posts = calls.filter(c => c.url.endsWith('/approve'))
-    expect(posts.map(c => c.url)).toEqual([`/api/cortex/review-cases/${CASE}/approve`])  // the refused one is never sent
+    expect(posts.map(c => c.url)).toEqual([`/api/cortex/review-cases/${CASE}/approve`]) // the refused one is never sent
     expect(JSON.parse(String(posts[0]!.init?.body))).toEqual({ record_id: 'rec-1', authority: 20, enforcement: 'default', reason: null })
     const text = page.get('[data-test-id="cortex-decision-desk-bulk-result-text"]').text()
     expect(text).toContain('Approved 1 case(s).')
