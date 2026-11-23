@@ -1,6 +1,5 @@
-"""Served context packs (006), their verifications (007) and corrections (008).
-
-All append-only.
+"""Served context packs (006), their verifications (007), corrections (008) and
+evidence exports (009). All append-only except an export's result columns.
 """
 
 from __future__ import annotations
@@ -94,3 +93,25 @@ class Correction(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class EvidenceExport(Base):
+    """A served pack's manifest archived to the evidence bucket (migration 009)."""
+
+    __tablename__ = "evidence_export"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    export_id: Mapped[str] = mapped_column(UuidCol, nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    pack_id: Mapped[str] = mapped_column(UuidCol, nullable=False, unique=True)
+    bucket: Mapped[str] = mapped_column(Text, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    manifest_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    version_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retention_mode: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retain_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requested_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    exported_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

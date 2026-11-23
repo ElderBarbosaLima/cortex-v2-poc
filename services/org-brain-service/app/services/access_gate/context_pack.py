@@ -24,6 +24,7 @@ the agent act without a constraint (Rev. B rule 4).
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -34,6 +35,7 @@ from sqlalchemy.orm import Session
 from app.domain_packs.base import DomainPack
 from app.models import MemoryRecord, ServedPack, ServedPackItem, Status
 from app.projections.base import SearchFilters, SearchProjection, SearchQuery
+from app.schemas.cortex import ContextPack, PackRecord
 from app.services import ledger
 from app.services.access_gate.applicability import CaseFacts, applicable_rules
 from app.services.access_gate.resolve import resolve
@@ -274,5 +276,34 @@ def load(session: Session, pack_id: str) -> StoredPack:
                 ),
             )
             for row in rows
+        ],
+    )
+
+
+def render(stored: StoredPack) -> ContextPack:
+    """The pack as the API serves it, from storage: POST, GET and the evidence
+    manifest all render it here, so they cannot drift apart."""
+    served = stored.pack
+    return ContextPack(
+        pack_id=uuid.UUID(served.pack_id),
+        trace_id=served.trace_id,
+        domain=served.domain,
+        scope=uuid.UUID(served.scope),
+        purpose=served.purpose,
+        as_of=served.as_of,
+        policy_revision=served.policy_revision,
+        served_at=served.served_at,
+        records=[
+            PackRecord(
+                record_id=uuid.UUID(item.record_id),
+                version=item.version,
+                kind=item.kind,
+                enforcement=item.enforcement,
+                role=item.role,  # type: ignore[arg-type]
+                overridden_by=uuid.UUID(item.overridden_by) if item.overridden_by else None,
+                body_hash=item.body_hash,
+                body=body,
+            )
+            for item, body in stored.items
         ],
     )

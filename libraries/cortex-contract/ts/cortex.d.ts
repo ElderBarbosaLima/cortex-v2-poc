@@ -64,6 +64,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/context-packs/{pack_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Context Pack Export */
+        get: operations["get_context_pack_export"];
+        put?: never;
+        /**
+         * Export Context Pack
+         * @description Archive the pack's manifest (pack, record versions and approvals, policy
+         *     revision, verifications), encrypted under the tenant's key, to the
+         *     evidence bucket with Object Lock retention. Asynchronous (outbox); asking
+         *     again returns the same export.
+         */
+        post: operations["export_context_pack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/corrections": {
         parameters: {
             query?: never;
@@ -587,6 +611,49 @@ export interface components {
             reason: string | null;
             /** Record Ids */
             record_ids: string[];
+        };
+        /** EvidenceExportView */
+        EvidenceExportView: {
+            /** Bucket */
+            bucket: string;
+            /**
+             * Export Id
+             * Format: uuid
+             */
+            export_id: string;
+            /** Exported At */
+            exported_at: string | null;
+            /**
+             * Manifest Sha256
+             * @description sha256 of the manifest before encryption
+             */
+            manifest_sha256: string | null;
+            /**
+             * Object Key
+             * @description Deterministic: tenants/<tenant>/context-packs/<pack>.json
+             */
+            object_key: string;
+            /**
+             * Pack Id
+             * Format: uuid
+             */
+            pack_id: string;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Retain Until */
+            retain_until: string | null;
+            /** Retention Mode */
+            retention_mode: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "exported" | "failed";
+            /** Version Id */
+            version_id: string | null;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -1145,6 +1212,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContextPack"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such pack (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_context_pack_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceExportView"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No export (or another tenant's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    export_context_pack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceExportView"];
                 };
             };
             /** @description Missing or unknown API key */

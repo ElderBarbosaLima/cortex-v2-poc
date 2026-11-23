@@ -288,3 +288,20 @@ class DecisionResult(BaseModel):
     decision: Literal["approve", "reject"]
     records: list[DecidedRecord]
     policy_revision: str | None
+
+
+# ── Evidence export (issue 23) ──────────────────────────────────────────────
+
+
+class EvidenceExportView(BaseModel):
+    export_id: uuid.UUID
+    pack_id: uuid.UUID
+    status: Literal["pending", "exported", "failed"]
+    bucket: str
+    object_key: str = Field(description="Deterministic: tenants/<tenant>/context-packs/<pack>.json")
+    manifest_sha256: str | None = Field(description="sha256 of the manifest before encryption")
+    version_id: str | None
+    retention_mode: str | None
+    retain_until: dt.datetime | None
+    requested_at: dt.datetime
+    exported_at: dt.datetime | None

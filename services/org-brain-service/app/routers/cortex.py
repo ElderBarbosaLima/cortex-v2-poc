@@ -25,8 +25,8 @@ from app.schemas.cortex import (
     ContextPackRequest,
     CorrectionAccepted,
     CorrectionRequest,
+    EvidenceExportView,
     HoldReason,
-    PackRecord,
     ProposalAccepted,
     ProposeRecordRequest,
     RecordPage,
@@ -37,7 +37,7 @@ from app.schemas.cortex import (
     VerifyResult,
     WhoAmI,
 )
-from app.services import admission, ledger, writeback
+from app.services import admission, evidence, ledger, writeback
 from app.services.access_gate import context_pack, verify
 from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
@@ -250,30 +250,7 @@ def propose_record(
 
 
 def _pack_response(stored: context_pack.StoredPack) -> ContextPack:
-    served = stored.pack
-    return ContextPack(
-        pack_id=uuid.UUID(served.pack_id),
-        trace_id=served.trace_id,
-        domain=served.domain,
-        scope=uuid.UUID(served.scope),
-        purpose=served.purpose,
-        as_of=served.as_of,
-        policy_revision=served.policy_revision,
-        served_at=served.served_at,
-        records=[
-            PackRecord(
-                record_id=uuid.UUID(item.record_id),
-                version=item.version,
-                kind=item.kind,
-                enforcement=item.enforcement,
-                role=item.role,  # type: ignore[arg-type]
-                overridden_by=uuid.UUID(item.overridden_by) if item.overridden_by else None,
-                body_hash=item.body_hash,
-                body=body,
-            )
-            for item, body in stored.items
-        ],
-    )
+    return context_pack.render(stored)
 
 
 @router.post(
@@ -367,6 +344,64 @@ def get_context_pack(
         raise CortexApiError(404, "not_found", "no such context pack") from None
     authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
     return _pack_response(stored)
+
+
+def _export_view(row: Any) -> EvidenceExportView:
+    return EvidenceExportView.model_validate(row, from_attributes=True)
+
+
+def _authorised_pack(
+    request: Request, caller: AuthedCaller, session: Session, pack_id: uuid.UUID
+) -> context_pack.StoredPack:
+    try:
+        stored = context_pack.load(session, str(pack_id))
+    except context_pack.PackNotFoundError:
+        raise CortexApiError(404, "not_found", "no such context pack") from None
+    authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
+    return stored
+
+
+@router.post(
+    "/context-packs/{pack_id}/export",
+    response_model=EvidenceExportView,
+    status_code=202,
+    operation_id="export_context_pack",
+    responses={404: {"model": ApiError, "description": "No such pack (or another tenant's)"}},
+)
+def export_context_pack(
+    pack_id: uuid.UUID,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> EvidenceExportView:
+    """Archive the pack's manifest (pack, record versions and approvals, policy
+    revision, verifications), encrypted under the tenant's key, to the
+    evidence bucket with Object Lock retention. Asynchronous (outbox); asking
+    again returns the same export."""
+    stored = _authorised_pack(request, caller, session, pack_id)
+    row, _ = evidence.request_export(
+        session, stored=stored, bucket=request.app.state.evidence_bucket
+    )
+    return _export_view(row)
+
+
+@router.get(
+    "/context-packs/{pack_id}/export",
+    response_model=EvidenceExportView,
+    operation_id="get_context_pack_export",
+    responses={404: {"model": ApiError, "description": "No export (or another tenant's)"}},
+)
+def get_context_pack_export(
+    pack_id: uuid.UUID,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    session: Session = Depends(caller_session),
+) -> EvidenceExportView:
+    stored = _authorised_pack(request, caller, session, pack_id)
+    row = evidence.find_export(session, stored.pack.pack_id)
+    if row is None:
+        raise CortexApiError(404, "not_found", "this pack has not been exported")
+    return _export_view(row)
 
 
 def _trace_id() -> str:

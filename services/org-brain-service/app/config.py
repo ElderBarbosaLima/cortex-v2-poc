@@ -29,6 +29,10 @@ class OrgBrainConfig(BaseSettings):
     # D17: a rule is proposed from corrections once there are
     # min_distinct_cases / min_distinct_correctors / within window_days.
     rule_suggestion: str = "1/1/30"
+    # Evidence archive (issue 23): bucket from Terraform, Object Lock retention per object.
+    evidence_bucket: str = "cortex-poc-evidence"
+    evidence_retention_mode: str = "COMPLIANCE"
+    evidence_retention_days: int = 1
 
     # Postgres. The service connects as org_brain_app (owns nothing, cannot
     # bypass RLS); migrations connect as org_brain_owner. See infra/postgres/initdb.
