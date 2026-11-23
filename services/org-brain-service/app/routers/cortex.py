@@ -7,20 +7,30 @@ operations an agent needs are marked `x-mcp-tool`.
 
 from __future__ import annotations
 
+import base64
 import dataclasses
 import datetime as dt
+import json
 import uuid
 from typing import Any, cast
 
 import structlog
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import text
+from sqlalchemy import UUID, literal, select, text, tuple_
+from sqlalchemy import cast as cast_
 from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
 from app.domain_packs.base import UnknownPackError, get_pack
-from app.identity import PACK_SCOPE, AuthedCaller, caller_session, require_scope
-from app.models import Kind
+from app.identity import (
+    OUTCOMES_SCOPE,
+    PACK_SCOPE,
+    RULES_SYNC_SCOPE,
+    AuthedCaller,
+    caller_session,
+    require_scope,
+)
+from app.models import Kind, MemoryRecord, Status
 from app.schemas.cortex import (
     ContextPack,
     ContextPackRequest,
@@ -41,6 +51,8 @@ from app.schemas.cortex import (
     RetireRequest,
     RetireResult,
     RuleSuggestion,
+    RuleSyncPage,
+    SyncedRule,
     VerifyRequest,
     VerifyResult,
     WhoAmI,
@@ -55,7 +67,7 @@ _logger = structlog.get_logger("org-brain.cortex")
 router = APIRouter(prefix="/v1/cortex", tags=["cortex"], responses=ERROR_RESPONSES)
 
 SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
-MCP_TOOLS = ("request_context_pack", "verify_output", "submit_correction")
+MCP_TOOLS = ("request_context_pack", "verify_output", "submit_correction", "report_outcome")
 
 
 def _mcp(name: str, description: str) -> dict[str, Any]:
@@ -871,4 +883,139 @@ def _accepted(
         suggested_by=outcome.suggested_by,  # type: ignore[arg-type]
         rule_suggestion=suggestion,
         proposal_problems=admission.problems_payload(outcome.problems),
+    )
+
+
+@router.post(
+    "/outcomes",
+    response_model=CorrectionAccepted,
+    status_code=202,
+    operation_id="report_outcome",
+    responses={
+        404: {"model": ApiError, "description": "No such pack (or another tenant's)"},
+        409: {"model": ApiError, "description": "Idempotency key reused for another request"},
+    },
+    openapi_extra=_mcp(
+        "report_outcome",
+        "Report how a payment was finally resolved (confirmed or corrected), who decided and "
+        "why, with the pack id. Cortex remembers it as a past case and may suggest a rule.",
+    ),
+)
+def report_outcome(
+    body: CorrectionRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write", OUTCOMES_SCOPE)),
+    session: Session = Depends(caller_session),
+) -> CorrectionAccepted:
+    """IBM's third operation (issue 43, slide 20): the outcome of a reviewed
+    case. The same writeback as a correction, under a scope that allows
+    nothing else; the person who decided is X-End-User-Id."""
+    return submit_correction(body, request, caller, session)
+
+
+_REMOVED = ("deprecated", "superseded", "stale", "erased")
+
+
+def _encode_cursor(row: MemoryRecord) -> str:
+    """Opaque: where the last page ended, as (recorded_at, record_id, version).
+    No numeric key leaves the service (house rule)."""
+    raw = json.dumps([row.recorded_at.isoformat(), row.record_id, row.version])
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def _decode_cursor(cursor: str | None) -> tuple[dt.datetime, str, int] | None:
+    if not cursor:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode()
+        at, record_id, version = json.loads(raw)
+        return dt.datetime.fromisoformat(at), str(uuid.UUID(record_id)), int(version)
+    except (ValueError, TypeError, UnicodeDecodeError):
+        raise CortexApiError(422, "invalid_cursor", "pass back a next_cursor as given") from None
+
+
+@router.get(
+    "/rules/sync",
+    response_model=RuleSyncPage,
+    operation_id="sync_rules",
+    description="For a rule engine (issue 44): the domain's rules a scope sees, as changes "
+    "since `cursor`. `upsert` an approved version; `remove` one no longer in force. Start "
+    "without a cursor for everything; keep `next_cursor` for the next call (daily or on change).",
+)
+def sync_rules(
+    request: Request,
+    domain: str = Query(min_length=1, max_length=64),
+    scope: uuid.UUID = Query(),
+    purpose: str = Query(min_length=1),
+    cursor: str | None = Query(default=None, max_length=512),
+    limit: int = Query(default=200, ge=1, le=1000),
+    caller: AuthedCaller = Depends(require_scope("cortex:read", RULES_SYNC_SCOPE)),
+    session: Session = Depends(caller_session),
+) -> RuleSyncPage:
+    after = _decode_cursor(cursor)
+    decision = authorise(request, caller, purpose=purpose, scope=str(scope))
+    allowed = [
+        c
+        for c, rank in SENSITIVITY_RANK.items()
+        if rank <= SENSITIVITY_RANK.get(decision.sensitivity_ceiling or "", -1)
+    ]
+    query = (
+        select(MemoryRecord)
+        .where(
+            MemoryRecord.kind == "rule",
+            MemoryRecord.schema_version == f"{domain}.rule/1",
+            MemoryRecord.scope.in_(decision.readable_scopes),
+            MemoryRecord.sensitivity_class.in_(allowed),
+        )
+        .order_by(MemoryRecord.recorded_at, MemoryRecord.record_id, MemoryRecord.version)
+        .limit(limit + 1)
+    )
+    if after is not None:
+        query = query.where(
+            tuple_(MemoryRecord.recorded_at, MemoryRecord.record_id, MemoryRecord.version)
+            > tuple_(literal(after[0]), cast_(literal(after[1]), UUID), literal(after[2]))
+        )
+    versions = list(session.scalars(query))
+    has_more = len(versions) > limit
+    page = versions[:limit]
+    latest: dict[str, MemoryRecord] = {}
+    for row in page:
+        latest[row.record_id] = row  # the page's last state of each record
+    items: list[SyncedRule] = []
+    for row in latest.values():
+        if row.status == Status.APPROVED.value:
+            user = (row.approved_by or {}).get("user_id")
+            items.append(
+                SyncedRule(
+                    record_id=uuid.UUID(row.record_id),
+                    version=row.version,
+                    change="upsert",
+                    status=row.status,
+                    enforcement=row.enforcement,
+                    authority=row.authority,
+                    scope=uuid.UUID(row.scope),
+                    entities=list(row.entities or []),
+                    valid_from=row.valid_from,
+                    valid_to=row.valid_to,
+                    approved_by=uuid.UUID(str(user)) if user else None,
+                    body=review.body_or_none(session, row),
+                )
+            )
+        elif row.status in _REMOVED:
+            items.append(
+                SyncedRule(
+                    record_id=uuid.UUID(row.record_id),
+                    version=row.version,
+                    change="remove",
+                    status=row.status,
+                    scope=uuid.UUID(row.scope),
+                )
+            )
+        # proposed: not a rule yet, nothing to sync
+    return RuleSyncPage(
+        domain=domain,
+        items=items,
+        next_cursor=_encode_cursor(page[-1]) if page else (cursor or ""),
+        has_more=has_more,
+        policy_revision=decision.policy_revision,
     )

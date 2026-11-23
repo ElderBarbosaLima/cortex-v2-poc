@@ -89,6 +89,8 @@ def get_caller(request: Request) -> AuthedCaller:
 # The Phase 1 integration profile (issue 36): a consumer holding only this
 # scope may get a context pack (and read a served one back), nothing else.
 PACK_SCOPE = "cortex:pack"
+RULES_SYNC_SCOPE = "cortex:rules-sync"  # issue 44: a rule engine reads approved rules
+OUTCOMES_SCOPE = "cortex:outcomes"  # issue 43: reviewed outcomes, nothing else written
 
 
 def require_scope(*scopes: str) -> Callable[[AuthedCaller], AuthedCaller]:

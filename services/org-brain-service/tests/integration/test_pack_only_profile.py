@@ -89,7 +89,12 @@ def test_the_ibm_consumer_gets_a_context_pack_and_reads_it_back(
 
     assert served.status_code == 201, served.text
     assert replay.status_code == 200 and replay.json() == served.json()
-    assert _call(api, "GET", "/v1/cortex/whoami").json()["scopes"] == ["cortex:pack"]
+    # issue 43: IBM's profile grew from "pack only" to its three operations
+    assert _call(api, "GET", "/v1/cortex/whoami").json()["scopes"] == [
+        "cortex:pack",
+        "cortex:rules-sync",
+        "cortex:outcomes",
+    ]
 
 
 @pytest.mark.parametrize(

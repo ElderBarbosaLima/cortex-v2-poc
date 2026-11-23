@@ -245,7 +245,9 @@
       "key": "ibm-pr-agent",
       "tenant": "jp",
       "scopes": [
-        "cortex:pack"
+        "cortex:pack",
+        "cortex:rules-sync",
+        "cortex:outcomes"
       ],
       "purposes": {
         "payment_reconciliation": {

@@ -134,7 +134,9 @@ CONSUMERS: tuple[JsonObj, ...] = (
         # Payment Reconciliation subset (issue 35).
         "key": "ibm-pr-agent",
         "tenant": "jp",
-        "scopes": ["cortex:pack"],
+        # IBM's three operations (issue 43, slide 20): context for a payment, rule
+        # sync for their rule engine, reviewed outcomes. No verify (D3).
+        "scopes": ["cortex:pack", "cortex:rules-sync", "cortex:outcomes"],
         "purposes": {"payment_reconciliation": {"sensitivity_ceiling": "confidential"}},
     },
     {
