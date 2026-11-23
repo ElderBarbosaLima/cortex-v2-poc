@@ -38,3 +38,25 @@ $ make test-integration → 162 passed · lint, typecheck, contract-check clean
 - **IBM's real data** belongs in its own environment (synthetic only here, as the PoC brief requires). The harness reads a file, so it runs there unchanged.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Batch clean-clone run (issues 40–49)
+Clean clone at `~/.cache/cortex-poc-checks/049`, with `cp .env.example .env` (no LiteLLM key). The targets ran in order:
+```
+make dev              → up
+make e2e              → 23/23 · 25/25
+make seed             → cash_allocation 6 rules present
+make mine-patterns    → 2 patterns: CUST-0105 proposed (7 cases), CUST-0102 below threshold (3)
+make load-rules       → rows 2, 3, 4, 6 proposed · 5 rejected (loosens the group's mandatory duplicate rule) · 7, 8 not read
+make replay           → covered 77% · rule evidence 100% · agreement 85% · suggestions accepted 100%
+                        (the mined and loaded rules were not approved in this run, so they cover nothing yet;
+                         after approving them, the demo stack showed 93%)
+make scenarios        → 6 passed
+make test-all         → unit 323 + frontend 31 · integration 162 · Rego 43/43 · All test tiers passed
+make typecheck · contract-check · migrate-check → clean
+make lint             → FAILED: an ESLint double space in a frontend test from issue 47. My earlier checks grepped
+                        the Python linter's "All checks passed!" and missed it. Fixed in poc/049b-lint-fix; lint now exits 0.
+make test-e2e-ui      → 1 of 2 failed once ("no such context pack" right after a 201 pack), then 2/2 passed twice
+                        on the same stack. A read-after-create probe (40 tries) never reproduced it. Recorded as flaky, cause unknown.
+```
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
