@@ -34,7 +34,7 @@ from app.services.access_gate.applicability import CaseFacts
 from app.services.access_gate.context_pack import StoredPack
 from app.services.admission import SENSITIVITY_RANK
 from app.services.body_codec import body_hash
-from app.utils.business_dates import business_start
+from app.utils.business_dates import NO_LOWER_BOUND, business_start
 from app.utils.ids import new_record_id
 
 SUGGESTER = {"type": "policy", "id": "d17-rule-suggestion"}
@@ -189,9 +189,10 @@ def submit(
         enforcement=draft.enforcement,
         authority=min(draft.authority, ledger.MODEL_AUTHORITY_CEILING),
         sensitivity={"class": "internal", "personal_data": False},
-        # The reviewer judged this case as of its business date, so the rule
-        # holds from that date (Q8: business time, never the clock).
-        valid_from=business_start(stored.pack.as_of),
+        # No lower bound (issue 25): a correction teaches a requirement that
+        # already existed, and nobody knows since when, so the learned rule
+        # also applies to cases dated before the corrected one.
+        valid_from=business_start(NO_LOWER_BOUND),
     )
     key = admission.conflict_key(proposal)
     decision_id = _decision(

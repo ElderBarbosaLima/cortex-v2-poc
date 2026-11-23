@@ -11,6 +11,7 @@ from app.api.errors import install_error_handlers
 from app.clients.opa import AccessGateUnavailable, OpaClient
 from app.config import OrgBrainConfig
 from app.db import app_engine
+from app.domain_packs import discover as discover_packs
 from app.identity import ConsumerKeyStore
 from app.keys import install as install_keys
 from app.logging_config import configure_logging
@@ -48,6 +49,7 @@ def register_tenants(seed: Seed) -> None:
 
 
 def build_services(cfg: OrgBrainConfig) -> AppServices:
+    discover_packs()  # every domain pack under app/domain_packs, found, never named (D18)
     seed = load_seed(Path(cfg.seed_dir))
     gate = PolicyGate(OpaClient(cfg.opa_url, timeout_s=cfg.opa_timeout_s), seed)
     keys = ConsumerKeyStore.from_secrets_manager(cfg.consumer_keys_secret)

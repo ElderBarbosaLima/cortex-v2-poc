@@ -327,6 +327,16 @@ def _resolve(case: Invoice, batch: str) -> tuple[list[str], dict[str, str]]:
     )
 
 
+def _as_of(spec: CaseSpec, case: Invoice) -> str:
+    """The business date the pack is built as of: the issue date, except for a
+    reissue of an old invoice, which is judged under the rules in force on the
+    day it is reissued (the first day of its batch); its CEL conditions still
+    read the old `invoice.issue_date`."""
+    if "pre_qis_reissue" in spec.tags:
+        return BATCH_DATES[spec.batch][0].isoformat()
+    return str(case["issue_date"])
+
+
 def _verify_expectations(spec: CaseSpec) -> list[JsonObj]:
     expectations: list[JsonObj] = [{"after": f"process-{spec.batch}", "result": "pass"}]
     if spec.batch == "A" and spec.customer_id == "CUST-0042" and spec.channel is None:
@@ -445,7 +455,7 @@ def generate(out_dir: Path) -> dict[str, int]:
                 "batch": spec.batch,
                 "group": spec.group,
                 "tags": list(spec.tags),
-                "as_of": by_id[spec.case_id]["issue_date"],
+                "as_of": _as_of(spec, by_id[spec.case_id]),
                 "expected_rules": rules,
                 "overridden": overridden,
                 "verify": _verify_expectations(spec),
