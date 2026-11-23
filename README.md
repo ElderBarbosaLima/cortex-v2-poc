@@ -253,6 +253,7 @@ agent needs are marked `x-mcp-tool`: `request_context_pack`, `verify_output` and
 |---|---|
 | `make test` | hermetic unit tests (no network, no stack; [ADR 0001](docs/adr/0001-test-tiers.md)), frontend Vitest, the bundle secret check |
 | `make test-integration` | integration tests on an ephemeral stack (`-p cortex-poc-test`, no host ports, wiped after), including both golden sets |
+| `make scenarios` | the six Rev. B failure scenarios, one named test each (import with an expired offer · local vs global prohibition · mandatory rule missed by search · withdrawal while the projection lags · replay after a model or index change · one conflict, hundreds of jobs) |
 | `make test-policies` | `opa test` on `policies/` |
 | `make test-all` | `test` + `test-integration` + `test-policies`: the definition of "tests pass" |
 | `make e2e` | the demo above, both workflows, public API, on a fresh running stack |

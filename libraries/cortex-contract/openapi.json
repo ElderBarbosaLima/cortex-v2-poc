@@ -324,6 +324,9 @@
             "title": "As Of",
             "type": "string"
           },
+          "built_with": {
+            "$ref": "#/components/schemas/PackBuiltWith"
+          },
           "domain": {
             "title": "Domain",
             "type": "string"
@@ -380,6 +383,7 @@
           "as_of",
           "policy_revision",
           "served_at",
+          "built_with",
           "records"
         ],
         "title": "ContextPack",
@@ -1127,6 +1131,140 @@
         "title": "HoldReason",
         "type": "object"
       },
+      "ImportItemResult": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "expired": {
+            "default": false,
+            "description": "Already past valid_to: never applies, even if approved",
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "problems": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "review_case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Case Id"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "duplicate",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The approved record this item would replace once approved",
+            "title": "Supersedes"
+          }
+        },
+        "required": [
+          "index",
+          "status"
+        ],
+        "title": "ImportItemResult",
+        "type": "object"
+      },
+      "ImportRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProposeRecordRequest"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "source_system": {
+            "description": "Where the batch comes from",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Source System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_system",
+          "items"
+        ],
+        "title": "ImportRequest",
+        "type": "object"
+      },
+      "ImportResult": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImportItemResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "source_system": {
+            "title": "Source System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_system",
+          "items"
+        ],
+        "title": "ImportResult",
+        "type": "object"
+      },
       "NamedOwners": {
         "properties": {
           "backup": {
@@ -1152,6 +1290,40 @@
           "backup"
         ],
         "title": "NamedOwners",
+        "type": "object"
+      },
+      "PackBuiltWith": {
+        "description": "What built the pack: a stored pack keeps the values it was served with.",
+        "properties": {
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when embeddings were off",
+            "title": "Embedding Model"
+          },
+          "projection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projection"
+          }
+        },
+        "required": [
+          "projection",
+          "embedding_model"
+        ],
+        "title": "PackBuiltWith",
         "type": "object"
       },
       "PackRecord": {
@@ -2611,6 +2783,78 @@
           "description": "Report a reviewer's correction of an output (with its pack id). Cortex records the decision and may propose a rule for a named owner to approve.",
           "name": "submit_correction"
         }
+      }
+    },
+    "/v1/cortex/imports": {
+      "post": {
+        "description": "A batch import (e.g. a source system's rule list) through the admission\ngate, item by item (issue 37, scenario 1). An import never approves:\nevery new item is `proposed` (authority capped at 10 until an owner sets\nit), an item identical to an approved record is a `duplicate` (nothing\nwritten, that approval neither renewed nor extended), an item already\npast its validity is flagged `expired`, and a refused item does not stop\nthe others.",
+        "operationId": "import_records",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Missing or unknown API key"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Insufficient scope, or denied by policy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Access gate (policy engine) unavailable: fail closed"
+          }
+        },
+        "summary": "Import Records",
+        "tags": [
+          "cortex"
+        ]
       }
     },
     "/v1/cortex/records": {

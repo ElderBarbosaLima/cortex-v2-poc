@@ -15,7 +15,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock erase-record erase-tenant \
-        test test-integration test-llm test-e2e-ui e2e test-policies test-all opa-reload probe-emulator \
+        test scenarios test-integration test-llm test-e2e-ui e2e test-policies test-all opa-reload probe-emulator \
         tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
 help: ## List the targets
@@ -152,6 +152,11 @@ test-e2e-ui: ## Playwright (Decision Desk) against the running stack: run `make 
 	$(COMPOSE) --profile tools build e2e-ui
 	$(COMPOSE) --profile tools run --rm e2e-ui
 
+scenarios: ## The six Rev. B failure scenarios, one named test each (ephemeral stack)
+	@$(TEST_COMPOSE) build --quiet
+	@$(TEST_COMPOSE) run --rm org-brain-it pipenv run pytest -q -rA -m integration tests/integration/test_scenarios.py $(ARGS); \
+		status=$$?; $(TEST_COMPOSE) down -v --remove-orphans >/dev/null 2>&1; exit $$status
+
 test-integration: ## Integration tests on an ephemeral stack (own project, no host ports, wiped after)
 	@$(TEST_COMPOSE) build --quiet
 	@$(TEST_COMPOSE) run --rm org-brain-it pipenv run pytest -q -m integration $(ARGS); \
@@ -160,7 +165,7 @@ test-integration: ## Integration tests on an ephemeral stack (own project, no ho
 test-policies: init-env ## opa test on policies/ (in a container)
 	$(COMPOSE) run --rm opa-tools test /policies --verbose
 
-test-all: test test-integration test-policies ## Everything that defines "tests pass" (ADR 0001)
+test-all: scenarios test test-integration test-policies ## Everything that defines "tests pass" (ADR 0001): the six scenarios first
 	@echo "$(GREEN)All test tiers passed$(RESET)"
 
 opa-reload: ## Rebuild the policy bundle and restart OPA (after editing policies/)

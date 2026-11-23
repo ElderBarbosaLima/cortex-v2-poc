@@ -11,6 +11,7 @@ from app.clients.llm import LlmUnavailable
 
 class FakeLlm:
     chat_model = "fake/sonnet"
+    embedding_model = "fake/embedding-16"
 
     def __init__(
         self,

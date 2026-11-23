@@ -28,6 +28,8 @@ class ServedPack(Base):
     as_of: Mapped[dt.date] = mapped_column(Date, nullable=False)
     policy_revision: Mapped[str | None] = mapped_column(Text, nullable=True)
     case_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    projection: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     served_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

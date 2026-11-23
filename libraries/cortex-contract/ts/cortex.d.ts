@@ -107,6 +107,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cortex/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Records
+         * @description A batch import (e.g. a source system's rule list) through the admission
+         *     gate, item by item (issue 37, scenario 1). An import never approves:
+         *     every new item is `proposed` (authority capped at 10 until an owner sets
+         *     it), an item identical to an approved record is a `duplicate` (nothing
+         *     written, that approval neither renewed nor extended), an item already
+         *     past its validity is flagged `expired`, and a refused item does not stop
+         *     the others.
+         */
+        post: operations["import_records"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cortex/records": {
         parameters: {
             query?: never;
@@ -473,6 +499,7 @@ export interface components {
              * Format: date
              */
             as_of: string;
+            built_with: components["schemas"]["PackBuiltWith"];
             /** Domain */
             domain: string;
             /**
@@ -829,6 +856,54 @@ export interface components {
             /** Record Id */
             record_id?: string | null;
         };
+        /** ImportItemResult */
+        ImportItemResult: {
+            /** Error */
+            error?: string | null;
+            /**
+             * Expired
+             * @description Already past valid_to: never applies, even if approved
+             * @default false
+             */
+            expired: boolean;
+            /** Index */
+            index: number;
+            /** Problems */
+            problems?: {
+                [key: string]: string;
+            }[];
+            /** Record Id */
+            record_id?: string | null;
+            /** Review Case Id */
+            review_case_id?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "duplicate" | "rejected";
+            /**
+             * Supersedes
+             * @description The approved record this item would replace once approved
+             */
+            supersedes?: string | null;
+        };
+        /** ImportRequest */
+        ImportRequest: {
+            /** Items */
+            items: components["schemas"]["ProposeRecordRequest"][];
+            /**
+             * Source System
+             * @description Where the batch comes from
+             */
+            source_system: string;
+        };
+        /** ImportResult */
+        ImportResult: {
+            /** Items */
+            items: components["schemas"]["ImportItemResult"][];
+            /** Source System */
+            source_system: string;
+        };
         /** NamedOwners */
         NamedOwners: {
             /** Backup */
@@ -838,6 +913,19 @@ export interface components {
              * Format: uuid
              */
             owner: string;
+        };
+        /**
+         * PackBuiltWith
+         * @description What built the pack: a stored pack keeps the values it was served with.
+         */
+        PackBuiltWith: {
+            /**
+             * Embedding Model
+             * @description Null when embeddings were off
+             */
+            embedding_model: string | null;
+            /** Projection */
+            projection: string | null;
         };
         /** PackRecord */
         PackRecord: {
@@ -1650,6 +1738,66 @@ export interface operations {
             };
             /** @description Idempotency key reused for another request */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access gate (policy engine) unavailable: fail closed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    import_records: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Missing or unknown API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Insufficient scope, or denied by policy */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
