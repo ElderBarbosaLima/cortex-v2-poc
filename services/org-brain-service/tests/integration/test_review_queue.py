@@ -379,3 +379,33 @@ def test_the_case_says_ahead_who_may_decide_and_why_not(world: World) -> None:
         "reason": "this case is already decided",
         "policy_revision": None,
     }
+
+
+def test_the_named_owner_retires_an_approved_rule_and_others_cannot(world: World) -> None:
+    proposal = _propose(world, _code(), by="R-001")
+    approved = _decide(
+        world, proposal["review_case_id"], "approve", user=world.person("OWN-001"), authority=20
+    )
+    assert approved.status_code == 200, approved.text
+    rid = proposal["record_id"]
+
+    def retire(user: str | None, reason: str = "顧客要件の廃止") -> httpx.Response:
+        return _call(
+            world.api,
+            "POST",
+            f"/v1/cortex/records/{rid}/retire",
+            key=DESK_KEY,
+            user=world.person(user) if user else None,
+            json={"reason": reason},
+        )
+
+    by_reviewer, by_agent = retire("R-001"), retire(None)
+    done = retire("OWN-002")
+    again = retire("OWN-001")
+
+    assert by_reviewer.status_code == 403 and by_agent.status_code == 403
+    assert by_agent.json()["detail"] == "only a person can approve or reject"
+    assert done.status_code == 200, done.text
+    assert (done.json()["status"], done.json()["outcome"]) == ("deprecated", "retired")
+    assert (again.status_code, again.json()["error"]) == (409, "not_retirable")
+    assert [s for _, s, _ in _versions(world, rid)] == ["proposed", "approved", "deprecated"]

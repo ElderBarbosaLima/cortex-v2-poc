@@ -284,3 +284,56 @@ def reject(
         policy_revision=policy_revision,
     )
     return _close(session, oc, row, versions)
+
+
+class NotRetirableError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class Retired:
+    decision_id: str
+    version: MemoryRecord
+
+
+def retire(
+    session: Session,
+    *,
+    tenant_id: str,
+    record_id: str,
+    user_id: str,
+    reason: str,
+    policy_revision: str | None,
+) -> Retired:
+    """The named owner withdraws an approved record: a `deprecated` version
+    (outcome `retired`, it was approved once) and a `kind=decision` record of
+    who and why. Verify then holds every pack that relied on it (issue 21)."""
+    current = ledger.latest(session, record_id)
+    if current.status not in (Status.APPROVED.value, Status.STALE.value):
+        raise NotRetirableError(
+            f"only an approved record can be retired; this one is {current.status}"
+        )
+    decision_id = new_record_id()
+    ledger.append_new(
+        session,
+        tenant_id=tenant_id,
+        record_id=decision_id,
+        status=Status.APPROVED,
+        approved_by={"approver_type": "user", "user_id": user_id, "decision_id": decision_id},
+        draft=ledger.RecordDraft(
+            kind=Kind.DECISION,
+            schema_version=DECISION_SCHEMA,
+            body={"decision": "retire", "record_id": record_id, "reason": reason},
+            scope=current.scope,
+            asserted_by={"type": "user", "id": user_id},
+            authority=0,
+            source={"retired_record": record_id, "policy_revision": policy_revision},
+            valid_from=dt.datetime.now(dt.UTC),
+            entities=tuple(current.entities),
+            assurance_level="reviewed",
+            derived_from=(record_id,),
+            sensitivity={"class": current.sensitivity_class},
+        ),
+    )
+    version = ledger.transition(session, record_id=record_id, to=Status.DEPRECATED)
+    return Retired(decision_id, version)

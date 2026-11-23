@@ -108,3 +108,12 @@ test_no_named_owner_anywhere_up_the_tree_denies if {
 test_proposing_needs_no_named_owner if {
 	decide_at("jp/finance/q2c-cash-application", "propose", agent, []).allow
 }
+
+test_only_the_named_owner_or_backup_retires if {
+	decide("retire", owner, []).allow
+	decide("retire", {"type": "user", "id": "OWN-002"}, []).allow
+	not decide("retire", reviewer, []).allow
+	decide("retire", agent, []).reason == "only a person can approve or reject"
+	d := decide("retire", {"type": "user", "id": "FV-009"}, [])
+	d.reason == "only the named owner or backup of this scope can decide"
+}

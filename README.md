@@ -7,13 +7,15 @@ invoices and cash application), with synthetic Japanese data only.
 
 - What to build: [`docs/architecture/`](docs/architecture/) (Rev. B, Rev. C, pilot scope, high-level proposal).
 - Decisions and findings: [`docs/discovery.md`](docs/discovery.md). Plan: [`docs/tasks.md`](docs/tasks.md).
+  Each issue's PR description, with its acceptance output: [`docs/prs/`](docs/prs/).
 - Backend name is `org-brain` (service, routes, symbols); the product and UI name is **Cortex**.
 
-> Status: issues 1–16 of 29 (skeleton, Postgres, AWS Emulator, OPA, Terraform, synthetic data, ledger, search projection, CEL conditions, Rego policies, identity and the OPA client, per-record keys, domain pack interface, API contract). Most of what the docs describe is not built yet.
+> Status: issues 0–29 of the plan are done. Issue 30 (LLM via LiteLLM) is planned, not built.
 
-## Prerequisites
+## Quick start
 
-Only Docker. On a Mac with Apple Silicon the team uses Colima (open source; see `docs/tasks.md`, issue 0):
+**Prerequisites:** only Docker. On a Mac with Apple Silicon the team uses Colima (open source; see
+`docs/tasks.md`, issue 0):
 
 ```bash
 brew install colima docker docker-compose docker-buildx
@@ -21,310 +23,335 @@ colima start --vm-type vz --arch aarch64 --cpu 4 --memory 8 --disk 60 --mount-ty
 ```
 
 Add `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` to `~/.docker/config.json`
-so `docker compose` and `docker buildx` are found.
+so `docker compose` and `docker buildx` are found. Keep the clone under your home directory: Colima
+only shares `$HOME` with its VM, so a clone in `/tmp` builds but the containers see empty bind mounts.
+Everything also builds on `linux/amd64` (`make build-multiarch`).
 
-Keep the clone under your home directory: Colima only shares `$HOME` with its VM, so a clone in
-`/tmp` builds fine but the test containers see an empty bind mount ("no tests ran").
-
-## Run
+**Run:**
 
 ```bash
-make dev                              # build + start, wait until healthy, provision AWS resources (Terraform)
-curl -s 127.0.0.1:5008/health         # {"status":"ok","service":"org-brain-service","version":"0.1.0"}
-make stop                             # stops everything and deletes volumes: the stack is ephemeral
+make dev     # creates .env from .env.example, builds, starts, provisions AWS (Terraform), waits until healthy
+make seed    # loads both domain packs' initial rules into the ledger (idempotent)
+make e2e     # the whole demo, both workflows, through the public API (needs a fresh stack)
+make stop    # stops everything and deletes the volumes: the stack is ephemeral
 ```
+
+- API: <http://127.0.0.1:5008/health>
+- Cortex UI: <http://localhost:5001/cortex>; the Decision Desk: <http://localhost:5001/cortex/decision-desk>
 
 `make help` lists every target. Never call `docker compose`, `pipenv` or `pytest` directly.
 
-### Calling the API
+## The demo
 
-Consumers authenticate with a static API key per consumer (PoC stand-in for OIDC); the tenant always
-comes from that identity, never from the request. Local keys are in `CORTEX_DEV_API_KEYS` (`.env`);
-Secrets Manager holds only their sha256.
+`make e2e` runs this story for each workflow and writes a report per workflow (`.e2e/report-*.md`).
+You can follow the same steps by hand: the API with `curl`, the decision in the Decision Desk.
+
+1. **A happy case.** The agent asks for a context pack and gets exactly the rules that apply. Verify
+   of a correct output passes.
+2. **Scenario 2.** A local instruction ("omit the registration number under ¥30,000") loses to the
+   global prohibition: it is in the pack as `overridden_by` the prohibition.
+3. **Scenario 3.** A contract clause applies to a case that shares no words with it: rules come from
+   governed metadata and CEL, never from search.
+4. **A correction.** A reviewer corrects the agent's output. Cortex records the decision and
+   proposes a rule. The named owner approves it in the Decision Desk; the corrector cannot.
+5. **The next applicable case** carries the learned rule; **an unrelated case** does not. The
+   applied rule names its correction, corrector, approver and the policy revision (attributable).
+6. **Evidence.** The pack is exported to an Object Lock bucket, encrypted under the tenant's key.
+7. **Criterion (a).** `make reindex` rebuilds the search projection; the same cases give the same packs.
+8. **Scenario 4.** The owner retires a customer rule. Verify holds the earlier pack
+   (`rule_no_longer_approved`), and later packs no longer carry it.
+9. **Erasure.** `make erase-record` crypto-shreds the learned rule. The earlier pack stays whole
+   but that body is gone; the record is `erased`; new packs drop it; verify no longer passes.
+
+## How it works
+
+**The ledger is the only system of record.** `memory_record` holds one immutable row per version,
+with `memory_record_current` as the current view. A trigger refuses UPDATE, DELETE and TRUNCATE even
+for the owner, and row-level security (ENABLEd and FORCEd) keeps every tenant's rows invisible to the
+others. `app/services/ledger.py` is the only way to write it: a status change is the next version,
+and each write adds an outbox row in the same transaction.
+
+Record bodies are encrypted (`aes-gcm/1`). Each tenant has a KMS key (`alias/cortex/tenant/<id>`),
+and each record its own data key, wrapped by KMS and kept in `record_key`. Governance metadata
+(status, scope, validity, entities) stays in clear for queries. `entities[]` holds only opaque
+canonical keys (`customer:CUST-0042`), never a person's name.
+
+**Writes: the admission gate.** `POST /v1/cortex/records` (`propose_record`) validates by the
+record's domain pack:
+- the schema version;
+- canonical entity keys only;
+- a CEL condition compiled at admission;
+- fields and targets the pack knows.
+
+Then OPA checks the read scope for the purpose, sensitivity ≤ the purpose's ceiling, and who may
+propose. Every problem comes back at once (`422 invalid_proposal`), and nothing is written. An
+accepted proposal is always `proposed`, never approved, and joins the one open review case for the
+same conflict.
+
+**Decisions: the review queue.** `/v1/cortex/review-cases` is where a person decides.
+- **Who:** only the named owner or backup of the scope (in the seed), and only with `memory.approve`.
+- **Separation of duties:** nobody who contributed to a proposal (asserted it, or corrected the case
+  it came from) may decide on it.
+- **Approval** sets the final authority and enforcement and records
+  `approved_by {approver_type, user_id, decision_id}`.
+- **Rejection** leaves the proposal `deprecated`, never approved, shown as `outcome: rejected`.
+- **Retirement** (`POST /v1/cortex/records/{id}/retire`, same owners) withdraws an approved record:
+  `outcome: retired`.
+
+Every decision is also a `kind=decision` record. The case detail says ahead, from OPA, whether the
+caller may decide and why not (`can_decide`).
+
+**Reads: the access gate and context packs.** `POST /v1/cortex/context-packs`
+(`request_context_pack`) builds a pack:
+- **Rules** come from SQL on governed metadata, never from search:
+  - approved rules of the case's domain;
+  - at the requested scope or above it, never a sibling;
+  - with no entities, or one shared with the case;
+  - valid on the event's business date, never the clock.
+
+  Then each rule's CEL condition runs on the case.
+- **Resolution** is per target: a prohibition or mandatory rule always beats a default; between
+  defaults, the higher authority wins, then the nearer scope.
+- **Knowledge** (facts, content) comes from the search projection as candidates only. Each hit is
+  revalidated against the ledger: tenant, approved now, valid on the date, readable scope,
+  sensitivity.
+- **Held packs:** a pack is held (`409`) rather than served without a constraint it cannot evaluate,
+  or one above the ceiling.
+- **Stored before returned:** every pack is saved with the policy revision and the
+  `(record_id, version)` pairs, each body sealed under its record's own key. `GET …/{pack_id}`
+  replays it.
+
+**Before posting: verify.** `POST /v1/cortex/verify` (`verify_output`) checks the output against its
+pack, on the ledger only. It answers `pass`, or `hold` with one of these reasons:
+- `rule_no_longer_approved`;
+- `new_mandatory_rule`;
+- `constraint_unevaluable`;
+- `output_check_failed`, which the domain pack decides, with the case.
+
+Results are stored. Cortex never blocks the client's system itself (D3).
+
+**Writeback.** `POST /v1/cortex/corrections` (`submit_correction`):
+1. The correction is always recorded as a decision. Requests are idempotent by key.
+2. The domain pack drafts a rule.
+3. Once the D17 thresholds are met (`RULE_SUGGESTION=cases/correctors/days`, default `1/1/30`), the
+   draft is proposed through the admission gate as `policy`, with authority ≤ 10 until a person
+   approves. Its correctors are contributors, so they cannot approve it.
+
+**Evidence.** `POST /v1/cortex/context-packs/{id}/export` archives the pack's manifest to the
+`cortex-poc-evidence` bucket. The manifest holds:
+- the pack as served;
+- each record version with who asserted and approved it;
+- the policy revision and the verifications.
+
+It is canonical JSON, enveloped under the tenant's KMS key, with each body sealed under its record's
+own key. The object key is deterministic, the retention is Object Lock per object
+(`EVIDENCE_RETENTION_MODE`, `EVIDENCE_RETENTION_DAYS`), and the outbox worker does the upload.
+
+**Erasure is crypto-shredding.**
+- `make erase-record TENANT= RECORD= BY= REASON=` erases a record and every record derived from it:
+  they get an `erased` version, and their data keys and search rows are deleted. Their copies in
+  packs and evidence become unreadable, while the packs stay whole.
+- `make erase-tenant TENANT= BY= REASON= CONFIRM=yes` disables and schedules deletion of the tenant's
+  KMS key, and drops its data keys and projection.
+
+Each erasure is logged with a report of ids and counts, never text.
+
+**Authorisation is OPA's** (`policies/`, D22), and every call fails closed: OPA down means
+`503 access_gate_unavailable`, never data.
+
+| Decision | Path | Answers |
+|---|---|---|
+| read | `data.cortex.policy.authz.decision` | may this consumer (and end user) read at this scope for this purpose; readable scopes (the node and its ancestors); sensitivity ceiling |
+| propose / approve / reject / retire | `data.cortex.policy.approval.decision` | `memory.write` to propose; `memory.approve` to decide, by a person, the named owner or backup, never a contributor |
+
+Both translate the `arbitr-rbac` resolver: the nearest grant up the tree, information barriers, and
+expiry at `now`. The bundle revision (a content hash) is recorded in every pack. `make seed` and the
+service push the tenants' trees and grants into OPA.
+
+**Rule conditions are CEL** (D22, `app/conditions/`, engine `cel-expr-python`). Amounts are `int`, and
+dates reach CEL as day numbers, so `invoice.issue_date >= date("2023-10-01")` compares calendar
+dates. A condition that does not compile, is not boolean, or names an unknown variable is never
+admitted.
+
+**Domain packs** (`services/org-brain-service/app/domain_packs/<name>/`) hold everything
+workflow-specific. The core finds them by discovery and never names one (D18); a guard test enforces
+that.
+- **`custom_invoices`:**
+  - `customer:` entities resolved by id, never by name, and `channel:` entities;
+  - the CEL variable `invoice` and the invoice targets;
+  - the correction → rule draft, and an output check.
+- **`cash_application`:**
+  - a bank payer-name normaliser: half- and full-width kana, `ｶ)`, `(ｶ` and `ｶﾌﾞｼｷｶﾞｲｼｬ` markers,
+    truncation;
+  - a resolver that states its confidence and evidence. Only `high` names a customer, and an
+    ambiguous payer is never auto-matched;
+  - garnishment (差押) always forces review, and the learned fee rule (≤ ¥880 → 支払手数料).
+
+Each pack passes the shared contract (`tests/domain_packs/contract.py`) and its golden set
+(`tests/integration/test_golden_*.py`) at 100%.
+
+**Frontend** (`frontend/arbitr/`, the monorepo's stack):
+- **Stack:** Nuxt 4 (`ssr: false`), Nuxt UI 4.6, Tailwind 4.2, Pinia 3, i18n (`en`), Zod, ESLint with
+  the accessibility rules, and the brand v2 tokens and guard.
+- **The API key stays on the server.** The browser talks only to a same-origin proxy (`/api/cortex`),
+  which adds the key from `CORTEX_DESK_API_KEY` at runtime. `make test` builds the bundle with a
+  canary key and fails if it appears anywhere.
+- **The Decision Desk** lists cases and shows the evidence. You approve with the final authority and
+  enforcement, or reject with a reason. A dev user selector sets `X-End-User-Id`; in production that
+  comes from the session.
+
+## API
+
+Consumers authenticate with a static API key per consumer, a PoC stand-in for OIDC. The tenant
+always comes from that identity, never from the request. Local keys are in `CORTEX_DEV_API_KEYS`
+(`.env`), and Secrets Manager holds only their sha256. The person acting goes in `X-End-User-Id`.
 
 ```bash
 curl -s 127.0.0.1:5008/v1/cortex/whoami -H "Authorization: Bearer local-dev-askq2c-key"
-curl -s "127.0.0.1:5008/v1/cortex/records/<record_id>?purpose=invoice_drafting" \
-     -H "Authorization: Bearer local-dev-askq2c-key" -H "X-End-User-Id: <person uuid>"
 ```
 
 The contract is generated from the code into [`libraries/cortex-contract/`](libraries/cortex-contract/)
-(`openapi.json` + TypeScript types; `make contract`, checked by `make contract-check` and `make test`).
-Errors always look like `{"error": "<code>", "detail": …}`. The three operations an agent needs
-(`request_context_pack`, `verify_output`, `submit_correction`) are marked `x-mcp-tool`; until their
-issues land they answer `501 not_implemented`.
+(`openapi.json` and TypeScript types; `make contract`, checked by `make contract-check` and
+`make test`). Errors always look like `{"error": "<code>", "detail": …}`. The three operations an
+agent needs are marked `x-mcp-tool`: `request_context_pack`, `verify_output` and `submit_correction`.
 
-Every write enters through the **admission gate**, `POST /v1/cortex/records` (`propose_record`):
-validation by the record's domain pack (schema version, canonical entity keys only, a CEL condition
-compiled at admission, fields and targets known to the pack), then OPA (read scope for the purpose,
-sensitivity ≤ the purpose's ceiling, who may propose). Every problem comes back at once in a
-`422 invalid_proposal` and nothing is written. An accepted proposal is always `proposed`, never
-approved, and joins the one open review case for the same conflict (same targets + entities).
-
-The **review queue** (`/v1/cortex/review-cases`) is where a person decides. Each team scope has a
-named owner and backup in the seed. Only they may approve or reject, and only with `memory.approve`.
-Nobody who contributed to a proposal (asserted it or corrected the case it came from) may decide on
-it (OPA, separation of duties). An approval sets the final authority and enforcement and records
-`approved_by {approver_type, user_id, decision_id}`. A rejection leaves the proposal `deprecated`,
-never approved, shown as `outcome: rejected`. Every decision is also a `kind=decision` record and an
-append-only `review_decision` row. With OPA down, a decision is a 503 and nothing is written.
-
-Which rules apply to a case is the **access gate's** job (`app/services/access_gate/`), and search
-never decides it. A SQL query on governed metadata finds the candidates: approved rules of the case's
-domain, at the requested scope or above it (never a sibling), with no entities or one shared with the
-case, and valid on the event's business date (never the clock). Then each rule's CEL condition runs on
-the case. A condition that cannot be evaluated is reported, never silently dropped. Resolution is per
-target: a prohibition or mandatory rule always beats a default; between defaults, higher authority
-wins, then the nearer scope. The loser is marked `overridden_by` the winner.
-
-An agent gets a **context pack** with `POST /v1/cortex/context-packs` (`request_context_pack`):
-- **Rules** come from the access gate above, never from search.
-- **Knowledge** (facts, content) comes from the search projection, but only as candidates. Each hit is
-  checked again against the ledger: tenant, approved now, valid on the event's date, readable scope,
-  sensitivity. A record retired in the ledger but not yet re-indexed never gets in.
-- **Held packs:** the answer is `409` instead of a pack when a mandatory rule or prohibition cannot be
-  evaluated for the case, or is above the purpose's sensitivity ceiling.
-- **Stored before returned:** every pack is saved (append-only `served_pack`) with the policy revision
-  and the `(record_id, version)` pairs, and each body is sealed under the record's own key.
-  `GET /v1/cortex/context-packs/{pack_id}` returns exactly what was served, without re-running
-  anything. Another tenant's key gets a 404.
-
-Before posting, the agent calls **`POST /v1/cortex/verify`** (`verify_output`) with the pack id, the
-same case (checked by hash; Cortex keeps only the hash) and its output. The answer is `pass`, or
-`hold` with reasons. Every check reads the ledger, never the search index:
-- `rule_no_longer_approved`: a constraint in the pack has been retired since;
-- `new_mandatory_rule`: a constraint now applies that was not in the pack;
-- `constraint_unevaluable`: a constraint cannot be evaluated for the case;
-- `output_check_failed`: the domain pack found a problem in the output.
-
-Every result is stored, append-only, linked to the pack. Cortex does not block the client's system
-itself; a `hold` is the client's signal to stop.
-
-When a reviewer corrects an output, the client sends it to **`POST /v1/cortex/corrections`**
-(`submit_correction`). The request carries the pack id, the case (checked by hash), the reviewer as
-`X-End-User-Id` and an idempotency key; a retry with the same key writes nothing. What happens:
-- The correction is always recorded as a `kind=decision` record.
-- The domain pack turns it into a rule draft.
-- The draft becomes a proposal only once the **D17 thresholds** are met: at least N distinct work cases
-  and M distinct correctors on the same thing, within D days. Set them with `RULE_SUGGESTION`
-  (`cases/correctors/days`, default `1/1/30`).
-- The proposal goes through the admission gate as `asserted_by: policy`, with authority ≤ 10 until a
-  person approves.
-- The correctors are listed as contributors, so none of them may approve the rule.
-
-Once the named owner approves it, the rule appears in the next applicable case's pack.
-
-For audit, **`POST /v1/cortex/context-packs/{id}/export`** archives a pack's evidence manifest to
-the Object Lock bucket `cortex-poc-evidence`. The manifest holds the pack as served, each record
-version with who asserted and approved it, the policy revision and every verification. It is
-canonical JSON, encrypted under the tenant's KMS key, with a deterministic object key. The outbox
-worker does the upload and asking again returns the same export. Retention is per object
-(`EVIDENCE_RETENTION_MODE`, `EVIDENCE_RETENTION_DAYS`; default COMPLIANCE, 1 day locally).
-`GET …/export` shows the status, object key, version and manifest sha256.
-
-**Erasure is crypto-shredding.** The ledger is append-only, so nothing is deleted from it; the keys
-that open the bodies are destroyed instead. Every record has its own data key.
-- `make erase-record TENANT=… RECORD=… BY=… REASON=…` erases a record and every record derived from
-  it (through `derived_from`, any position). They get an `erased` version, their data keys and search
-  rows are deleted, and their copies in served packs and evidence manifests become unreadable. The
-  packs stay whole: ids, versions and hashes remain, and the other bodies stay readable.
-- `make erase-tenant TENANT=… BY=… REASON=… CONFIRM=yes` disables the tenant's KMS key and schedules
-  its deletion, and drops its data keys and projection. No body, pack or export of that tenant opens
-  any more.
-
-Each erasure is logged with a report (ids and counts, never text), and `make reindex` afterwards
-does not bring anything back.
-
-**Domain packs** live in `services/org-brain-service/app/domain_packs/<name>/`, and the service finds
-them by discovery: the core never names one (D18). The first real pack is `custom_invoices`. It
-provides:
-- entities `customer:<id>`, resolved by customer id and never by name, and `channel:<name>`;
-- the CEL variable `invoice` and the governed targets (registration number, tax breakdown, remarks,
-  attachments);
-- how a correction becomes a rule draft, and an output check for verify.
-
-The second pack is `cash_application`. Its case is a bank payment plus the open invoice it is
-matched with. It normalises bank payer names: half- and full-width kana, `ｶ)`, `(ｶ` and
-`ｶﾌﾞｼｷｶﾞｲｼｬ` markers, and truncated names. It resolves them to `customer:` keys and states its
-confidence and evidence. Only a `high` match names a customer; an ambiguous payer is routed to a
-person, never auto-matched. Garnishment (差押) always forces review, and a learned rule books a
-deducted transfer fee (≤ ¥880) as 支払手数料.
-
-`make seed` loads each pack's `rules.json` into the ledger (idempotent). The golden sets
-(`tests/integration/test_golden_*.py`, one per pack) replay the whole timeline
-through the API: 40 packs, corrections, approval, retirement, verify.
-
-**Frontend** (`frontend/arbitr/`, the same stack as the monorepo):
-- **Stack:** Nuxt 4 (`ssr: false`), Nuxt UI 4.6, Tailwind 4.2, Pinia 3, i18n (`en`), Zod, ESLint with
-  the accessibility rules, the brand v2 tokens and the `check-v2-styles` guard.
-- **Where:** `make dev` serves it at <http://localhost:5001/cortex>.
-- **The API key never reaches the browser.** The browser talks only to a same-origin proxy
-  (`/api/cortex`), which adds the Decision Desk's API key on the server, read at runtime from
-  `CORTEX_DESK_API_KEY`. `make test` builds the bundle with a canary key and fails if it shows up in any
-  output.
-- **Typed API:** the Cortex API types come only from `libraries/cortex-contract/ts`.
-- **Checks:** `make lint`, `make typecheck` (vue-tsc) and `make test` (Vitest) include the frontend.
-
-The **Decision Desk** (<http://localhost:5001/cortex/decision-desk>) is where a named owner reviews
-what Cortex learned.
-- **What you see:** the rule text, its condition, entities, scope, the correction it came from, the
-  affected cases and each proposal's outcome.
-- **Deciding:** you approve with the final authority and enforcement, or reject with a reason. Each
-  case says ahead, from OPA, whether you may decide and why not, so a corrector sees approve disabled
-  with the policy's reason.
-- **Dev user selector:** it sends the person you act as in `X-End-User-Id`. In production that comes
-  from the session.
-- **E2E:** `make dev && make seed && make test-e2e-ui` runs Playwright in a container against the
-  running stack.
-
-Every read asks OPA first and **fails closed**: if OPA is down, the answer is
-`503 {"error": "access_gate_unavailable"}`, never data. `make seed` (re)loads the tenants' scope trees
-and grants into OPA; the service also does it at startup, and again by itself if OPA restarts and
-forgets them.
+| Operation | Route |
+|---|---|
+| `whoami` | `GET /v1/cortex/whoami` |
+| `list_records` / `get_record` | `GET /v1/cortex/records`, `GET /v1/cortex/records/{id}` |
+| `propose_record` | `POST /v1/cortex/records` |
+| `retire_record` | `POST /v1/cortex/records/{id}/retire` |
+| `list_review_cases` / `get_review_case` | `GET /v1/cortex/review-cases`, `GET …/{id}` |
+| `approve_review_case` / `reject_review_case` | `POST …/{id}/approve`, `POST …/{id}/reject` |
+| `request_context_pack` / `get_context_pack` | `POST /v1/cortex/context-packs`, `GET …/{id}` |
+| `export_context_pack` / `get_context_pack_export` | `POST`/`GET /v1/cortex/context-packs/{id}/export` |
+| `verify_output` | `POST /v1/cortex/verify` |
+| `submit_correction` | `POST /v1/cortex/corrections` |
 
 ## Checks (all in containers)
 
 | Target | What it runs |
 |---|---|
-| `make test` | hermetic unit tests (no network, no stack) — see [ADR 0001](docs/adr/0001-test-tiers.md) |
-| `make test-integration` | integration tests on an ephemeral stack (`-p cortex-poc-test`, no host ports, wiped after) |
+| `make test` | hermetic unit tests (no network, no stack; [ADR 0001](docs/adr/0001-test-tiers.md)), frontend Vitest, the bundle secret check |
+| `make test-integration` | integration tests on an ephemeral stack (`-p cortex-poc-test`, no host ports, wiped after), including both golden sets |
 | `make test-policies` | `opa test` on `policies/` |
 | `make test-all` | `test` + `test-integration` + `test-policies`: the definition of "tests pass" |
-| `make lint` / `make format` | Ruff check + format check, `opa check --strict` + Regal / Ruff format + fix |
-| `make typecheck` | Pyright (strict on `app/`) |
+| `make e2e` | the demo above, both workflows, public API, on a fresh running stack |
+| `make test-e2e-ui` | Playwright (Decision Desk) in a container against the running stack (after `make seed`) |
+| `make lint` / `make format` | Ruff, migrate-check, `opa check --strict` + Regal, `terraform fmt -check`, ESLint + the v2 style guard / Ruff and Terraform format |
+| `make typecheck` | Pyright (strict on `app/`) and vue-tsc |
 | `make build-multiarch` | builds the images for `linux/arm64` and `linux/amd64` |
-| `make probe-emulator` | AWS Emulator fidelity probe → [`docs/emulator-probe-1.0.545.md`](docs/emulator-probe-1.0.545.md); exits non-zero if a required operation is missing |
-| `make provision` / `make tf-plan` | Terraform apply / plan against the emulator (`make dev` runs `provision`; plan exits 0 when nothing changes) |
-| `make tf-lock` | refresh provider hashes for `linux_arm64` + `linux_amd64` |
-| `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
-| `make gen-data` | regenerate `data/synthetic/` (deterministic; a rerun leaves `git diff` empty) |
-| `make migrate` / `make migrate-check` | Alembic upgrade as the table owner (`make dev` runs it before the service) / one head, ids ≤ 32 chars (also in `make lint`) |
-| `make seed` | register the seed's tenants and load their scope tree, grants and consumers into OPA |
+| `make probe-emulator` | AWS Emulator fidelity probe → [`docs/emulator-probe-1.0.545.md`](docs/emulator-probe-1.0.545.md) |
+| `make provision` / `make tf-plan` / `make tf-lock` | Terraform apply / plan against the emulator; refresh provider hashes for both architectures |
+| `make seed` / `make reindex` | load tenants, OPA data and the packs' rules / rebuild the search projection from the ledger |
+| `make erase-record` / `make erase-tenant` | crypto-shredding (see above) |
+| `make gen-data` | regenerate `data/synthetic/` (deterministic: a rerun leaves `git diff` empty) |
+| `make migrate` / `make migrate-check` | Alembic upgrade as the table owner / one head, ids ≤ 32 chars |
 | `make contract` / `make contract-check` | regenerate / verify the API spec and its TS types |
-| `make reindex` | delete and rebuild every tenant's search projection from the ledger |
-| `make lock SVC=<service>` | regenerates `Pipfile.lock` with the pinned pipenv |
+| `make opa-reload` | rebuild the policy bundle and restart OPA after editing `policies/` |
+| `make lock SVC=<service>` | regenerate `Pipfile.lock` with the pinned pipenv |
 
 ## Services
 
 | Service | What | Host port |
 |---|---|---|
 | `aws-emulator` | AWS Emulator 1.0.545 (S3, KMS, Secrets Manager), built from the signed RPM (`infra/aws-emulator/`) | `127.0.0.1:9297` (HTTPS) |
-| `opa` | Open Policy Agent 1.22.4, serving the `policies/` bundle (built by the one-shot `opa-bundle`) | `127.0.0.1:8181` (`CORTEX_OPA_PORT`) |
-| `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` (`CORTEX_POSTGRES_PORT`) |
-| `org-brain-service` | Cortex backend (FastAPI); shares the emulator's network namespace (AWS client), so its port is published by `aws-emulator` | `127.0.0.1:5008` |
-| `org-brain-projector` | drains the outbox into the search projection (`search_doc`: pg_bigm, `simple` FTS, pgvector for test vectors) | — |
-| `org-brain-migrate` | one-shot `alembic upgrade head` before the service and projector start | — |
+| `opa` | Open Policy Agent 1.22.4 serving the `policies/` bundle (built by `opa-bundle`) | `127.0.0.1:8181` |
+| `postgres` | PostgreSQL 16.16 + pgvector 0.8.7 + pg_bigm 1.2 (`infra/postgres/`) | `127.0.0.1:5432` |
+| `org-brain-service` | Cortex backend (FastAPI); shares the emulator's network namespace, so its port is published by `aws-emulator` | `127.0.0.1:5008` |
+| `org-brain-projector` | drains the outbox: search projection, evidence exports | — |
+| `org-brain-migrate` | one-shot `alembic upgrade head` before the service starts | — |
+| `frontend` | Nuxt dev server with the Cortex proxy | `127.0.0.1:5001` |
 
-The ledger (`memory_record`, one immutable row per version; `memory_record_current` view; `outbox`) is
-append-only: a trigger refuses UPDATE, DELETE and TRUNCATE even for the owner, and row-level security
-(ENABLEd and FORCEd) keeps every tenant's rows invisible to the others. `app/services/ledger.py` is the
-only way to write it: `append_new`, `transition` (a status change is the next version), `supersede`,
-and `as_of` reads by system time and business time. Each write adds an outbox row in the same
-transaction; commands flush and never commit, so the caller's transaction decides.
+Postgres roles:
+- `org_brain_owner` owns the tables and runs migrations;
+- `org_brain_app` is what the service uses: it owns nothing and cannot bypass row-level security.
 
-Record bodies are encrypted (`aes-gcm/1`): each tenant has a KMS key (`alias/cortex/tenant/<id>`) and
-each record lineage its own data key, wrapped by KMS and kept in `record_key`. Deleting that row
-shreds the record and everything derived from it; scheduling the tenant key's deletion shreds the
-tenant. Governance metadata (status, scope, validity, entities) stays in clear for queries.
+## IBM Cloud ↔ AWS (this PoC)
 
-Postgres roles: `org_brain_owner` owns the database and runs migrations; `org_brain_app` is what the
-service uses, owns nothing and cannot bypass row-level security. Their local passwords come from
-`.env` (see `.env.example`); `make init-env` adds keys a new issue introduces without touching yours.
+Rev. C: the target is IBM Cloud, and the PoC runs the AWS equivalents locally. Cloud differences live
+only in `infra/terraform/` and behind the AWS SDK (configured by environment variables only).
 
-### Rule conditions (CEL)
-
-"To which cases does this rule apply" is a CEL expression stored in the rule (D22), compiled at
-admission and evaluated on the applicability path through `ConditionEvaluator`
-(`app/conditions/`, engine: `cel-expr-python`). Amounts are `int`; dates reach CEL as day numbers,
-so `invoice.issue_date >= date("2023-10-01")` compares calendar dates. A condition that does not
-compile, is not boolean, or names an unknown variable or function is never admitted.
-
-### OPA
-
-Authorisation decisions (who may read, propose or approve what) live in Rego under `policies/`, never
-in Python (D22). `opa-bundle` builds them into a bundle whose revision is a content hash; the policy
-exposes it as `data.cortex.policy.revision` so every context pack can record which policies it was
-authorised under. Tenant trees and grants are pushed through OPA's Data API under `cortex/tenants`.
-
-| Decision | Path | Answers |
+| Capability | IBM Cloud (pilot) | This PoC |
 |---|---|---|
-| read | `data.cortex.policy.authz.decision` | may this consumer (and end user) read at this scope for this purpose; readable scopes (the node and its ancestors); sensitivity ceiling |
-| propose / approve / reject | `data.cortex.policy.approval.decision` | `memory.write` to propose, `memory.approve` to decide; only a person decides, and never on a record they contributed to |
+| Ledger, review queue, served packs, verifications | IBM Cloud Databases for PostgreSQL 16 | Postgres 16.16 container (pgvector + pg_bigm) |
+| Search projection | pgvector + FTS (+ pg_trgm) | same Postgres: `simple` FTS + pg_bigm (Japanese) + pgvector with fixed test vectors |
+| Tenant keys, crypto-shredding | Key Protect | KMS (AWS Emulator) |
+| Secrets (consumer key hashes) | Secrets Manager | Secrets Manager (AWS Emulator) |
+| Evidence archive with immutable retention | Cloud Object Storage, immutable retention | S3 with Object Lock COMPLIANCE (AWS Emulator) |
+| Provisioning | Terraform IBM Cloud module | Terraform AWS provider in a container |
+| Authorisation | OPA (same) | OPA 1.22.4 container |
+| Identity | OIDC (D1) | a static API key per consumer, plus `X-End-User-Id` |
+| Models / embeddings | watsonx.ai via a gateway | none: deterministic (issue 30 plans LiteLLM) |
 
-Both translate the `arbitr-rbac` resolver (nearest grant up the tree, information barriers, expiry at `now`).
+## Emulator limits
 
-```bash
-curl -s -X POST 127.0.0.1:8181/v1/data/cortex/policy/revision -d '{"input":{}}'   # {"result":"sha256:…"}
-```
+- **What works:** the probe passes every required operation, including Object Lock: `DeleteObject`
+  of a version under COMPLIANCE retention is refused, and `Decrypt` after `ScheduleKeyDeletion` is
+  refused. That fidelity is the emulator's, not proof against real S3/COS or Key Protect (risk R3).
+- **IAM is not enforced.** The least-privilege policy is rendered to
+  [`infra/iam/org-brain-service.json`](infra/iam/org-brain-service.json) for review and applied
+  nowhere. "Works locally" is not proof of a permission.
+- **State is in memory.** The CA and credentials are regenerated on every start, so restarting the
+  emulator loses every bucket, secret and key. That is why the whole stack is ephemeral and
+  `make stop` deletes the volumes.
+- **The certificate is valid for `localhost`/`127.0.0.1` only.** AWS clients join the emulator's
+  network namespace and call `https://127.0.0.1:9297`, with TLS verification on.
+- **KMS `TagResource` answered 501** in earlier releases, so the application never tags KMS keys.
+- **pg_bigm is not on IBM Cloud Databases' extension list** (risk R5, for WS6).
 
-### AWS Emulator
+## Deviations and decisions on record
 
-AWS services (S3, KMS, Secrets Manager) come from the [AWS Emulator](https://github.com/aws/aws-emulator),
-standing in for IBM COS, Key Protect and Secrets Manager (Rev. C). The application uses the normal
-AWS SDK, configured only by environment variables (`x-aws-client-env` in `docker-compose.yml`).
-
-- Its certificate is valid for `localhost`/`127.0.0.1` only, so AWS clients join the emulator's
-  network namespace (`network_mode: service:aws-emulator`) and call `https://127.0.0.1:9297` with
-  TLS verification on.
-- It keeps all state in memory and regenerates its CA and credentials on every start. Clients read
-  them from a shared read-only volume; nothing is copied into `.env` or code. Restarting the
-  emulator loses every bucket, secret and key: that is why the whole stack is ephemeral.
-- Telemetry is off (`--telemetry off`).
-- It does not enforce IAM: "works locally" is not proof of a permission.
-
-### Provisioning (Terraform)
-
-`infra/terraform/aws/` creates the AWS side (Rev. C: cloud differences live only in this module):
-`cortex-poc-evidence` (versioned, Object Lock COMPLIANCE), `cortex-poc-originals` (versioned), both
-private with SSE, and the `cortex-poc/consumer-api-keys` secret (sha256 of each consumer's API key
-from `CORTEX_DEV_API_KEYS` in `.env`, never the key itself). KMS keys are per tenant and created by
-the application, not here. The least-privilege IAM policy for org-brain is rendered to
-[`infra/iam/org-brain-service.json`](infra/iam/org-brain-service.json) as a reviewable artefact; it
-is not applied anywhere. Terraform runs in a container, shares the emulator's network namespace,
-and keeps its state on a volume that `make stop` removes with the emulator.
-
-## Domain packs
-
-The core never knows which workflow is running (D18). Everything workflow-specific sits in a domain
-pack behind `DomainPack` (`app/domain_packs/base.py`): entity types and resolver, what conditions may
-read (variables, fields, which fields name an entity), rule targets, rule and correction schemas,
-correction → proposed rule, search text, and an optional output check for verify. The core is tested
-with a made-up pack (`tests/fakes/fake_pack.py`); real packs must pass the same contract
-(`tests/domain_packs/contract.py`), and a guard test fails if core code imports a real pack or
-branches on a workflow name.
+| What | Why | Where |
+|---|---|---|
+| Six Rev. B statuses; a rejection is `deprecated` without approval, shown as `outcome: rejected` | Rev. B has no `rejected` (taken to WS1 as a gap) | Q5, issue 18 |
+| A named owner and backup per scope decide; a decided case shows OPA's reason ahead (`can_decide`) | doc 06; the corrector must see why they cannot approve | issues 18, 28 |
+| `review_case.title` dropped: read from the sealed body | it held body text in clear, outside crypto-shredding | issue 18 |
+| A data key per record, not per lineage root | so a derived record can be erased alone, and erasing any parent shreds a child | Q10, issue 24 |
+| Evidence manifests keep bodies sealed per record | an Object Lock archive cannot be deleted, but erased bodies must not stay readable | issue 24 |
+| Learned rules have no lower validity bound | a correction teaches a requirement that already existed | your decision, issue 25 |
+| A reissue is judged as of its reissue date | rules in force when it is issued, CEL on the old invoice date | your decision, issue 25 |
+| `check_output` receives the case | verify let an auto-match of an ambiguous payer pass | your decision, issue 26 |
+| Owners retire through `POST /records/{id}/retire` | scenario 4 through the public API | issue 29 |
+| Erasure is an admin CLI, not a route | no admin identity model in the PoC | issue 24 |
+| The Decision Desk is English only; Japanese data is shown as it came | UI in Japanese is out of scope | P7 |
+| The frontend image pins npm 11.6.2 | npm 10.9.0 (bundled with node 22.12.0) crashes on this dependency tree | issue 27 |
+| `make test` is hermetic only; integration runs on its own ephemeral stack | the monorepo's test rule; RLS, OPA and the emulator need real services | Q3, ADR 0001 |
 
 ## Synthetic data
 
-Everything in [`data/synthetic/`](data/synthetic/) is fictitious, in Japanese, and generated with a fixed
-seed (`make gen-data`; generators live in each domain pack). `tenant.json` is the shared scope tree,
-people (role labels only) and consumers. Per workflow:
+Everything in [`data/synthetic/`](data/synthetic/) is fictitious, in Japanese, and generated with a
+fixed seed (`make gen-data`; the generators live in each domain pack). `tenant.json` is the shared
+scope tree, people (role labels only), named owners and consumers. Per workflow:
 
 | File | What |
 |---|---|
-| `cases.jsonl` | input cases: 40 invoices (custom invoices) or 40 bank payments (cash application), the brief's formats, JPY as integers |
+| `cases.jsonl` | 40 invoices (custom invoices) or 40 bank payments (cash application), JPY as integers |
 | `invoices.json` | cash application only: the open invoice each payment is matched against |
 | `customers.json` | fictitious customers (cash application: registered bank names in half-width kana, garnishment flag) |
 | `rules.json` | initial rules with their CEL condition, scope, entities and enforcement |
 | `corrections.jsonl` | reviewer corrections and the rule each should become |
 | `timeline.json` | the ordered steps a harness replays (process, correct, approve, retire) |
-| `expected.json` | golden set: the exact rules each case's pack must hold, overridden local rules, verify outcomes; cash application adds the expected payer resolution (entity, confidence band, evidence) and route (auto/review) |
-
-Covered: a happy path, a correction that becomes an approved rule and then applies, unrelated cases
-where it must not appear, and acceptance scenarios 2, 3 and 4. The unit tests fail if the committed
-data drifts from the generator.
+| `expected.json` | golden set: the exact rules per case, overridden local rules, verify outcomes; cash application adds payer resolution and route |
 
 ## Layout
 
 Mirrors the arbitr monorepo so the code can move there later:
 
 ```
-services/org-brain-service/   FastAPI service (app/, tests/, Pipfile, Dockerfile)
-data/synthetic/               generated synthetic data + golden sets (see above)
+services/org-brain-service/   FastAPI service (app/, tests/, alembic/, Pipfile, Dockerfile)
+frontend/arbitr/              Nuxt app (Cortex pages, proxy, Vitest; e2e/ = Playwright)
+libraries/                    cortex-contract (OpenAPI + TS types), arbitr-test-utils
 policies/                     Rego policies (OPA bundle) + tests
-libraries/                    shared libraries (arbitr-test-utils, copied from the monorepo)
+infra/                        Postgres and emulator images, Terraform, rendered IAM policy
+data/synthetic/               generated synthetic data + golden sets
+tests/e2e/                    the public-API end-to-end harness (make e2e)
 docs/                         architecture, discovery, tasks, ADRs, PR descriptions (docs/prs/)
 ```
 
 ## Secrets
 
-Nothing secret is committed. `.env` is git-ignored; only `.env.example` is versioned.
+Nothing secret is committed. `.env` is git-ignored, and only `.env.example` is versioned.
+`make init-env` adds keys that a new issue introduces, without touching yours. Keys never reach the
+browser bundle, images or logs. A future `LITELLM_API_KEY` (issue 30) belongs in `.env` too, and the
+service will read it from Secrets Manager, never from code.

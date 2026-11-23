@@ -324,3 +324,16 @@ class EvidenceExportView(BaseModel):
     retain_until: dt.datetime | None
     requested_at: dt.datetime
     exported_at: dt.datetime | None
+
+
+class RetireRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class RetireResult(BaseModel):
+    decision_id: uuid.UUID = Field(description="The kind=decision record of the retirement")
+    record_id: uuid.UUID
+    version: int
+    status: Literal["deprecated"]
+    outcome: Literal["retired"]
+    policy_revision: str | None

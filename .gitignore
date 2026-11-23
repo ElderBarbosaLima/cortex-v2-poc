@@ -14,3 +14,4 @@ node_modules/
 *.tfstate.*
 .terraform/
 *.egg-info/
+.e2e/

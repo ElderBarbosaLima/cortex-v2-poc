@@ -15,7 +15,7 @@ RESET  := \033[0m
 
 .DEFAULT_GOAL := help
 .PHONY: help init-env dev stop logs ps shell build build-tools build-multiarch lock erase-record erase-tenant \
-        test test-integration test-e2e-ui test-policies test-all opa-reload probe-emulator \
+        test test-integration test-e2e-ui e2e test-policies test-all opa-reload probe-emulator \
         tf-cache provision tf-plan tf-lock gen-data migrate migrate-check reindex seed contract contract-check lint format typecheck
 
 help: ## List the targets
@@ -124,6 +124,25 @@ test: build-tools ## Hermetic unit tests (no network): backend, then frontend Vi
 	$(DEV_TOOLS) pipenv run pytest -q $(ARGS)
 	$(FRONTEND) npm run test:run
 	$(FRONTEND) npm run check:bundle
+
+E2E = $(COMPOSE) run --rm --no-deps -T \
+	-e CORTEX_E2E_AGENT_KEY -e CORTEX_DESK_API_KEY \
+	-v ./tests/e2e:/e2e:ro -v ./.e2e:/state org-brain-service pipenv run python /e2e/run.py
+
+e2e: init-env ## End to end on a FRESH running stack (make dev), both workflows, public API; reindex and erasure in between
+	@$(COMPOSE) ps --status running --services | grep -qx org-brain-service || \
+		{ echo "the stack is not up: run make dev"; exit 1; }
+	@mkdir -p .e2e && rm -f .e2e/erase.txt
+	@$(MAKE) --no-print-directory seed >/dev/null
+	@set -a && . ./.env && set +a && $(E2E) --phase before
+	@echo "== make reindex (criterion a)" && $(MAKE) --no-print-directory reindex
+	@set -a && . ./.env && set +a && $(E2E) --phase after-reindex
+	@while read -r tenant record; do \
+		echo "== make erase-record $$record"; \
+		$(MAKE) --no-print-directory erase-record TENANT=$$tenant RECORD=$$record BY=e2e REASON="e2e: erase the learned rule" </dev/null >/dev/null || exit 1; \
+	done < .e2e/erase.txt
+	@set -a && . ./.env && set +a && $(E2E) --phase after-erasure
+	@set -a && . ./.env && set +a && $(E2E) --phase report
 
 test-e2e-ui: ## Playwright (Decision Desk) against the running stack: run `make dev && make seed` first
 	@$(COMPOSE) ps --status running --services | grep -qx frontend || { echo "the stack is not up: run make dev && make seed"; exit 1; }
