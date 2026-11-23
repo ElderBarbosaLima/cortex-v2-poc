@@ -854,14 +854,23 @@ def submit_correction(
             raw_correction=body.correction,
             idempotency_key=body.idempotency_key,
             payload_hash=payload_hash,
-            policy=request.app.state.rule_suggestion,
+            policy=_suggestion_policy(request, pack.name),
             ancestors=read.readable_scopes[1:],
         )
     except writeback.InvalidCorrectionError as exc:
         raise CortexApiError(422, "invalid_correction", str(exc)) from None
     except (KeyError, TypeError, ValueError) as exc:
         raise CortexApiError(422, "invalid_case", f"{type(exc).__name__}: {exc}") from None
-    return _accepted(outcome, request.app.state.rule_suggestion)
+    return _accepted(outcome, _suggestion_policy(request, body.domain))
+
+
+def _suggestion_policy(request: Request, domain: str) -> writeback.RuleSuggestionPolicy:
+    """The D17 thresholds for this domain (issue 46), else the default."""
+    by_domain: dict[str, writeback.RuleSuggestionPolicy] = getattr(
+        request.app.state, "rule_suggestion_by_domain", {}
+    )
+    default: writeback.RuleSuggestionPolicy = request.app.state.rule_suggestion
+    return by_domain.get(domain, default)
 
 
 def _accepted(

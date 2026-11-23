@@ -25,7 +25,7 @@ from app.routers.health import router as health_router
 from app.routers.review_cases import router as review_router
 from app.seed.tenants import ConsumerInfo, Seed, load_seed
 from app.services.policy_gate import PolicyGate
-from app.services.writeback import RuleSuggestionPolicy
+from app.services.writeback import RuleSuggestionPolicy, policies_by_domain
 from app.utils.middleware import RequestIdMiddleware
 
 _logger = structlog.get_logger("org-brain.main")
@@ -40,6 +40,9 @@ class AppServices:
     policy_gate: PolicyGate
     search: SearchProjection = field(default_factory=default_projection)
     rule_suggestion: RuleSuggestionPolicy = field(default_factory=RuleSuggestionPolicy)
+    rule_suggestion_by_domain: dict[str, RuleSuggestionPolicy] = field(
+        default_factory=dict[str, RuleSuggestionPolicy]
+    )
     evidence_bucket: str = "cortex-poc-evidence"
 
 
@@ -68,6 +71,7 @@ def build_services(cfg: OrgBrainConfig) -> AppServices:
         consumer_keys=keys,
         policy_gate=gate,
         rule_suggestion=RuleSuggestionPolicy.from_spec(cfg.rule_suggestion),
+        rule_suggestion_by_domain=policies_by_domain(cfg.rule_suggestion_by_domain),
         evidence_bucket=cfg.evidence_bucket,
     )
 
@@ -79,6 +83,7 @@ def _install(app: FastAPI, services: AppServices) -> None:
     app.state.seed = services.seed
     app.state.search = services.search
     app.state.rule_suggestion = services.rule_suggestion
+    app.state.rule_suggestion_by_domain = services.rule_suggestion_by_domain
     app.state.evidence_bucket = services.evidence_bucket
 
 

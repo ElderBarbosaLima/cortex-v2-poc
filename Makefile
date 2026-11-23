@@ -100,6 +100,11 @@ migrate-hq: ## The regions prototype (ADR 0002): migrate the HQ region's ledger 
 replicate: migrate-hq ## Copy HQ's published Global records into this region's ledger (idempotent; ADR 0002, issue 32)
 	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.replicate --from-db org_brain_hq --region hq
 
+mine-patterns: ## Suggest rules from a history of resolved payments (issue 46): HISTORY= (default: the synthetic one)
+	$(COMPOSE) run --rm --no-deps org-brain-service pipenv run python -m app.cli.mine_patterns \
+		--tenant jp --domain cash_allocation --scope jp/finance/q2c-cash-application \
+		--history $(or $(HISTORY),/data/synthetic/cash_allocation/history.jsonl) --now 2026-11-23
+
 erase-record: ## Crypto-shred a record and its descendants: TENANT= RECORD= BY= REASON=
 	$(COMPOSE) exec org-brain-service pipenv run python -m app.cli.erase record \
 		--tenant "$(TENANT)" --record "$(RECORD)" --by "$(BY)" --reason "$(REASON)"

@@ -190,6 +190,62 @@ def _case(n: int, shape: tuple[str, str, int, tuple[int, ...], int], rng: Any) -
     }
 
 
+# A history of manual resolutions, as CAT would export it (issue 46): who fixed
+# what, when. (customer, exception, gaps, note) per group.
+_HISTORY: tuple[tuple[str, str, tuple[int, ...], str], ...] = (
+    # 7 times in three months, mostly ¥330 short: a pattern a rule should hold.
+    (
+        "CUST-0105",
+        "bank_fee",
+        (330, 330, 330, 440, 330, 330, 330),
+        "振込手数料 330 円を差し引いた入金。",
+    ),
+    # 3 times: below the threshold (6).
+    ("CUST-0102", "combined_payment", (0, 0, 0), "一括入金。送金明細の PO で配分。"),
+)
+
+
+def _history(rng: Any) -> list[JsonObj]:
+    rows: list[JsonObj] = []
+    for g, (customer, exception, gaps, note) in enumerate(_HISTORY):
+        for i, gap in enumerate(gaps):
+            day = dt.date(2026, 9, 1) + dt.timedelta(days=11 * i + g)
+            total = rng.randrange(50, 900) * 1100
+            case_id = f"HIS-{g}{i:02d}"
+            rows.append(
+                {
+                    "decided_at": f"{day.isoformat()}T10:00:00+09:00",
+                    "case": {
+                        "case_id": case_id,
+                        "customer_id": customer,
+                        "payment": {
+                            "payment_id": case_id,
+                            "amount": total - gap,
+                            "value_date": day.isoformat(),
+                            "currency": "JPY",
+                        },
+                        "candidate_invoices": [
+                            {
+                                "invoice_id": f"INV-H{g}{i:02d}",
+                                "total": total,
+                                "issue_date": (day - dt.timedelta(days=30)).isoformat(),
+                            }
+                        ],
+                        "gap": gap,
+                    },
+                    "outcome": {
+                        "correction_id": f"CAT-{case_id}",
+                        "case_id": case_id,
+                        "reviewer": "CS-101",
+                        "corrected_at": f"{day.isoformat()}T10:00:00+09:00",
+                        "exception": exception,
+                        "note_ja": note,
+                    },
+                }
+            )
+    return rows
+
+
 def generate(out_dir: Path) -> dict[str, int]:
     rng = rng_for(WORKFLOW)
     directory = out_dir / WORKFLOW
@@ -227,6 +283,13 @@ def generate(out_dir: Path) -> dict[str, int]:
     write_jsonl(directory / "cases.jsonl", cases)
     write_json(directory / "rules.json", [rule_document(r, WORKFLOW) for r in RULES])
     write_json(directory / "expected.json", expected)
-    counts = {"customers": len(CUSTOMERS), "cases": len(cases), "rules": len(RULES)}
+    history = _history(rng)
+    write_jsonl(directory / "history.jsonl", history)
+    counts = {
+        "customers": len(CUSTOMERS),
+        "cases": len(cases),
+        "rules": len(RULES),
+        "history": len(history),
+    }
     write_manifest(directory, WORKFLOW, counts)
     return counts
