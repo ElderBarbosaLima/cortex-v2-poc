@@ -26,6 +26,9 @@ class OrgBrainConfig(BaseSettings):
     # Tenant seed (scope tree, people, consumers) and the consumer key hashes.
     seed_dir: str = "/data/synthetic"
     consumer_keys_secret: str = "cortex-poc/consumer-api-keys"
+    # D17: a rule is proposed from corrections once there are
+    # min_distinct_cases / min_distinct_correctors / within window_days.
+    rule_suggestion: str = "1/1/30"
 
     # Postgres. The service connects as org_brain_app (owns nothing, cannot
     # bypass RLS); migrations connect as org_brain_owner. See infra/postgres/initdb.

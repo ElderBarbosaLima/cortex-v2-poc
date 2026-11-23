@@ -32,11 +32,12 @@ from app.schemas.cortex import (
     RecordPage,
     RecordRead,
     RecordSummary,
+    RuleSuggestion,
     VerifyRequest,
     VerifyResult,
     WhoAmI,
 )
-from app.services import admission, ledger
+from app.services import admission, ledger, writeback
 from app.services.access_gate import context_pack, verify
 from app.services.access_gate.applicability import case_facts
 from app.services.policy_gate import PolicyGate, now_rfc3339
@@ -248,10 +249,6 @@ def propose_record(
     )
 
 
-def _not_yet(issue: int) -> CortexApiError:
-    return CortexApiError(501, "not_implemented", f"arrives in issue {issue} (docs/tasks.md)")
-
-
 def _pack_response(stored: context_pack.StoredPack) -> ContextPack:
     served = stored.pack
     return ContextPack(
@@ -441,7 +438,10 @@ def verify_output(
     response_model=CorrectionAccepted,
     status_code=202,
     operation_id="submit_correction",
-    responses={501: {"model": ApiError}},
+    responses={
+        404: {"model": ApiError, "description": "No such pack (or another tenant's)"},
+        409: {"model": ApiError, "description": "Idempotency key reused for another request"},
+    },
     openapi_extra=_mcp(
         "submit_correction",
         "Report a reviewer's correction of an output (with its pack id). Cortex records "
@@ -449,6 +449,96 @@ def verify_output(
     ),
 )
 def submit_correction(
-    body: CorrectionRequest, caller: AuthedCaller = Depends(require_scope("cortex:write"))
+    body: CorrectionRequest,
+    request: Request,
+    caller: AuthedCaller = Depends(require_scope("cortex:write")),
+    session: Session = Depends(caller_session),
 ) -> CorrectionAccepted:
-    raise _not_yet(22)
+    """Writeback: record the correction as a decision; once the D17 thresholds
+    are met, propose the domain pack's rule through the admission gate. The
+    reviewer is the end user (X-End-User-Id). Idempotent by key."""
+    if caller.end_user_id is None:
+        raise CortexApiError(
+            422, "reviewer_required", "a correction needs the reviewer as X-End-User-Id"
+        )
+    payload_hash = writeback.request_hash(body.model_dump(mode="json"))
+    try:
+        earlier = writeback.find(
+            session,
+            tenant_id=caller.tenant_id,
+            idempotency_key=body.idempotency_key,
+            payload_hash=payload_hash,
+        )
+    except writeback.IdempotencyConflictError as exc:
+        raise CortexApiError(409, "idempotency_conflict", str(exc)) from None
+    if earlier is not None:
+        return _accepted(writeback.Outcome(earlier, None, replayed=True), None)
+    try:
+        stored = context_pack.load(session, str(body.pack_id))
+    except context_pack.PackNotFoundError:
+        raise CortexApiError(404, "not_found", "no such context pack") from None
+    if body.domain != stored.pack.domain:
+        raise CortexApiError(422, "domain_mismatch", f"the pack is {stored.pack.domain!r}")
+    if writeback.request_hash(body.case) != stored.pack.case_hash:
+        raise CortexApiError(422, "case_mismatch", "this is not the case the pack was served for")
+    authorise(request, caller, purpose=stored.pack.purpose, scope=stored.pack.scope)
+    gate: PolicyGate = request.app.state.policy_gate
+    permit = gate.approval(
+        {
+            "tenant_id": caller.tenant_id,
+            "action": "propose",
+            "actor": {"type": "consumer", "id": caller.consumer_id},
+            "record": {"scope": stored.pack.scope, "contributors": []},
+            "now": now_rfc3339(),
+        }
+    )
+    if not permit.allow:
+        raise CortexApiError(
+            403, "access_denied", permit.reason, policy_revision=permit.policy_revision
+        )
+    pack = get_pack(stored.pack.domain)
+    try:
+        facts = case_facts(pack, body.case)
+        outcome = writeback.submit(
+            session,
+            stored=stored,
+            pack=pack,
+            facts=facts,
+            case=body.case,
+            case_ref=body.case_id,
+            corrector=str(caller.end_user_id),
+            raw_correction=body.correction,
+            idempotency_key=body.idempotency_key,
+            payload_hash=payload_hash,
+            policy=request.app.state.rule_suggestion,
+        )
+    except writeback.InvalidCorrectionError as exc:
+        raise CortexApiError(422, "invalid_correction", str(exc)) from None
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CortexApiError(422, "invalid_case", f"{type(exc).__name__}: {exc}") from None
+    return _accepted(outcome, request.app.state.rule_suggestion)
+
+
+def _accepted(
+    outcome: writeback.Outcome, policy: writeback.RuleSuggestionPolicy | None
+) -> CorrectionAccepted:
+    row = outcome.correction
+    suggestion = None
+    if outcome.evidence is not None and policy is not None:
+        suggestion = RuleSuggestion(
+            met=outcome.evidence.met,
+            distinct_cases=outcome.evidence.distinct_cases,
+            distinct_correctors=outcome.evidence.distinct_correctors,
+            min_distinct_cases=policy.min_distinct_cases,
+            min_distinct_correctors=policy.min_distinct_correctors,
+            window_days=policy.window_days,
+        )
+    return CorrectionAccepted(
+        correction_id=uuid.UUID(row.correction_id),
+        decision_record_id=uuid.UUID(row.decision_record_id),
+        proposed_record_id=uuid.UUID(row.proposed_record_id) if row.proposed_record_id else None,
+        review_case_id=uuid.UUID(row.review_case_id) if row.review_case_id else None,
+        replayed=outcome.replayed,
+        rule_suggestion=suggestion,
+        proposal_problems=admission.problems_payload(outcome.problems),
+    )

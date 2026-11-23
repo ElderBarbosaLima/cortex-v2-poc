@@ -115,16 +115,41 @@ class VerifyResult(BaseModel):
 
 class CorrectionRequest(BaseModel):
     pack_id: uuid.UUID
-    domain: str
-    case_id: str
+    domain: str = Field(description="Must match the pack's domain")
+    case_id: str = Field(min_length=1, max_length=128, description="The work case reference")
+    case: dict[str, Any] = Field(
+        description="The case the pack was served for (checked by hash; Cortex keeps only "
+        "the hash). The domain pack turns the correction into a rule draft from it"
+    )
     correction: dict[str, Any] = Field(description="Proposal vs final, in the domain pack's format")
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
+class RuleSuggestion(BaseModel):
+    """D17: whether this correction (with earlier ones on the same conflict) is
+    enough to propose a rule yet."""
+
+    met: bool
+    distinct_cases: int
+    distinct_correctors: int
+    min_distinct_cases: int
+    min_distinct_correctors: int
+    window_days: int
+
+
 class CorrectionAccepted(BaseModel):
-    decision_record_id: uuid.UUID
-    proposed_record_id: uuid.UUID | None
+    correction_id: uuid.UUID
+    decision_record_id: uuid.UUID = Field(description="The kind=decision record of the correction")
+    proposed_record_id: uuid.UUID | None = Field(
+        description="The proposed rule, when the thresholds were met; a person must approve it"
+    )
     review_case_id: uuid.UUID | None
+    replayed: bool = Field(description="True when this idempotency key was seen before")
+    rule_suggestion: RuleSuggestion | None = Field(description="Null on a replay")
+    proposal_problems: list[dict[str, str]] = Field(
+        default_factory=list[dict[str, str]],
+        description="Why the domain pack's draft could not be proposed (admission problems)",
+    )
 
 
 # ── Admission (issue 17) ────────────────────────────────────────────────────

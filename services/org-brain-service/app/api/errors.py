@@ -4,7 +4,7 @@
 
 Codes in use: unauthorized (401), invalid_end_user / invalid_request (400/422),
 insufficient_scope / access_denied (403), not_found (404),
-access_gate_unavailable (503), not_implemented (501).
+access_gate_unavailable (503).
 """
 
 from __future__ import annotations

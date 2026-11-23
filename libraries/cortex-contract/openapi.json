@@ -371,10 +371,27 @@
       },
       "CorrectionAccepted": {
         "properties": {
+          "correction_id": {
+            "format": "uuid",
+            "title": "Correction Id",
+            "type": "string"
+          },
           "decision_record_id": {
+            "description": "The kind=decision record of the correction",
             "format": "uuid",
             "title": "Decision Record Id",
             "type": "string"
+          },
+          "proposal_problems": {
+            "description": "Why the domain pack's draft could not be proposed (admission problems)",
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Proposal Problems",
+            "type": "array"
           },
           "proposed_record_id": {
             "anyOf": [
@@ -386,7 +403,13 @@
                 "type": "null"
               }
             ],
+            "description": "The proposed rule, when the thresholds were met; a person must approve it",
             "title": "Proposed Record Id"
+          },
+          "replayed": {
+            "description": "True when this idempotency key was seen before",
+            "title": "Replayed",
+            "type": "boolean"
           },
           "review_case_id": {
             "anyOf": [
@@ -399,19 +422,42 @@
               }
             ],
             "title": "Review Case Id"
+          },
+          "rule_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null on a replay"
           }
         },
         "required": [
+          "correction_id",
           "decision_record_id",
           "proposed_record_id",
-          "review_case_id"
+          "review_case_id",
+          "replayed",
+          "rule_suggestion"
         ],
         "title": "CorrectionAccepted",
         "type": "object"
       },
       "CorrectionRequest": {
         "properties": {
+          "case": {
+            "additionalProperties": true,
+            "description": "The case the pack was served for (checked by hash; Cortex keeps only the hash). The domain pack turns the correction into a rule draft from it",
+            "title": "Case",
+            "type": "object"
+          },
           "case_id": {
+            "description": "The work case reference",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Case Id",
             "type": "string"
           },
@@ -422,6 +468,7 @@
             "type": "object"
           },
           "domain": {
+            "description": "Must match the pack's domain",
             "title": "Domain",
             "type": "string"
           },
@@ -441,6 +488,7 @@
           "pack_id",
           "domain",
           "case_id",
+          "case",
           "correction",
           "idempotency_key"
         ],
@@ -1438,6 +1486,45 @@
         "title": "ReviewCaseSummary",
         "type": "object"
       },
+      "RuleSuggestion": {
+        "description": "D17: whether this correction (with earlier ones on the same conflict) is\nenough to propose a rule yet.",
+        "properties": {
+          "distinct_cases": {
+            "title": "Distinct Cases",
+            "type": "integer"
+          },
+          "distinct_correctors": {
+            "title": "Distinct Correctors",
+            "type": "integer"
+          },
+          "met": {
+            "title": "Met",
+            "type": "boolean"
+          },
+          "min_distinct_cases": {
+            "title": "Min Distinct Cases",
+            "type": "integer"
+          },
+          "min_distinct_correctors": {
+            "title": "Min Distinct Correctors",
+            "type": "integer"
+          },
+          "window_days": {
+            "title": "Window Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "met",
+          "distinct_cases",
+          "distinct_correctors",
+          "min_distinct_cases",
+          "min_distinct_correctors",
+          "window_days"
+        ],
+        "title": "RuleSuggestion",
+        "type": "object"
+      },
       "Sensitivity": {
         "properties": {
           "class": {
@@ -1797,6 +1884,7 @@
     },
     "/v1/cortex/corrections": {
       "post": {
+        "description": "Writeback: record the correction as a decision; once the D17 thresholds\nare met, propose the domain pack's rule through the admission gate. The\nreviewer is the end user (X-End-User-Id). Idempotent by key.",
         "operationId": "submit_correction",
         "requestBody": {
           "content": {
@@ -1839,6 +1927,26 @@
             },
             "description": "Insufficient scope, or denied by policy"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "No such pack (or another tenant's)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Idempotency key reused for another request"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1848,16 +1956,6 @@
               }
             },
             "description": "Invalid request"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Implemented"
           },
           "503": {
             "content": {

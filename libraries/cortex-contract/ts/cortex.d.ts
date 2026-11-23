@@ -73,7 +73,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Correction */
+        /**
+         * Submit Correction
+         * @description Writeback: record the correction as a decision; once the D17 thresholds
+         *     are met, propose the domain pack's rule through the admission gate. The
+         *     reviewer is the end user (X-End-User-Id). Idempotent by key.
+         */
         post: operations["submit_correction"];
         delete?: never;
         options?: never;
@@ -439,18 +444,51 @@ export interface components {
         /** CorrectionAccepted */
         CorrectionAccepted: {
             /**
-             * Decision Record Id
+             * Correction Id
              * Format: uuid
              */
+            correction_id: string;
+            /**
+             * Decision Record Id
+             * Format: uuid
+             * @description The kind=decision record of the correction
+             */
             decision_record_id: string;
-            /** Proposed Record Id */
+            /**
+             * Proposal Problems
+             * @description Why the domain pack's draft could not be proposed (admission problems)
+             */
+            proposal_problems?: {
+                [key: string]: string;
+            }[];
+            /**
+             * Proposed Record Id
+             * @description The proposed rule, when the thresholds were met; a person must approve it
+             */
             proposed_record_id: string | null;
+            /**
+             * Replayed
+             * @description True when this idempotency key was seen before
+             */
+            replayed: boolean;
             /** Review Case Id */
             review_case_id: string | null;
+            /** @description Null on a replay */
+            rule_suggestion: components["schemas"]["RuleSuggestion"] | null;
         };
         /** CorrectionRequest */
         CorrectionRequest: {
-            /** Case Id */
+            /**
+             * Case
+             * @description The case the pack was served for (checked by hash; Cortex keeps only the hash). The domain pack turns the correction into a rule draft from it
+             */
+            case: {
+                [key: string]: unknown;
+            };
+            /**
+             * Case Id
+             * @description The work case reference
+             */
             case_id: string;
             /**
              * Correction
@@ -459,7 +497,10 @@ export interface components {
             correction: {
                 [key: string]: unknown;
             };
-            /** Domain */
+            /**
+             * Domain
+             * @description Must match the pack's domain
+             */
             domain: string;
             /** Idempotency Key */
             idempotency_key: string;
@@ -890,6 +931,25 @@ export interface components {
              */
             title: string;
         };
+        /**
+         * RuleSuggestion
+         * @description D17: whether this correction (with earlier ones on the same conflict) is
+         *     enough to propose a rule yet.
+         */
+        RuleSuggestion: {
+            /** Distinct Cases */
+            distinct_cases: number;
+            /** Distinct Correctors */
+            distinct_correctors: number;
+            /** Met */
+            met: boolean;
+            /** Min Distinct Cases */
+            min_distinct_cases: number;
+            /** Min Distinct Correctors */
+            min_distinct_correctors: number;
+            /** Window Days */
+            window_days: number;
+        };
         /** Sensitivity */
         Sensitivity: {
             /**
@@ -1174,8 +1234,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Invalid request */
-            422: {
+            /** @description No such pack (or another tenant's) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1183,8 +1243,17 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
+            /** @description Idempotency key reused for another request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

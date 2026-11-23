@@ -1,4 +1,7 @@
-"""Served context packs (migration 006) and their verifications (007). Append-only."""
+"""Served context packs (006), their verifications (007) and corrections (008).
+
+All append-only.
+"""
 
 from __future__ import annotations
 
@@ -67,5 +70,27 @@ class Verification(Base):
     output_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     policy_revision: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Correction(Base):
+    """A reviewer's correction of an output (migration 008). Append-only."""
+
+    __tablename__ = "correction"
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True, autoincrement=True)
+    correction_id: Mapped[str] = mapped_column(UuidCol, nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    pack_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    case_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    corrected_by: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    conflict_key: Mapped[str] = mapped_column(Text, nullable=False)
+    decision_record_id: Mapped[str] = mapped_column(UuidCol, nullable=False)
+    proposed_record_id: Mapped[str | None] = mapped_column(UuidCol, nullable=True)
+    review_case_id: Mapped[str | None] = mapped_column(UuidCol, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

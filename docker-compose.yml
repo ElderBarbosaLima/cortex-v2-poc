@@ -171,6 +171,8 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-json}
       OPA_URL: http://opa:8181
       SEED_DIR: /data/synthetic
+      # D17 rule suggestion: min distinct cases / min distinct correctors / window days.
+      RULE_SUGGESTION: ${RULE_SUGGESTION:-1/1/30}
     # An AWS client: it reaches the emulator on 127.0.0.1 (the certificate's
     # only names), reading the emulator's CA and rotating keys read-only.
     network_mode: service:aws-emulator
