@@ -48,7 +48,7 @@ def test_seed_builds_one_opa_document_per_tenant() -> None:
     jp_node = next(n["obj_id"] for n in doc["nodes"] if n["key"] == "jp")
     invoicing = next(n["obj_id"] for n in doc["nodes"] if n["key"] == "jp/finance/q2c-invoicing")
 
-    assert {t.key for t in seed.tenants} == {"jp", "other"}
+    assert {t.key for t in seed.tenants} == {"jp", "other", "en"}  # en: English examples (39)
     assert jp.tenant_id == jp_node
     assert len(jp.opa_data["nodes"][invoicing]["path_up"]) == 4  # team, finance, tenant, org root
     assert all(n["type"] != "tenant" or k == jp_node for k, n in jp.opa_data["nodes"].items())

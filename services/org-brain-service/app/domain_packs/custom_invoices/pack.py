@@ -159,8 +159,15 @@ class CustomInvoicesPack:
             ch.target: ch.after for ch in c.changes if ch.target in TARGETS and ch.after
         }
         text = c.note_ja or "、".join(f"{t} を必須とする" for t in targets)
+        # The English example set (issue 39) writes its notes in English; the
+        # draft follows the note's language. The field keeps its name.
+        sentence = (
+            f"For {customer_id} invoices sent via {channel}: {text}"
+            if text.isascii()
+            else f"{customer_id} の {channel} 請求書では、{text}"
+        )
         body = {
-            "text_ja": f"{customer_id} の {channel} 請求書では、{text}",
+            "text_ja": sentence,
             "targets": targets,
             "condition": (
                 f'invoice.customer_id == "{customer_id}" && invoice.channel == "{channel}"'

@@ -266,6 +266,49 @@ def test_scenario_1_an_import_never_renews_an_approval_or_makes_an_expired_offer
     )
 
 
+def test_an_import_repeated_before_the_decision_joins_the_waiting_proposal(world: World) -> None:
+    """Issue 39: loading an example set twice must not queue the same rule twice."""
+    code = _code()
+    item = {
+        "domain": "widgets",
+        "kind": "rule",
+        "schema_version": "widgets.rule/1",
+        "body": {
+            "text_ja": "ラベルに型番を入れる。",
+            "targets": ["order.label"],
+            "condition": f'order.widget_code == "{code}"',
+        },
+        "scope": world.team,
+        "entities": [f"widget:{code}"],
+        "enforcement": "default",
+        "authority": 20,
+        "sensitivity": {"class": "internal"},
+        "purpose": "invoice_drafting",
+        "valid_from": "2026-01-01",
+        "valid_to": "2027-01-31",
+    }
+
+    def run() -> dict[str, Any]:
+        resp = _call(
+            world,
+            "POST",
+            "/v1/cortex/imports",
+            user="R-001",
+            body={"source_system": "legacy-rule-list", "items": [item]},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["items"][0]
+
+    first, again = run(), run()
+
+    assert first["status"] == "proposed"
+    assert again["status"] == "pending"
+    assert (again["record_id"], again["review_case_id"]) == (
+        first["record_id"],
+        first["review_case_id"],
+    )
+
+
 def test_scenario_2_a_local_instruction_cannot_beat_a_global_prohibition(world: World) -> None:
     code = _code()
     local = _rule(

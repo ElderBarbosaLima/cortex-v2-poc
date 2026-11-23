@@ -32,3 +32,14 @@ variable "litellm_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "example_api_keys" {
+  description = <<-EOT
+    Keys of the example sets' consumers (issue 39: the English example tenant's
+    Decision Desk and agent). Kept apart from consumer_api_keys so `make init-env`
+    can add them to an existing .env. Same rules: only hashes are stored.
+  EOT
+  type        = map(string)
+  sensitive   = true
+  default     = {}
+}

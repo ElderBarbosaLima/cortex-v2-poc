@@ -166,6 +166,22 @@ def test_a_person_may_propose_a_loosening_default_but_the_owner_is_told(world: W
     ]
 
 
+def test_the_same_proposal_twice_is_one_proposal(world: World) -> None:
+    """Issue 39: proposing a rule that already waits for a decision returns that one."""
+    code = _code()
+    _constraint(world, code)
+
+    first, again = _propose(world, code).json(), _propose(world, code).json()
+
+    assert first["already_pending"] is False
+    assert again["already_pending"] is True
+    assert (again["record_id"], again["review_case_id"]) == (
+        first["record_id"],
+        first["review_case_id"],
+    )
+    assert [w["code"] for w in again["warnings"]] == ["loosens_inherited_constraint"]
+
+
 def test_a_machine_may_not_loosen_an_inherited_constraint(world: World) -> None:
     code = _code()
     _constraint(world, code, enforcement="mandatory")

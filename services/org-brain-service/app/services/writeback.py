@@ -166,7 +166,9 @@ def _decision(
 _LLM_SYSTEM = """You turn a reviewer's correction into ONE rule for a governed memory.
 Answer with ONLY a JSON object:
 {"text_ja": str, "targets": [str], "condition": str, "entities": [str]}.
-- text_ja: one sentence in Japanese saying what must be done, for whom.
+- text_ja: one sentence saying what must be done, for whom. Write it in the SAME language as
+  the baseline draft's text_ja (English if that is English, Japanese if Japanese), whatever the
+  field is called.
 - condition: a CEL boolean over the variables and fields listed; integers only, dates as
   date("YYYY-MM-DD"); it must hold for the corrected case and stay as narrow as the correction.
 - targets: only from the list given.

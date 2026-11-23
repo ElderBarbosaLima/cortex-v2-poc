@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -294,6 +295,48 @@ def approved_same_content(
     if row is None:
         return None
     return SameContent(str(row[0]), row[1] == valid_from and row[2] == valid_to)
+
+
+def pending_same_content(
+    session: Session,
+    schema_version: str,
+    scope: str,
+    entities: Sequence[str],
+    body: dict[str, Any],
+    valid_from: dt.datetime,
+    valid_to: dt.datetime | None,
+    *,
+    asserted_by: dict[str, Any],
+    supersedes: str | None,
+) -> tuple[str, str] | None:
+    """The same proposer's proposal with this exact content, validity and
+    `supersedes`, still waiting for a decision: (record_id, review case). A
+    repeat returns it instead of queueing the same rule twice (issue 39). A
+    different proposer is new evidence and still makes its own proposal."""
+    row = session.execute(
+        text(
+            "SELECT r.record_id::text, i.case_id::text FROM memory_record_current r "
+            "JOIN review_case_item i ON i.record_id = r.record_id "
+            "JOIN review_case c ON c.case_id = i.case_id AND c.status = 'open' "
+            "WHERE r.status = 'proposed' AND r.schema_version = :schema "
+            "AND r.scope = CAST(:scope AS uuid) AND r.body_hash = :hash "
+            "AND r.entities = CAST(:entities AS text[]) AND r.valid_from = :vf "
+            "AND r.valid_to IS NOT DISTINCT FROM :vt "
+            "AND r.supersedes IS NOT DISTINCT FROM CAST(:sup AS uuid) "
+            "AND r.asserted_by = CAST(:by AS jsonb) ORDER BY r.record_id LIMIT 1"
+        ),
+        {
+            "schema": schema_version,
+            "scope": scope,
+            "hash": body_hash(body),
+            "entities": list(entities),
+            "vf": valid_from,
+            "vt": valid_to,
+            "sup": supersedes,
+            "by": json.dumps(asserted_by, default=str),
+        },
+    ).first()
+    return (str(row[0]), str(row[1])) if row else None
 
 
 def problems_payload(problems: Sequence[Problem]) -> list[dict[str, str]]:

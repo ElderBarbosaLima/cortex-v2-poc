@@ -1,0 +1,121 @@
+{
+  "key": "en",
+  "label": "English",
+  "tenant": "en",
+  "scope": "en/finance/q2c-invoicing",
+  "domain": "custom_invoices",
+  "purpose": "invoice_drafting",
+  "note": "The English tenant starts empty: its group rules are proposed and approved through the review queue, like any other rule.",
+  "base_rules": [
+    {
+      "key": "EN-G-REGNO",
+      "scope": "en",
+      "enforcement": "mandatory",
+      "authority": 30,
+      "by": "EN-R-002",
+      "approver": "EN-OWN-001",
+      "body": {
+        "text_ja": "Always show the supplier's qualified invoice registration number (T + 13 digits).",
+        "targets": [
+          "invoice.registration_number"
+        ],
+        "condition": "true"
+      }
+    },
+    {
+      "key": "EN-G-NO-REGNO-OMIT",
+      "scope": "en",
+      "enforcement": "prohibition",
+      "authority": 30,
+      "by": "EN-R-002",
+      "approver": "EN-OWN-001",
+      "body": {
+        "text_ja": "Never issue an invoice without the registration number.",
+        "targets": [
+          "invoice.registration_number"
+        ],
+        "condition": "true"
+      }
+    },
+    {
+      "key": "EN-G-TAX",
+      "scope": "en",
+      "enforcement": "mandatory",
+      "authority": 30,
+      "by": "EN-R-002",
+      "approver": "EN-OWN-001",
+      "body": {
+        "text_ja": "Show consumption tax per rate (10% and 8%), rounded down once per rate.",
+        "targets": [
+          "invoice.tax_breakdown"
+        ],
+        "condition": "true"
+      }
+    }
+  ],
+  "case": {
+    "case_id": "EX-INV-001",
+    "customer_id": "CUST-0300",
+    "customer_name": "Sample Logistics Ltd. (fictitious)",
+    "channel": "coupa",
+    "issue_date": "2026-12-04",
+    "currency": "JPY",
+    "lines": [
+      {
+        "desc": "Warehouse management, December",
+        "amount_excl_tax": 480000,
+        "tax_rate": 10
+      },
+      {
+        "desc": "Drinks (reduced rate)",
+        "amount_excl_tax": 20000,
+        "tax_rate": 8
+      }
+    ],
+    "tax_by_rate": {
+      "10": 48000,
+      "8": 1600
+    },
+    "tax_total": 49600,
+    "total": 549600,
+    "po_number": null,
+    "attachments": []
+  },
+  "correction": {
+    "reviewer": "EN-R-001",
+    "changes": [
+      {
+        "target": "invoice.remarks.po_number",
+        "action": "set",
+        "before": null,
+        "after": "PO number: PO-55120"
+      }
+    ],
+    "note_ja": "Invoices to Sample Logistics through Coupa are sent back unless the remarks carry the PO number."
+  },
+  "proposal": {
+    "by": "EN-R-002",
+    "enforcement": "default",
+    "authority": 10,
+    "body": {
+      "text_ja": "Invoices under 5,000 yen may leave out the registration number.",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "invoice.total < 5000"
+    }
+  },
+  "import": {
+    "by": "EN-R-001",
+    "source_system": "legacy-rule-list",
+    "authority": 20,
+    "valid_to": "2027-01-31",
+    "body": {
+      "text_ja": "Attach the acceptance certificate to every invoice sent through Coupa (all customers).",
+      "targets": [
+        "invoice.attachments.kenshusho"
+      ],
+      "condition": "invoice.channel == \"coupa\""
+    }
+  }
+}

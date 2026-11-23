@@ -3,16 +3,20 @@
 // runtimeConfig.cortexApiKey (NUXT_CORTEX_API_KEY, read at runtime) and never
 // reaches the browser bundle. In production this hop is the API gateway's job.
 import { CortexProxyError, upstreamHeaders, upstreamUrl } from '../../utils/cortexProxy'
+import { exampleKey } from '../../utils/examples'
 
 export default defineEventHandler(async (event) => {
-  const { cortexApiUrl, cortexApiKey } = useRuntimeConfig(event)
+  const { cortexApiUrl, cortexApiKey, cortexApiKeyEn } = useRuntimeConfig(event)
+  // The example set the Desk is showing (issue 39) picks which tenant's Desk key
+  // is used. The header itself is never forwarded upstream.
+  const apiKey = exampleKey(getRequestHeader(event, 'x-cortex-examples')) === 'en' ? cortexApiKeyEn : cortexApiKey
   try {
     const target = upstreamUrl(
       cortexApiUrl,
       getRouterParam(event, 'path') ?? '',
       getRequestURL(event).search
     )
-    const headers = upstreamHeaders(getRequestHeaders(event), cortexApiKey)
+    const headers = upstreamHeaders(getRequestHeaders(event), apiKey)
     return await proxyRequest(event, target, {
       headers,
       fetchOptions: { redirect: 'manual' },

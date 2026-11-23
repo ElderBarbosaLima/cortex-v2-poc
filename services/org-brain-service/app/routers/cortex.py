@@ -218,6 +218,13 @@ def _business_start(day: dt.date | None) -> dt.datetime | None:
     return None if day is None else business_start(day)
 
 
+def _asserted_by(caller: AuthedCaller) -> dict[str, Any]:
+    """A person behind the call asserts it; an agent alone asserts as a model."""
+    if caller.end_user_id:
+        return {"type": "user", "id": caller.end_user_id}
+    return {"type": "model", "id": caller.consumer_id}
+
+
 def _propose(
     body: ProposeRecordRequest,
     request: Request,
@@ -280,11 +287,7 @@ def _propose(
 
     # A person behind the call asserts it; an agent alone asserts as a model
     # (authority capped at the model ceiling until a person approves).
-    asserted_by = asserted_by_override or (
-        {"type": "user", "id": caller.end_user_id}
-        if caller.end_user_id
-        else {"type": "model", "id": caller.consumer_id}
-    )
+    asserted_by = asserted_by_override or _asserted_by(caller)
     # Scopes only tighten (issue 31): a machine may not loosen an inherited
     # constraint; a person may propose it, and the owner sees the warning.
     loosens = admission.inherited_conflicts(session, proposal, read.readable_scopes[1:])
@@ -327,7 +330,31 @@ def propose_record(
     session: Session = Depends(caller_session),
 ) -> ProposalAccepted:
     """The admission gate: validate, authorise, then append as `proposed` and
-    route to the review queue (one open case per conflict). Never approved here."""
+    route to the review queue (one open case per conflict). Never approved here.
+    The same rule already waiting for a decision is returned, not queued twice."""
+    waiting = admission.pending_same_content(
+        session,
+        body.schema_version,
+        str(body.scope),
+        body.entities,
+        body.body,
+        _business_start(body.valid_from) or dt.datetime.now(JST),
+        _business_start(body.valid_to),
+        asserted_by=_asserted_by(caller),
+        supersedes=str(body.supersedes) if body.supersedes else None,
+    )
+    if waiting:
+        authorise(request, caller, purpose=body.purpose, scope=str(body.scope))  # still a read
+        row = ledger.latest(session, waiting[0])
+        return ProposalAccepted(
+            record_id=uuid.UUID(waiting[0]),
+            version=row.version,
+            status="proposed",
+            review_case_id=uuid.UUID(waiting[1]),
+            grouped=True,
+            warnings=list((row.source or {}).get("inherited_conflicts") or []),
+            already_pending=True,
+        )
     return _propose(body, request, caller, session)
 
 
@@ -390,6 +417,27 @@ def import_records(
             results.append(
                 ImportItemResult(
                     index=index, status="duplicate", record_id=uuid.UUID(same.record_id)
+                )
+            )
+            continue
+        waiting = admission.pending_same_content(
+            session,
+            item.schema_version,
+            str(item.scope),
+            item.entities,
+            item.body,
+            _business_start(item.valid_from) or today,
+            _business_start(item.valid_to),
+            asserted_by=importer,
+            supersedes=str(item.supersedes) if item.supersedes else None,
+        )
+        if waiting:
+            results.append(
+                ImportItemResult(
+                    index=index,
+                    status="pending",
+                    record_id=uuid.UUID(waiting[0]),
+                    review_case_id=uuid.UUID(waiting[1]),
                 )
             )
             continue

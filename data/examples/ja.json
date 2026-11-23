@@ -1,0 +1,75 @@
+{
+  "key": "ja",
+  "label": "日本語 (Japanese)",
+  "tenant": "jp",
+  "scope": "jp/finance/q2c-invoicing",
+  "domain": "custom_invoices",
+  "purpose": "invoice_drafting",
+  "note": "The Japanese tenant's own rules come from `make seed`; this set adds only the work to review.",
+  "base_rules": [],
+  "case": {
+    "case_id": "EX-INV-001",
+    "customer_id": "CUST-0300",
+    "customer_name": "サンプル物流株式会社（架空）",
+    "channel": "coupa",
+    "issue_date": "2026-12-04",
+    "currency": "JPY",
+    "lines": [
+      {
+        "desc": "倉庫管理サービス 12月分",
+        "amount_excl_tax": 480000,
+        "tax_rate": 10
+      },
+      {
+        "desc": "飲料（軽減税率対象）",
+        "amount_excl_tax": 20000,
+        "tax_rate": 8
+      }
+    ],
+    "tax_by_rate": {
+      "10": 48000,
+      "8": 1600
+    },
+    "tax_total": 49600,
+    "total": 549600,
+    "po_number": null,
+    "attachments": []
+  },
+  "correction": {
+    "reviewer": "R-001",
+    "changes": [
+      {
+        "target": "invoice.remarks.po_number",
+        "action": "set",
+        "before": null,
+        "after": "注文番号: PO-55120"
+      }
+    ],
+    "note_ja": "Coupa 経由のサンプル物流宛て請求書は、備考に注文番号がないと差し戻される。"
+  },
+  "proposal": {
+    "by": "R-002",
+    "enforcement": "default",
+    "authority": 10,
+    "body": {
+      "text_ja": "5千円未満の請求書では登録番号を省略してよい。",
+      "targets": [
+        "invoice.registration_number"
+      ],
+      "condition": "invoice.total < 5000"
+    }
+  },
+  "import": {
+    "by": "R-001",
+    "source_system": "legacy-rule-list",
+    "authority": 20,
+    "valid_to": "2027-01-31",
+    "body": {
+      "text_ja": "Coupa 経由の請求書には検収書を添付する（全顧客）。",
+      "targets": [
+        "invoice.attachments.kenshusho"
+      ],
+      "condition": "invoice.channel == \"coupa\""
+    }
+  }
+}

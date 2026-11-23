@@ -566,3 +566,13 @@ MCP server (só o contrato já marca as ferramentas), selos Merkle, replay compl
 7. Um painel "Vencendo em breve" (90 dias) no escopo, com o texto de cada regra.
 **Critérios de aceite.** Os sete itens são verificados no navegador e cobertos por testes de unidade (frontend) e de integração (API).
 **Dependências.** 28, 31, 33. **Dono sugerido.** WS3 (Decision Desk).
+
+## 39. Testar em japonês e em inglês: conjuntos de exemplos selecionáveis na tela
+**Contexto.** Pedido de 2026-11-23: uma forma de testar a aplicação na versão japonesa e numa versão em inglês, com um componente na tela que troque os exemplos usados.
+**Inclui.**
+- Um tenant de exemplo em inglês (`en`, Fictitious Group UK), com pessoas, dono e backup, um agente e um Decision Desk próprios.
+- `data/examples/ja.json` e `en.json`: a mesma história nos dois idiomas (correção, regra local que afrouxa uma regra do grupo, import com validade).
+- No Decision Desk, o seletor **Examples** troca o tenant, as pessoas, o escopo e a chave do Desk. O botão **Load example cases** cria os casos pela API pública e mostra o que fez. Carregar de novo não duplica nada.
+- O rascunho de regra (do pack e do modelo) segue o idioma da nota do revisor.
+**Critérios de aceite.** Nos dois idiomas, a primeira carga cria tudo, a segunda diz "Already there" em tudo, e no conjunto em inglês todo texto que uma pessoa lê está em inglês.
+**Dependências.** 28, 30, 38. **Dono sugerido.** WS7 (testes) com WS3.

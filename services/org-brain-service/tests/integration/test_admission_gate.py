@@ -137,7 +137,11 @@ def test_two_proposals_for_the_same_conflict_share_one_case(world: tuple[TestCli
     _, cases_before, items_before = _counts(seed)
 
     first = _post(api, body)
-    second = _post(api, body)
+    # The same conflict, worded differently: the very same proposal twice is one
+    # proposal (issue 39, test_tighten_only), this is a second one.
+    second = _post(
+        api, {**body, "body": {**body["body"], "text_ja": body["body"]["text_ja"] + "（再提案）"}}
+    )
 
     assert first.status_code == second.status_code == 201
     assert first.json()["status"] == "proposed"
