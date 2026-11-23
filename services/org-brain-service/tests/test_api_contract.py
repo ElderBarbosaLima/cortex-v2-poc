@@ -125,3 +125,10 @@ def test_every_error_has_the_same_shape(
 
 def test_spec_is_valid_json_with_the_cortex_title(spec: dict[str, Any]) -> None:
     assert json.loads(render(spec))["info"]["title"] == "Cortex API"
+
+
+def test_the_pack_only_profile_is_documented_on_the_pack_operations(spec: dict[str, Any]) -> None:
+    ops = {op["operationId"]: op for path in spec["paths"].values() for op in path.values()}
+
+    for name in ("request_context_pack", "get_context_pack"):
+        assert "cortex:pack" in ops[name]["description"], name

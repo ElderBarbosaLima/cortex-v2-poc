@@ -2184,7 +2184,7 @@
     },
     "/v1/cortex/context-packs": {
       "post": {
-        "description": "Authorise (OPA) → rules by applicability and resolution (never search) →\nknowledge by search, each hit revalidated against the ledger → stored, then\nreturned. Held (409) rather than served without a constraint.",
+        "description": "Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile: a consumer that may only get context packs).",
         "operationId": "request_context_pack",
         "requestBody": {
           "content": {
@@ -2270,7 +2270,7 @@
     },
     "/v1/cortex/context-packs/{pack_id}": {
       "get": {
-        "description": "Replay: the pack exactly as it was served, from storage, nothing re-run.\nReading it is a read of its scope for its purpose, decided by OPA now.",
+        "description": "Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile).",
         "operationId": "get_context_pack",
         "parameters": [
           {
