@@ -98,9 +98,13 @@ class DomainPack(Protocol):
 
     def search_text(self, case: Mapping[str, Any]) -> str: ...
 
-    def check_output(self, output: Mapping[str, Any], rules: Sequence[RuleBody]) -> list[str]:
-        """Problems with `output` given the rules in its pack (empty = none). Optional
-        for verify; a pack that cannot check returns []."""
+    def check_output(
+        self, output: Mapping[str, Any], rules: Sequence[RuleBody], case: Mapping[str, Any]
+    ) -> list[str]:
+        """Problems with `output` given the rules in its pack and the case it was
+        served for (empty = none). The case lets a pack judge what rules alone
+        cannot (e.g. a payer resolved without confidence must not be
+        auto-matched). Optional for verify; a pack that cannot check returns []."""
         ...
 
 

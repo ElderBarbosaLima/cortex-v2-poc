@@ -113,11 +113,11 @@ def test_check_output_names_what_a_rule_requires() -> None:
     full = ideal_output(case)
     missing = {**full, "remarks": {}, "attachments": []}
 
-    assert PACK.check_output(full, [learned, regno]) == []
-    assert PACK.check_output(missing, [learned]) == [
+    assert PACK.check_output(full, [learned, regno], case) == []
+    assert PACK.check_output(missing, [learned], case) == [
         "invoice.attachments.kenshusho is missing (x)",
         "invoice.remarks.po_number is missing (x)",
     ]
-    assert PACK.check_output({**full, "registration_number": "123"}, [regno]) == [
+    assert PACK.check_output({**full, "registration_number": "123"}, [regno], case) == [
         "invoice.registration_number must be T followed by 13 digits"
     ]

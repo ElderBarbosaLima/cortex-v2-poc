@@ -176,7 +176,9 @@ class CustomInvoicesPack:
         descriptions = " ".join(str(line.get("desc", "")) for line in lines)
         return f"請求書 {case.get('customer_id', '')} {case.get('channel', '')} {descriptions}"
 
-    def check_output(self, output: Mapping[str, Any], rules: Sequence[RuleBody]) -> list[str]:
+    def check_output(
+        self, output: Mapping[str, Any], rules: Sequence[RuleBody], case: Mapping[str, Any]
+    ) -> list[str]:
         problems: list[str] = []
         for rule in rules:
             for target in rule.targets:
