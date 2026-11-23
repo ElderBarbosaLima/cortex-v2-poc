@@ -57,6 +57,12 @@ class RuleSuggestionPolicy:
         return cls(cases, correctors, days)
 
 
+def policies_by_domain(spec: str) -> dict[str, RuleSuggestionPolicy]:
+    """`{"domain": "cases/correctors/days"}` (issue 46)."""
+    raw: dict[str, str] = json.loads(spec or "{}")
+    return {domain: RuleSuggestionPolicy.from_spec(v) for domain, v in raw.items()}
+
+
 class IdempotencyConflictError(ValueError):
     """The key was used before for a different request."""
 
