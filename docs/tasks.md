@@ -576,3 +576,82 @@ MCP server (só o contrato já marca as ferramentas), selos Merkle, replay compl
 - O rascunho de regra (do pack e do modelo) segue o idioma da nota do revisor.
 **Critérios de aceite.** Nos dois idiomas, a primeira carga cria tudo, a segunda diz "Already there" em tudo, e no conjunto em inglês todo texto que uma pessoa lê está em inglês.
 **Dependências.** 28, 30, 38. **Dono sugerido.** WS7 (testes) com WS3.
+
+---
+
+## Dev Brief da IBM e Workshop 1 (2026-11-22/23)
+
+O brief muda o papel do Cortex no fluxo. **A IA da IBM faz o casamento** (rule engine → LLM → especialista no CAT), e **o Cortex é a memória dela**: regras aprovadas e versionadas, com dono, mais casos passados, e um loop que aprende com cada revisão. O CAT já mapeia pagador → cliente. A IBM não chama um release check: o audit trail dela recebe o rule ID, a versão, o aprovador e um ID de referência. Números: 2.700 pagamentos/mês, 74% automáticos, ~700 manuais (440 h), 192 regras para 164 clientes em Excel, meta de 95%+ (85% no PoC). Workshop em 7 dez; PoC até fevereiro.
+
+Consequências para as decisões em aberto:
+- **D3 (verify na Fase 1): não.** Fica para depois do PoC.
+- **Regiões (32):** o PoC é um ambiente dedicado no Japão (opção a). O ADR 0002 vale para depois.
+- **O normalizador de nome do pagador (26) sai do caminho da Fase 1:** o CAT já faz isso.
+- **MCP para as ferramentas de IA dos especialistas:** a confirmar com a IBM.
+
+As issues abaixo seguem a ordem de dependência. O pack novo, `cash_allocation`, é o fluxo da IBM. O `cash_application` fica como o pack anterior que prova o D18.
+
+## 40. Formato de regra em duas camadas (pack `cash_allocation`)
+**Contexto.** Slides 15–16: campos exatos que o rule engine da IBM roda, mais uma orientação em texto que o LLM lê, numa cópia só, guardada no Cortex. O slide 15 pede ao time de dev um exemplo real.
+**Inclui.**
+- Pack `cash_allocation`. O corpo da regra tem `text_ja` (a orientação para o LLM), `exception` (um tipo) e `engine` (parâmetros tipados por tipo):
+  - pagamento combinado: como escolher as faturas;
+  - tarifa bancária: tarifa esperada, máximo e tratamento;
+  - diferença de imposto: arredondamento, tolerância e tratamento;
+  - pagamento duplicado: reter, devolver ou aplicar na próxima fatura;
+  - pagamento parcial: deixar em aberto, ou parcelas.
+- O `condition` (CEL) diz quando a regra vale.
+- O exemplo do slide 15 (Yamada Shoji, tarifa de ¥660), em `docs/examples/rule-format.md`.
+**Critérios de aceite.** Cada tipo tem um schema validado na admissão, e um parâmetro inválido é recusado com o caminho do campo. O exemplo é admitido e aparece no pack de um caso que casa.
+**Dependências.** 19, 22. **Dono sugerido.** WS5.
+
+## 41. A entrada que a IA da IBM manda
+**Contexto.** Slide 22: o número do cliente, o valor, a data, o gap, as faturas candidatas e os detalhes de remessa. O CAT já resolve o pagador.
+**Inclui.** O schema do caso em `cash_allocation`. A entidade `customer:<id>` vem com confiança alta, sem normalizador. Variáveis de CEL: `payment` (cliente, valor, data, gap, número de candidatas, total das candidatas, se há remessa). Dados sintéticos e casos de teste.
+**Critérios de aceite.** Um caso no formato da IBM recebe as regras do cliente e as globais, e nenhuma de outro cliente.
+**Dependências.** 40.
+
+## 42. Casos passados como memória
+**Contexto.** Brief §03, itens 2 e 3: guardar cada caso revisado, confirmado ou corrigido, com o motivo; devolver casos parecidos.
+**Inclui.**
+- `POST /outcomes`: o resultado final, o motivo, quem decidiu, as faturas escolhidas e o tipo de exceção. Vira um registro `kind=case`, aprovado na origem, porque é um fato observado.
+- O context pack devolve `similar_cases`: o mesmo cliente primeiro, depois o mesmo tipo de exceção e a proximidade do gap. Cada um revalidado no ledger.
+- Os casos entram na erasure e na lineage.
+**Critérios de aceite.** Um resultado gravado aparece como caso parecido no próximo pack do mesmo cliente, e nunca no de outro tenant.
+**Dependências.** 41.
+
+## 43. Perfil da IA da IBM: contexto, sincronização de regras, resultado
+**Contexto.** Slide 20. O perfil "só pack" (36) passa a ter três operações. Sem verify.
+**Inclui.** Os escopos `cortex:pack`, `cortex:rules-sync` e `cortex:outcomes` no `ibm-pr-agent`. Todo o resto continua 403. O audit trail recebe a referência: rule ID, versão e aprovador por regra, mais o `pack_id`.
+**Dependências.** 36, 42, 44.
+
+## 44. Sincronização de regras para o rule engine
+**Contexto.** Brief §03, item 7: sincronizar diariamente ou a cada mudança.
+**Inclui.** `GET /rules/sync`: as regras aprovadas, com versão, aprovador e vigência, e um cursor para pedir só o que mudou (inclusive regras retiradas). Para um rule engine, só os campos `engine`.
+**Critérios de aceite.** Uma regra aprovada aparece no próximo sync, uma retirada aparece como removida, e o cursor não repete nada.
+**Dependências.** 40.
+
+## 45. Dono por cliente e grupos de clientes
+**Contexto.** Slide 18: o dono é o especialista de caixa daquele cliente, com um backup. Uma matriz paga pelas subsidiárias.
+**Inclui.** Donos por entidade (`customer:<id>`), que valem antes do dono do escopo. Uma hierarquia de clientes (matriz → subsidiárias): a regra da matriz vale para as subsidiárias. O OPA decide com o dono do cliente.
+**Dependências.** 18, 41.
+
+## 46. Detectar padrões ("a mesma correção 6 vezes")
+**Contexto.** Brief §02 e slide 17.
+**Inclui.** Um limite configurável por tipo de exceção (o padrão é 6 em 90 dias, por cliente). Um job em lote sobre o histórico de resultados (importado do CAT) que sugere regras. A métrica de sugestões aceitas pelos donos.
+**Dependências.** 42.
+
+## 47. Carga das 192 regras e aprovação em lote
+**Contexto.** Slide 13: regras em Excel, indo para Markdown/JSON, com um guia de colunas.
+**Inclui.** Um adaptador CSV/JSON → `/imports`, com o mapeamento de colunas. No Decision Desk, aprovar em lote por dono, com a autoridade e o tipo, item por item ainda registrado.
+**Dependências.** 37, 40.
+
+## 48. Alertas para o dono e a virada de abril
+**Contexto.** Slide 18: data de revisão vencida, regras sobrescritas com frequência, conflitos. Em abril muitas regras mudam de uma vez.
+**Inclui.** `review_by` por regra. A contagem de vezes que um resultado contrariou a regra aplicada. Um painel com esses alertas. A renovação de vigência em lote, pela fila.
+**Dependências.** 42, 33.
+
+## 49. Replay, shadow e as métricas de sucesso
+**Contexto.** Slide 26.
+**Inclui.** Um harness que repete o histórico de pagamentos contra as faturas abertas naquele dia e mede: a porcentagem com evidência de regra, a concordância com o especialista (shadow) e as sugestões aceitas. Roda com dados sintéticos até haver dados da IBM num ambiente próprio.
+**Dependências.** 42, 46.
