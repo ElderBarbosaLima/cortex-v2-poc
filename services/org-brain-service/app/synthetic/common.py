@@ -118,6 +118,14 @@ CONSUMERS: tuple[JsonObj, ...] = (
         "purposes": {"rule_review": {"sensitivity_ceiling": "confidential"}},
     },
     {
+        # Phase 1 IBM integration profile (issue 36): context packs only, for the
+        # Payment Reconciliation subset (issue 35).
+        "key": "ibm-pr-agent",
+        "tenant": "jp",
+        "scopes": ["cortex:pack"],
+        "purposes": {"payment_reconciliation": {"sensitivity_ceiling": "confidential"}},
+    },
+    {
         # The second tenant's agent: proves one tenant's key never reads another's data.
         "key": "other-agent",
         "tenant": "other",

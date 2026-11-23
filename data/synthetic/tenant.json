@@ -172,6 +172,18 @@
       }
     },
     {
+      "key": "ibm-pr-agent",
+      "tenant": "jp",
+      "scopes": [
+        "cortex:pack"
+      ],
+      "purposes": {
+        "payment_reconciliation": {
+          "sensitivity_ceiling": "confidential"
+        }
+      }
+    },
+    {
       "key": "other-agent",
       "tenant": "other",
       "scopes": [

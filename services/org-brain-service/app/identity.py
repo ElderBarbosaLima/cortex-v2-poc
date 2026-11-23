@@ -86,10 +86,17 @@ def get_caller(request: Request) -> AuthedCaller:
     )
 
 
-def require_scope(scope: str) -> Callable[[AuthedCaller], AuthedCaller]:
+# The Phase 1 integration profile (issue 36): a consumer holding only this
+# scope may get a context pack (and read a served one back), nothing else.
+PACK_SCOPE = "cortex:pack"
+
+
+def require_scope(*scopes: str) -> Callable[[AuthedCaller], AuthedCaller]:
+    """The caller must hold at least one of `scopes`."""
+
     def dependency(caller: AuthedCaller = Depends(get_caller)) -> AuthedCaller:
-        if scope not in caller.scopes:
-            raise CortexApiError(403, "insufficient_scope", scope)
+        if not set(scopes) & set(caller.scopes):
+            raise CortexApiError(403, "insufficient_scope", " or ".join(scopes))
         return caller
 
     return dependency

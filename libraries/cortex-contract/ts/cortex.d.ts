@@ -32,9 +32,7 @@ export interface paths {
         put?: never;
         /**
          * Request Context Pack
-         * @description Authorise (OPA) → rules by applicability and resolution (never search) →
-         *     knowledge by search, each hit revalidated against the ledger → stored, then
-         *     returned. Held (409) rather than served without a constraint.
+         * @description Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile: a consumer that may only get context packs).
          */
         post: operations["request_context_pack"];
         delete?: never;
@@ -52,8 +50,7 @@ export interface paths {
         };
         /**
          * Get Context Pack
-         * @description Replay: the pack exactly as it was served, from storage, nothing re-run.
-         *     Reading it is a read of its scope for its purpose, decided by OPA now.
+         * @description Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile).
          */
         get: operations["get_context_pack"];
         put?: never;

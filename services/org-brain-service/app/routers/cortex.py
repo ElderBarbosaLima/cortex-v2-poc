@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.api.errors import ERROR_RESPONSES, ApiError, CortexApiError
 from app.domain_packs.base import UnknownPackError, get_pack
-from app.identity import AuthedCaller, caller_session, require_scope
+from app.identity import PACK_SCOPE, AuthedCaller, caller_session, require_scope
 from app.models import Kind
 from app.schemas.cortex import (
     ContextPack,
@@ -85,7 +85,7 @@ def _summary(row: Any) -> RecordSummary:
 
 
 @router.get("/whoami", response_model=WhoAmI, operation_id="whoami")
-def whoami(caller: AuthedCaller = Depends(require_scope("cortex:read"))) -> WhoAmI:
+def whoami(caller: AuthedCaller = Depends(require_scope("cortex:read", PACK_SCOPE))) -> WhoAmI:
     return WhoAmI.model_validate(caller.model_dump())
 
 
@@ -374,6 +374,8 @@ def _pack_response(stored: context_pack.StoredPack) -> ContextPack:
     response_model=ContextPack,
     status_code=201,
     operation_id="request_context_pack",
+    description="Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile: "
+    "a consumer that may only get context packs).",
     responses={
         409: {"model": ApiError, "description": "Held: a constraint cannot be honoured"},
     },
@@ -386,7 +388,7 @@ def _pack_response(stored: context_pack.StoredPack) -> ContextPack:
 def request_context_pack(
     body: ContextPackRequest,
     request: Request,
-    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    caller: AuthedCaller = Depends(require_scope("cortex:read", PACK_SCOPE)),
     session: Session = Depends(caller_session),
 ) -> ContextPack:
     """Authorise (OPA) → rules by applicability and resolution (never search) →
@@ -444,12 +446,13 @@ def request_context_pack(
     "/context-packs/{pack_id}",
     response_model=ContextPack,
     operation_id="get_context_pack",
+    description="Scopes: `cortex:read`, or `cortex:pack` (the Phase 1 integration profile).",
     responses={404: {"model": ApiError, "description": "No such pack (or another tenant's)"}},
 )
 def get_context_pack(
     pack_id: uuid.UUID,
     request: Request,
-    caller: AuthedCaller = Depends(require_scope("cortex:read")),
+    caller: AuthedCaller = Depends(require_scope("cortex:read", PACK_SCOPE)),
     session: Session = Depends(caller_session),
 ) -> ContextPack:
     """Replay: the pack exactly as it was served, from storage, nothing re-run.
