@@ -178,6 +178,17 @@ class CustomInvoicesPack:
         # the named owner sets the final ones on approval.
         return RuleDraft(body=body, entities=(f"customer:{customer_id}",))
 
+    def case_summary(self, case: Mapping[str, Any], correction: BaseModel | None) -> dict[str, Any]:
+        summary: dict[str, Any] = {
+            "customer_id": str(case["customer_id"]),
+            "channel": str(case["channel"]),
+            "total": int(case["total"]),
+        }
+        if correction is not None:
+            c = InvoiceCorrection.model_validate(correction.model_dump())
+            summary |= {"targets": sorted({ch.target for ch in c.changes}), "reason": c.note_ja}
+        return summary
+
     def search_text(self, case: Mapping[str, Any]) -> str:
         lines: list[Mapping[str, Any]] = list(case.get("lines") or [])
         descriptions = " ".join(str(line.get("desc", "")) for line in lines)

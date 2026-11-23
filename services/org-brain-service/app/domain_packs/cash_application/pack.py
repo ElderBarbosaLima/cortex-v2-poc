@@ -177,6 +177,17 @@ class CashApplicationPack:
         }
         return RuleDraft(body=body, entities=(f"customer:{customer}",))
 
+    def case_summary(self, case: Mapping[str, Any], correction: BaseModel | None) -> dict[str, Any]:
+        summary: dict[str, Any] = {
+            "customer_id": resolution(case).customer_id,
+            "amount": int(case["payment"]["amount"]),
+            "gap": difference(case),
+        }
+        if correction is not None:
+            c = MatchCorrection.model_validate(correction.model_dump())
+            summary |= {"targets": sorted({ch.target for ch in c.changes}), "reason": c.note_ja}
+        return summary
+
     def search_text(self, case: Mapping[str, Any]) -> str:
         payment = case["payment"]
         return f"入金 消込 {payment.get('bank', '')} {payment.get('payer_name_raw', '')}"

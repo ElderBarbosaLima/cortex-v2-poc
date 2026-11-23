@@ -29,7 +29,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.clients.llm import LlmUnavailable, rule_suggester
-from app.domain_packs.base import DomainPack
+from app.domain_packs.base import DomainPack, NoRuleToLearnError, RuleDraft
 from app.models import Correction, Kind, Status
 from app.services import admission, ledger
 from app.services.access_gate.applicability import CaseFacts
@@ -130,7 +130,11 @@ def _decision(
     case_ref: str,
     corrector: str,
     correction: BaseModel,
+    summary: Mapping[str, Any],
+    domain: str,
 ) -> str:
+    """The reviewed outcome as episodic memory (issue 42): what was decided,
+    by whom, on which case, with the pack's summary to find it again."""
     decision_id = new_record_id()
     classes = ["internal"] + [
         ledger.latest(session, item.record_id).sensitivity_class for item, _ in stored.items
@@ -148,11 +152,12 @@ def _decision(
                 "case_ref": case_ref,
                 "pack_id": stored.pack.pack_id,
                 "correction": correction.model_dump(mode="json"),
+                "case_summary": dict(summary),
             },
             scope=stored.pack.scope,
             asserted_by={"type": "user", "id": corrector},
             authority=0,  # episodic memory: it outranks nothing
-            source={"case_ref": case_ref, "pack_id": stored.pack.pack_id},
+            source={"case_ref": case_ref, "pack_id": stored.pack.pack_id, "domain": domain},
             valid_from=dt.datetime.now(dt.UTC),
             entities=facts.entities,
             assurance_level="reviewed",
@@ -248,7 +253,35 @@ def submit(
         correction = pack.correction_schema.model_validate(raw_correction)
     except ValidationError as exc:
         raise InvalidCorrectionError(str(exc.errors()[0].get("msg", exc))) from None
-    draft = pack.correction_to_rule(correction, case=case)
+    try:
+        draft: RuleDraft | None = pack.correction_to_rule(correction, case=case)
+    except NoRuleToLearnError:
+        draft = None  # a confirmed outcome: remembered as a past case, nothing to propose
+    if draft is None:
+        decision_id = _decision(
+            session,
+            stored=stored,
+            facts=facts,
+            case_ref=case_ref,
+            corrector=corrector,
+            correction=correction,
+            summary=pack.case_summary(case, correction),
+            domain=pack.name,
+        )
+        row = Correction(
+            correction_id=new_record_id(),
+            tenant_id=stored.pack.tenant_id,
+            idempotency_key=idempotency_key,
+            request_hash=payload_hash,
+            pack_id=stored.pack.pack_id,
+            case_ref=case_ref,
+            corrected_by=corrector,
+            conflict_key=f"confirmed:{pack.name}",
+            decision_record_id=decision_id,
+        )
+        session.add(row)
+        session.flush()
+        return Outcome(row, None)
     proposal = admission.Proposal(
         domain=pack.name,
         kind=Kind.RULE,
@@ -272,6 +305,8 @@ def submit(
         case_ref=case_ref,
         corrector=corrector,
         correction=correction,
+        summary=pack.case_summary(case, correction),
+        domain=pack.name,
     )
     evidence = _evidence(session, key=key, policy=policy, case_ref=case_ref, corrector=corrector)
     proposed_id: str | None = None

@@ -989,9 +989,10 @@ export interface components {
             record_id: string;
             /**
              * Role
+             * @description similar_case: a past case (a reviewed outcome) of the same customer, closest first (issue 42)
              * @enum {string}
              */
-            role: "constraint" | "applied" | "overridden" | "candidate";
+            role: "constraint" | "applied" | "overridden" | "candidate" | "similar_case";
             /** Version */
             version: number;
         };

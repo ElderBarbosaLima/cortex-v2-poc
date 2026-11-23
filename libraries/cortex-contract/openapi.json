@@ -1459,11 +1459,13 @@
             "type": "string"
           },
           "role": {
+            "description": "similar_case: a past case (a reviewed outcome) of the same customer, closest first (issue 42)",
             "enum": [
               "constraint",
               "applied",
               "overridden",
-              "candidate"
+              "candidate",
+              "similar_case"
             ],
             "title": "Role",
             "type": "string"

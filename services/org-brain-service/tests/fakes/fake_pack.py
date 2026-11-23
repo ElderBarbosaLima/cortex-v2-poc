@@ -69,6 +69,15 @@ class FakeWidgetPack:
         }
         return RuleDraft(body=body, entities=(f"widget:{code}",))
 
+    def case_summary(self, case: Mapping[str, Any], correction: BaseModel | None) -> dict[str, Any]:
+        summary: dict[str, Any] = {
+            "widget_code": str(case.get("widget_code", "")),
+            "gap": int(case.get("qty", 0)),
+        }
+        if correction is not None:
+            summary["label"] = WidgetCorrection.model_validate(correction.model_dump()).after
+        return summary
+
     def search_text(self, case: Mapping[str, Any]) -> str:
         return f"ウィジェット {case.get('widget_code', '')} {case.get('colour', '')}"
 

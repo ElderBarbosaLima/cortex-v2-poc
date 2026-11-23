@@ -61,7 +61,10 @@ class PackRecord(BaseModel):
     version: int
     kind: str
     enforcement: str | None
-    role: Literal["constraint", "applied", "overridden", "candidate"]
+    role: Literal["constraint", "applied", "overridden", "candidate", "similar_case"] = Field(
+        description="similar_case: a past case (a reviewed outcome) of the same customer, "
+        "closest first (issue 42)"
+    )
     overridden_by: uuid.UUID | None = None
     body_hash: str = Field(description="sha256 of the body as served; survives erasure")
     body: dict[str, Any] | None = Field(

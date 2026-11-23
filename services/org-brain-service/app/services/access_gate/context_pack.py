@@ -27,9 +27,9 @@ import datetime as dt
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.clients.llm import embedder
@@ -49,6 +49,8 @@ from app.utils.ids import new_record_id
 KNOWLEDGE_KINDS = ("fact", "content")
 SEARCH_LIMIT = 20
 _ROLE_ORDER = {"constraint": 0, "applied": 1, "overridden": 2}
+SIMILAR_CASES = 5  # past cases a pack carries (issue 42)
+_CASE_POOL = 200  # most recent decisions considered before ranking
 
 
 class PackHeldError(Exception):
@@ -186,6 +188,60 @@ def _knowledge(
     return items, dropped
 
 
+def _similar_cases(
+    session: Session,
+    *,
+    request: PackRequest,
+    pack: DomainPack,
+    facts: CaseFacts,
+    access: Access,
+) -> list[_Item]:
+    """How similar cases were resolved (issue 42, IBM's "rules + past cases").
+
+    Past cases are the `decision` records of reviewed outcomes in this domain,
+    approved, in a readable scope, within the purpose's ceiling, and sharing an
+    entity with this case (the same customer). Ranked: the closest `gap` the
+    pack reports, then the most recent. Read from the ledger, never from search."""
+    if not facts.entities:
+        return []
+    rows = session.execute(
+        text(
+            "SELECT record_id::text FROM memory_record_current "
+            "WHERE tenant_id = CAST(:tenant AS uuid) AND kind = 'decision' AND status = 'approved' "
+            "AND source->>'domain' = :domain AND scope = ANY(CAST(:scopes AS uuid[])) "
+            "AND entities && CAST(:entities AS text[]) "
+            "ORDER BY recorded_at DESC LIMIT :pool"
+        ),
+        {
+            "tenant": request.tenant_id,
+            "domain": pack.name,
+            "scopes": list(access.readable_scopes),
+            "entities": list(facts.entities),
+            "pool": _CASE_POOL,
+        },
+    ).scalars()
+    here = pack.case_summary(request.case, None)
+    found: list[tuple[int, int, _Item]] = []
+    for order, record_id in enumerate(rows):
+        row = ledger.latest(session, record_id)
+        if not access.within_ceiling(row.sensitivity_class):
+            continue
+        try:
+            body = ledger.open_body(session, row)
+        except BodyUnreadableError:
+            continue  # erased: forgotten
+        raw: Any = body.get("case_summary")
+        summary: dict[str, Any] = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+        distance = (
+            abs(int(summary["gap"]) - int(here["gap"]))
+            if isinstance(summary.get("gap"), int) and isinstance(here.get("gap"), int)
+            else 1 << 30
+        )
+        found.append((distance, order, _Item(row, body, "similar_case")))
+    found.sort(key=lambda f: (f[0], f[1]))
+    return [item for _, _, item in found[:SIMILAR_CASES]]
+
+
 @dataclass(frozen=True)
 class Built:
     pack_id: str
@@ -205,6 +261,7 @@ def build_and_store(
     knowledge, dropped = _knowledge(
         session, search=search, request=request, pack=pack, access=access
     )
+    similar = _similar_cases(session, request=request, pack=pack, facts=facts, access=access)
     pack_id = new_record_id()
     session.add(
         ServedPack(
@@ -225,7 +282,7 @@ def build_and_store(
     )
     session.flush()
     codec = default_codec()
-    for position, item in enumerate([*rules, *knowledge]):
+    for position, item in enumerate([*rules, *knowledge, *similar]):
         key_ref = item.row.key_ref or item.row.record_id
         session.add(
             ServedPackItem(
