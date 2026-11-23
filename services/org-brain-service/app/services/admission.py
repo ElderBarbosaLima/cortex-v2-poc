@@ -77,7 +77,10 @@ def _rule_problems(pack: DomainPack, proposal: Proposal) -> list[Problem]:
     try:
         body = pack.rule_body_schema.model_validate(proposal.body)
     except ValidationError as exc:
-        return [*problems, Problem("invalid_body", str(exc.errors()[0].get("msg", exc)))]
+        first = exc.errors()[0]
+        where = ".".join(str(part) for part in first.get("loc", ()))
+        msg = str(first.get("msg", exc))
+        return [*problems, Problem("invalid_body", f"{where}: {msg}" if where else msg)]
     unknown = sorted(set(body.targets) - pack.targets)
     if not body.targets or unknown:
         problems.append(

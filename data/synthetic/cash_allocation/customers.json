@@ -1,0 +1,24 @@
+{
+  "customers": [
+    {
+      "customer_id": "CUST-0101",
+      "name": "山田商事株式会社（架空）"
+    },
+    {
+      "customer_id": "CUST-0102",
+      "name": "サンプル電機株式会社（架空）"
+    },
+    {
+      "customer_id": "CUST-0103",
+      "name": "テスト工業株式会社（架空）"
+    },
+    {
+      "customer_id": "CUST-0104",
+      "name": "架空物産株式会社"
+    },
+    {
+      "customer_id": "CUST-0105",
+      "name": "サンプル建設株式会社（架空）"
+    }
+  ]
+}

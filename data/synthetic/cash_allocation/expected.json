@@ -1,0 +1,76 @@
+[
+  {
+    "case_id": "PAY-A001",
+    "as_of": "2026-12-05",
+    "expected_rules": [
+      "AL-C-0101-FEE"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A002",
+    "as_of": "2026-12-01",
+    "expected_rules": [],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A003",
+    "as_of": "2026-12-11",
+    "expected_rules": [],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A004",
+    "as_of": "2026-12-05",
+    "expected_rules": [
+      "AL-C-0102-COMBINED"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A005",
+    "as_of": "2026-12-16",
+    "expected_rules": [
+      "AL-G-TAX-ROUNDING"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A006",
+    "as_of": "2026-12-04",
+    "expected_rules": [
+      "AL-C-0103-PARTIAL"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A007",
+    "as_of": "2026-12-07",
+    "expected_rules": [
+      "AL-C-0104-FEE-HOLD"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A008",
+    "as_of": "2026-12-20",
+    "expected_rules": [
+      "AL-G-DUPLICATE-HOLD"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A009",
+    "as_of": "2026-12-06",
+    "expected_rules": [
+      "AL-G-TAX-ROUNDING"
+    ],
+    "overridden": {}
+  },
+  {
+    "case_id": "PAY-A010",
+    "as_of": "2026-12-03",
+    "expected_rules": [],
+    "overridden": {}
+  }
+]
